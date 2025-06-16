@@ -166,18 +166,16 @@ pub enum LinkStyle {
     Absolute,
 }
 
-#[nutype(
-    validate(predicate = |path: &PathBuf| path.is_dir() || path.parent().map_or(false, |p| p.exists())),
-    derive(Debug, Clone),
-)]
-pub struct SvgDirectory(PathBuf);
+use crate::type_safety::{TypedPath, AnyFile, Directory, MaybeExists};
+
+pub type SvgDirectory = TypedPath<AnyFile, Directory, MaybeExists>;
 
 impl MarkdownExporter {
     pub fn new(config: MarkdownExportConfig) -> Self {
         Self { config }
     }
     
-    pub fn export_diagram(&self, _diagram: &EventModelDiagram, _svg: &SvgDocument) -> Result<MarkdownDocument, MarkdownExportError> {
+    pub fn export_diagram<W, C, E, P, Q, A>(&self, _diagram: &EventModelDiagram<W, C, E, P, Q, A>, _svg: &SvgDocument) -> Result<MarkdownDocument, MarkdownExportError> {
         todo!()
     }
     

@@ -212,7 +212,7 @@ pub struct ScenarioWhen(String);
 pub struct ScenarioThen(String);
 
 #[nutype(
-    validate(predicate = |path| path.ends_with(".md")),
+    validate(not_empty),
     derive(Debug, Clone),
 )]
 pub struct DocumentationLink(String);

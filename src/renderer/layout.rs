@@ -168,7 +168,7 @@ impl LayoutEngine {
         Self { config }
     }
     
-    pub fn compute_layout(&self, _diagram: &crate::model::diagram::EventModelDiagram) -> Result<Layout, LayoutError> {
+    pub fn compute_layout<W, C, E, P, Q, A>(&self, _diagram: &crate::model::diagram::EventModelDiagram<W, C, E, P, Q, A>) -> Result<Layout, LayoutError> {
         todo!()
     }
     
