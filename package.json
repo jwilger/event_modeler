@@ -1,0 +1,26 @@
+{
+  "name": "preval",
+  "version": "0.1.0",
+  "description": "A cross-platform Terminal User Interface (TUI) for running and monitoring prompt evaluation tests",
+  "private": true,
+  "scripts": {
+    "adr:preview": "log4brains preview",
+    "adr:build": "log4brains build"
+  },
+  "devDependencies": {
+    "log4brains": "^1.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johnwilger/preval.git"
+  },
+  "keywords": [
+    "llm",
+    "evaluation",
+    "testing",
+    "opentelemetry",
+    "tui"
+  ],
+  "author": "John Wilger",
+  "license": "MIT"
+}
