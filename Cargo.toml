@@ -1,0 +1,13 @@
+[package]
+name = "event_modeler"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+thiserror = "1"
+nutype = { version = "0.4", features = ["serde", "regex"] }
+regex = "1"
+lazy_static = "1"
+
+[lints.rust]
+warnings = "deny"
