@@ -222,15 +222,28 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
         .parse(&input_content)
         .map_err(|e| Error::InvalidArguments(format!("Parse error: {:?}", e)))?;
 
-    // 3. For now, create a minimal test diagram to demonstrate the pipeline
-    // TODO: In Phase 5, properly convert ParsedEventModel to EventModelDiagram
-    println!(
-        "Successfully parsed event model: {}",
-        parsed_model.title.as_str()
-    );
-    println!("Found {} swimlanes", parsed_model.swimlanes.len());
+    // 3. Convert ParsedEventModel to EventModelDiagram
+    let entity_info = crate::event_model::converter::count_entities(&parsed_model);
+    let event_model_diagram = crate::event_model::converter::convert_to_diagram(parsed_model)
+        .map_err(|e| Error::InvalidArguments(format!("Conversion error: {:?}", e)))?;
 
-    // Create a test layout with dummy data for now
+    println!(
+        "Successfully converted event model: {}",
+        event_model_diagram.metadata.title.into_inner().as_str()
+    );
+    println!("Found {} swimlanes", event_model_diagram.swimlanes.len());
+    println!("Found {} entities total", {
+        entity_info.wireframe_count
+            + entity_info.command_count
+            + entity_info.event_count
+            + entity_info.projection_count
+            + entity_info.query_count
+            + entity_info.automation_count
+    });
+
+    // 4. Create layout from the diagram
+    // For now, create a minimal test layout
+    // TODO: Implement proper layout computation in LayoutEngine
     use crate::diagram::layout::*;
     use crate::infrastructure::types::{NonNegativeFloat, PositiveInt};
     use std::collections::HashMap;
@@ -252,7 +265,7 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
         connections: vec![],
     };
 
-    // 4. Render to requested formats
+    // 5. Render to requested formats
     for format in cmd.options.formats.iter() {
         match format {
             OutputFormat::Svg => {
