@@ -444,9 +444,14 @@ impl SvgRenderer {
         };
 
         // Create SVG elements
-        let elements = Vec::new();
+        let mut elements = Vec::new();
 
-        // TODO: Add swimlane rendering
+        // Render swimlanes
+        for (swimlane_id, swimlane_layout) in &layout.swimlane_layouts {
+            let swimlane_group = self.render_swimlane(swimlane_id, swimlane_layout)?;
+            elements.push(SvgElement::Group(swimlane_group));
+        }
+
         // TODO: Add entity rendering
         // TODO: Add connector rendering
 
@@ -467,6 +472,89 @@ impl SvgRenderer {
     /// Get the current configuration.
     pub fn config(&self) -> &SvgRenderConfig {
         &self.config
+    }
+
+    /// Render a swimlane as an SVG group.
+    fn render_swimlane(
+        &self,
+        swimlane_id: &crate::event_model::diagram::SwimlaneId,
+        layout: &crate::diagram::layout::SwimlaneLayout,
+    ) -> Result<SvgGroup, SvgRenderError> {
+        let mut children = Vec::new();
+
+        // Create swimlane background rectangle
+        let background = SvgRectangle {
+            id: Some(ElementId::new(
+                NonEmptyString::parse(format!(
+                    "swimlane-{}",
+                    swimlane_id.clone().into_inner().as_str()
+                ))
+                .unwrap(),
+            )),
+            class: Some(CssClass::new(
+                NonEmptyString::parse("swimlane".to_string()).unwrap(),
+            )),
+            x: layout.position.x,
+            y: layout.position.y,
+            width: layout.dimensions.width,
+            height: layout.dimensions.height,
+            rx: None,
+            ry: None,
+            style: crate::diagram::style::EntityStyle {
+                fill: crate::diagram::style::FillStyle {
+                    color: crate::diagram::style::StyleColor::new(
+                        NonEmptyString::parse("#f6f8fa".to_string()).unwrap(),
+                    ),
+                    opacity: None,
+                },
+                stroke: crate::diagram::style::StrokeStyle {
+                    color: crate::diagram::style::StyleColor::new(
+                        NonEmptyString::parse("#d1d5db".to_string()).unwrap(),
+                    ),
+                    width: crate::diagram::style::StrokeWidth::new(
+                        PositiveFloat::parse(1.0).unwrap(),
+                    ),
+                    dasharray: None,
+                    opacity: None,
+                },
+                shadow: None,
+            },
+        };
+        children.push(SvgElement::Rectangle(background));
+
+        // Create swimlane label
+        let label_x = layout.position.x.into_inner().value() + 10.0;
+        let label_y = layout.position.y.into_inner().value() + 25.0;
+
+        let label = SvgText {
+            id: None,
+            class: Some(CssClass::new(
+                NonEmptyString::parse("swimlane-label".to_string()).unwrap(),
+            )),
+            x: XCoordinate::new(NonNegativeFloat::parse(label_x).unwrap()),
+            y: YCoordinate::new(NonNegativeFloat::parse(label_y).unwrap()),
+            content: TextContent::new(
+                NonEmptyString::parse(swimlane_id.clone().into_inner().as_str().to_string())
+                    .unwrap(),
+            ),
+            style: TextStyle {
+                font_family: FontFamily::new(
+                    NonEmptyString::parse("Arial, sans-serif".to_string()).unwrap(),
+                ),
+                font_size: FontSize::new(PositiveFloat::parse(14.0).unwrap()),
+                font_weight: Some(FontWeight::Bold),
+                fill: Color::new(NonEmptyString::parse("#24292e".to_string()).unwrap()),
+                anchor: Some(TextAnchor::Start),
+            },
+        };
+        children.push(SvgElement::Text(label));
+
+        Ok(SvgGroup {
+            id: None,
+            class: None,
+            transform: None,
+            children,
+        })
     }
 }
 
