@@ -209,12 +209,107 @@ impl Cli {
 }
 
 /// Execute a render command.
-fn execute_render(_cmd: RenderCommand) -> Result<()> {
-    // This is where we'll orchestrate the full pipeline:
-    // 1. Parse the input file
-    // 2. Build the event model
-    // 3. Compute layout
+fn execute_render(cmd: RenderCommand) -> Result<()> {
+    use std::fs;
+    use std::io::Write;
+
+    // 1. Read the input file
+    let input_content = fs::read_to_string(cmd.input.as_path_buf())?;
+
+    // 2. Parse the event model text
+    let parser = crate::infrastructure::parsing::simple_parser::EventModelParser::new();
+    let parsed_model = parser
+        .parse(&input_content)
+        .map_err(|e| Error::InvalidArguments(format!("Parse error: {:?}", e)))?;
+
+    // 3. For now, create a minimal test diagram to demonstrate the pipeline
+    // TODO: In Phase 5, properly convert ParsedEventModel to EventModelDiagram
+    println!(
+        "Successfully parsed event model: {}",
+        parsed_model.title.as_str()
+    );
+    println!("Found {} swimlanes", parsed_model.swimlanes.len());
+
+    // Create a test layout with dummy data for now
+    use crate::diagram::layout::*;
+    use crate::infrastructure::types::{NonNegativeFloat, PositiveInt};
+    use std::collections::HashMap;
+
+    let test_layout = Layout {
+        canvas: Canvas {
+            width: CanvasWidth::new(PositiveInt::parse(1200).unwrap()),
+            height: CanvasHeight::new(PositiveInt::parse(800).unwrap()),
+            padding: Padding {
+                top: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
+                right: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
+                bottom: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
+                left: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
+            },
+        },
+        swimlane_layouts: HashMap::new(),
+        entity_positions: HashMap::new(),
+        slice_layouts: HashMap::new(),
+        connections: vec![],
+    };
+
     // 4. Render to requested formats
-    // For now, just a placeholder
-    todo!("Render command implementation")
+    for format in cmd.options.formats.iter() {
+        match format {
+            OutputFormat::Svg => {
+                // Create theme based on style
+                let theme = match cmd.options.style {
+                    RenderStyle::GithubLight => crate::diagram::theme::ThemedRenderer::<
+                        crate::diagram::theme::GithubLight,
+                    >::github_light()
+                    .theme()
+                    .clone(),
+                    RenderStyle::GithubDark => crate::diagram::theme::ThemedRenderer::<
+                        crate::diagram::theme::GithubDark,
+                    >::github_dark()
+                    .theme()
+                    .clone(),
+                };
+
+                // Create SVG renderer
+                let svg_config = crate::diagram::svg::SvgRenderConfig {
+                    precision: crate::diagram::svg::DecimalPrecision::new(
+                        crate::infrastructure::types::PositiveInt::parse(2).unwrap(),
+                    ),
+                    optimize: crate::diagram::svg::OptimizationLevel::Basic,
+                    embed_fonts: crate::diagram::svg::EmbedFonts::new(false),
+                };
+
+                let renderer = crate::diagram::svg::SvgRenderer::new(svg_config, theme);
+                let svg_doc = renderer
+                    .render(&test_layout)
+                    .map_err(|e| Error::InvalidArguments(format!("SVG render error: {}", e)))?;
+
+                // Generate output filename
+                let input_stem = cmd
+                    .input
+                    .as_path_buf()
+                    .file_stem()
+                    .unwrap_or_default()
+                    .to_string_lossy();
+                let output_filename = format!("{}.svg", input_stem);
+                let output_path = cmd.options.output_dir.as_path_buf().join(&output_filename);
+
+                // Write SVG to file
+                let svg_content = svg_doc.to_xml();
+                let mut file = fs::File::create(&output_path)?;
+                file.write_all(svg_content.as_bytes())?;
+
+                println!("Generated SVG: {}", output_path.display());
+                println!(
+                    "Note: Full diagram rendering will be implemented in Phase 5 (Integration)"
+                );
+            }
+            OutputFormat::Pdf => {
+                // PDF export not yet implemented
+                eprintln!("Warning: PDF export not yet implemented");
+            }
+        }
+    }
+
+    Ok(())
 }
