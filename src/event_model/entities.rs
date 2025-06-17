@@ -13,6 +13,23 @@ use crate::infrastructure::types::{
 };
 use nutype::nutype;
 
+/// Type of entity in the event model.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntityType {
+    /// UI wireframe entity.
+    Wireframe,
+    /// Command entity.
+    Command,
+    /// Event entity.
+    Event,
+    /// Projection entity.
+    Projection,
+    /// Query entity.
+    Query,
+    /// Automation entity.
+    Automation,
+}
+
 /// A UI wireframe showing user interface elements.
 #[derive(Debug, Clone)]
 pub struct Wireframe {

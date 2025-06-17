@@ -600,9 +600,22 @@ impl SvgRenderer {
             height: position.dimensions.height,
             rx: Some(BorderRadius::new(NonNegativeFloat::parse(8.0).unwrap())),
             ry: Some(BorderRadius::new(NonNegativeFloat::parse(8.0).unwrap())),
-            // TODO: Determine entity type and use appropriate style (command, event, etc.)
-            // For now, use command style as default
-            style: self.theme.command_style.clone(),
+            style: match position.entity_type {
+                crate::event_model::entities::EntityType::Wireframe => {
+                    self.theme.wireframe_style.clone()
+                }
+                crate::event_model::entities::EntityType::Command => {
+                    self.theme.command_style.clone()
+                }
+                crate::event_model::entities::EntityType::Event => self.theme.event_style.clone(),
+                crate::event_model::entities::EntityType::Projection => {
+                    self.theme.projection_style.clone()
+                }
+                crate::event_model::entities::EntityType::Query => self.theme.query_style.clone(),
+                crate::event_model::entities::EntityType::Automation => {
+                    self.theme.automation_style.clone()
+                }
+            },
         };
 
         Ok(SvgElement::Rectangle(rect))

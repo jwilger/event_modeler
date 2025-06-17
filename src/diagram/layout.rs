@@ -57,6 +57,8 @@ pub struct EntityPosition {
     pub position: Position,
     /// Size of the entity box.
     pub dimensions: Dimensions,
+    /// Type of the entity.
+    pub entity_type: crate::event_model::entities::EntityType,
 }
 
 /// Layout information for a vertical slice.
@@ -247,10 +249,11 @@ impl LayoutEngine {
     }
 
     /// Calculate positions for entities within a swimlane.
-    fn position_entities_in_swimlane(
+    fn position_entities_in_swimlane<W, C, E, P, Q, A>(
         &self,
         swimlane: &crate::event_model::diagram::Swimlane,
         swimlane_layout: &SwimlaneLayout,
+        registry: &crate::event_model::registry::EntityRegistry<W, C, E, P, Q, A>,
     ) -> HashMap<EntityId, EntityPosition> {
         let mut positions = HashMap::new();
         let entity_count = swimlane.entities.len();
@@ -285,6 +288,11 @@ impl LayoutEngine {
         for (index, entity_id) in swimlane.entities.iter().enumerate() {
             let x = start_x + (index as f32) * (entity_width + entity_spacing);
 
+            // Look up entity type from registry
+            let entity_type = registry
+                .get_entity_type(entity_id)
+                .unwrap_or(crate::event_model::entities::EntityType::Command); // Default to command if not found
+
             let position = EntityPosition {
                 swimlane_id: swimlane.id.clone(),
                 position: Position {
@@ -295,6 +303,7 @@ impl LayoutEngine {
                     width: Width::new(PositiveFloat::parse(entity_width).unwrap()),
                     height: Height::new(PositiveFloat::parse(entity_height).unwrap()),
                 },
+                entity_type,
             };
 
             positions.insert(entity_id.clone(), position);
@@ -419,8 +428,11 @@ impl LayoutEngine {
         let mut entity_positions = HashMap::new();
         for swimlane in diagram.swimlanes.iter() {
             if let Some(swimlane_layout) = swimlane_layouts.get(&swimlane.id) {
-                let swimlane_entities =
-                    self.position_entities_in_swimlane(swimlane, swimlane_layout);
+                let swimlane_entities = self.position_entities_in_swimlane(
+                    swimlane,
+                    swimlane_layout,
+                    &diagram.entities,
+                );
                 entity_positions.extend(swimlane_entities);
             }
         }

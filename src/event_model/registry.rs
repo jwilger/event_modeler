@@ -284,6 +284,32 @@ impl<W, C, E, P, Q> EntityRegistry<W, C, E, P, Q, HasAutomations> {
     }
 }
 
+// General entity lookup methods available for any registry state
+impl<W, C, E, P, Q, A> EntityRegistry<W, C, E, P, Q, A> {
+    /// Determine the type of an entity by its ID.
+    pub fn get_entity_type(&self, id: &EntityId) -> Option<super::entities::EntityType> {
+        if self.wireframes.iter().any(|(eid, _)| eid == id) {
+            return Some(super::entities::EntityType::Wireframe);
+        }
+        if self.commands.iter().any(|(eid, _)| eid == id) {
+            return Some(super::entities::EntityType::Command);
+        }
+        if self.events.iter().any(|(eid, _)| eid == id) {
+            return Some(super::entities::EntityType::Event);
+        }
+        if self.projections.iter().any(|(eid, _)| eid == id) {
+            return Some(super::entities::EntityType::Projection);
+        }
+        if self.queries.iter().any(|(eid, _)| eid == id) {
+            return Some(super::entities::EntityType::Query);
+        }
+        if self.automations.iter().any(|(eid, _)| eid == id) {
+            return Some(super::entities::EntityType::Automation);
+        }
+        None
+    }
+}
+
 // Alternative: Use const generics for compile-time entity tracking
 #[derive(Debug, Clone)]
 pub struct StaticEntityRegistry<
