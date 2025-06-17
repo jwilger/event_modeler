@@ -16,17 +16,17 @@ This ensures all work is tracked, organized, and nothing is missed.
 
 ## Current Status
 
-**Last Updated**: [To be updated as work progresses]
+**Last Updated**: 2025-06-17
 
 | Phase | Branch | Status | PR # | Notes |
 |-------|--------|--------|------|-------|
-| CLI Foundation | `feature/cli-foundation` | Not Started | - | - |
-| Text Parsing | `feature/text-parsing` | Not Started | - | - |
-| Layout Engine | `feature/layout-engine` | Not Started | - | - |
+| CLI Foundation | `feature/cli-foundation` | Complete | #4 (merged) | CLI args parsing, main entry point, e2e test framework |
+| Text Parsing | `feature/text-parsing` | Complete | #6 (merged) | Lexer and parser implementation with comprehensive tests |
+| Layout Engine | `feature/layout-engine` | Complete | #7 (draft) | Swimlane/entity positioning, connector routing foundation |
 | SVG Rendering | `feature/svg-rendering` | Not Started | - | - |
 | Integration | `feature/integration-polish` | Not Started | - | - |
 
-**Current Focus**: Ready to begin Phase 1 (CLI Foundation)
+**Current Focus**: Layout Engine complete. Ready to mark PR #7 as ready and start Phase 4 (SVG Rendering)
 
 ## Overview
 
