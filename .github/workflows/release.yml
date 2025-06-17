@@ -77,13 +77,13 @@ jobs:
       
       - name: Package
         run: |
-          cd target/${{ matrix.target }}/release
+          pushd target/${{ matrix.target }}/release
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             7z a ../../../${{ matrix.name }}.zip ${{ matrix.binary }}
           else
             tar czf ../../../${{ matrix.name }}.tar.gz ${{ matrix.binary }}
           fi
-          cd -
+          popd
         shell: bash
       
       - name: Upload Release Asset (tar.gz)
