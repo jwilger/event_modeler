@@ -341,6 +341,11 @@ impl LayoutEngine {
                 .unwrap()
             });
 
+            // Look up entity name from registry
+            let entity_name = registry.get_entity_name(entity_id).unwrap_or_else(|| {
+                crate::infrastructure::types::NonEmptyString::parse("Unknown".to_string()).unwrap()
+            });
+
             let position = EntityPosition {
                 swimlane_id: swimlane.id.clone(),
                 position: Position {
