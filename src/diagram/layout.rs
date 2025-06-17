@@ -438,12 +438,12 @@ impl LayoutEngine {
         }
 
         // Route connections between entities
-        // TODO: Once connectors are added to EventModelDiagram, we'll use them here
-        // For now, create an empty connections list
-        let connections = Vec::new();
-
-        // Example of how we would use the route_connectors method:
-        // let connections = self.route_connectors(&connector_pairs, &entity_positions);
+        let connector_pairs: Vec<(EntityId, EntityId)> = diagram
+            .connectors
+            .iter()
+            .map(|conn| (conn.from.clone(), conn.to.clone()))
+            .collect();
+        let connections = self.route_connectors(&connector_pairs, &entity_positions);
 
         Ok(Layout {
             canvas,

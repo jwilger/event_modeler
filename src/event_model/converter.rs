@@ -139,19 +139,21 @@ pub fn convert_to_diagram(
     let entities = EntityRegistry::new();
 
     // Process connectors
+    let mut connectors = Vec::new();
     for connector in parsed.connectors {
-        // Verify entities exist
-        if !entity_lookup.contains_key(connector.from.as_str()) {
-            return Err(ConversionError::UnknownEntityInConnector(
-                connector.from.as_str().to_string(),
-            ));
-        }
-        if !entity_lookup.contains_key(connector.to.as_str()) {
-            return Err(ConversionError::UnknownEntityInConnector(
-                connector.to.as_str().to_string(),
-            ));
-        }
-        // Note: We can't add connectors to the registry without proper entity instances
+        // Get entity IDs
+        let from_id = entity_lookup.get(connector.from.as_str()).ok_or_else(|| {
+            ConversionError::UnknownEntityInConnector(connector.from.as_str().to_string())
+        })?;
+        let to_id = entity_lookup.get(connector.to.as_str()).ok_or_else(|| {
+            ConversionError::UnknownEntityInConnector(connector.to.as_str().to_string())
+        })?;
+
+        connectors.push(crate::event_model::diagram::Connector {
+            from: from_id.clone(),
+            to: to_id.clone(),
+            label: None, // Simple parser doesn't support connector labels yet
+        });
     }
 
     Ok(EventModelDiagram {
@@ -159,6 +161,7 @@ pub fn convert_to_diagram(
         swimlanes,
         entities,
         slices,
+        connectors,
     })
 }
 
