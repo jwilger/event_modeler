@@ -303,6 +303,84 @@ impl LayoutEngine {
         positions
     }
 
+    /// Route connectors between entities.
+    ///
+    /// This creates straight-line connections between entities.
+    /// In the future, this will support more sophisticated routing algorithms.
+    #[allow(dead_code)]
+    fn route_connectors(
+        &self,
+        from_to_pairs: &[(EntityId, EntityId)],
+        entity_positions: &HashMap<EntityId, EntityPosition>,
+    ) -> Vec<Connection> {
+        let mut connections = Vec::new();
+
+        for (from_id, to_id) in from_to_pairs {
+            // Get positions for both entities
+            let from_pos = match entity_positions.get(from_id) {
+                Some(pos) => pos,
+                None => continue,
+            };
+
+            let to_pos = match entity_positions.get(to_id) {
+                Some(pos) => pos,
+                None => continue,
+            };
+
+            // Calculate connection points (center of entities for now)
+            let from_center = Point {
+                x: XCoordinate::new(
+                    NonNegativeFloat::parse(
+                        from_pos.position.x.into_inner().value()
+                            + from_pos.dimensions.width.into_inner().value() / 2.0,
+                    )
+                    .unwrap(),
+                ),
+                y: YCoordinate::new(
+                    NonNegativeFloat::parse(
+                        from_pos.position.y.into_inner().value()
+                            + from_pos.dimensions.height.into_inner().value() / 2.0,
+                    )
+                    .unwrap(),
+                ),
+            };
+
+            let to_center = Point {
+                x: XCoordinate::new(
+                    NonNegativeFloat::parse(
+                        to_pos.position.x.into_inner().value()
+                            + to_pos.dimensions.width.into_inner().value() / 2.0,
+                    )
+                    .unwrap(),
+                ),
+                y: YCoordinate::new(
+                    NonNegativeFloat::parse(
+                        to_pos.position.y.into_inner().value()
+                            + to_pos.dimensions.height.into_inner().value() / 2.0,
+                    )
+                    .unwrap(),
+                ),
+            };
+
+            // Create simple straight-line path
+            let path = ConnectionPath {
+                points: vec![from_center, to_center],
+            };
+
+            // Create connection with appropriate style
+            let connection = Connection {
+                from: from_id.clone(),
+                to: to_id.clone(),
+                path,
+                style: ConnectionStyle::Solid, // Default style for now
+            };
+
+            connections.push(connection);
+        }
+
+        connections
+    }
+
     /// Compute the layout for a diagram.
     pub fn compute_layout<W, C, E, P, Q, A>(
         &self,
@@ -347,12 +425,20 @@ impl LayoutEngine {
             }
         }
 
+        // Route connections between entities
+        // TODO: Once connectors are added to EventModelDiagram, we'll use them here
+        // For now, create an empty connections list
+        let connections = Vec::new();
+
+        // Example of how we would use the route_connectors method:
+        // let connections = self.route_connectors(&connector_pairs, &entity_positions);
+
         Ok(Layout {
             canvas,
             swimlane_layouts,
             entity_positions,
             slice_layouts: HashMap::new(),
-            connections: Vec::new(),
+            connections,
         })
     }
 
