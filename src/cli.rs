@@ -229,7 +229,12 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
 
     println!(
         "Successfully converted event model: {}",
-        event_model_diagram.metadata.title.into_inner().as_str()
+        event_model_diagram
+            .metadata
+            .title
+            .clone()
+            .into_inner()
+            .as_str()
     );
     println!("Found {} swimlanes", event_model_diagram.swimlanes.len());
     println!("Found {} entities total", {
@@ -242,28 +247,24 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
     });
 
     // 4. Create layout from the diagram
-    // For now, create a minimal test layout
-    // TODO: Implement proper layout computation in LayoutEngine
-    use crate::diagram::layout::*;
-    use crate::infrastructure::types::{NonNegativeFloat, PositiveInt};
-    use std::collections::HashMap;
+    use crate::diagram::layout::{LayoutConfig, LayoutEngine};
+    use crate::infrastructure::types::PositiveFloat;
 
-    let test_layout = Layout {
-        canvas: Canvas {
-            width: CanvasWidth::new(PositiveInt::parse(1200).unwrap()),
-            height: CanvasHeight::new(PositiveInt::parse(800).unwrap()),
-            padding: Padding {
-                top: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
-                right: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
-                bottom: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
-                left: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
-            },
-        },
-        swimlane_layouts: HashMap::new(),
-        entity_positions: HashMap::new(),
-        slice_layouts: HashMap::new(),
-        connections: vec![],
+    let layout_config = LayoutConfig {
+        entity_spacing: crate::diagram::layout::EntitySpacing::new(
+            PositiveFloat::parse(30.0).unwrap(),
+        ),
+        swimlane_height: crate::diagram::layout::SwimlaneHeight::new(
+            PositiveFloat::parse(120.0).unwrap(),
+        ),
+        slice_gutter: crate::diagram::layout::SliceGutter::new(PositiveFloat::parse(20.0).unwrap()),
+        connection_routing: crate::diagram::layout::ConnectionRouting::Straight,
     };
+
+    let layout_engine = LayoutEngine::new(layout_config);
+    let layout = layout_engine
+        .compute_layout(&event_model_diagram)
+        .map_err(|e| Error::InvalidArguments(format!("Layout error: {:?}", e)))?;
 
     // 5. Render to requested formats
     for format in cmd.options.formats.iter() {
@@ -294,7 +295,7 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
 
                 let renderer = crate::diagram::svg::SvgRenderer::new(svg_config, theme);
                 let svg_doc = renderer
-                    .render(&test_layout)
+                    .render(&layout)
                     .map_err(|e| Error::InvalidArguments(format!("SVG render error: {}", e)))?;
 
                 // Generate output filename
