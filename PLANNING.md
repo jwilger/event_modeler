@@ -231,22 +231,24 @@ Following our type-driven testing ADR:
 
 ### Example Todo List Structure:
 1. Implement CLI argument parsing in src/cli.rs
-2. Run build and tests; commit and push if passing
-3. Implement main entry point in src/main.rs  
-4. Run build and tests; commit and push if passing
-5. Add error handling for invalid arguments
-6. Run build and tests; commit and push if passing
-7. Review PLANNING.md, update with current status, and determine next tasks
+2. Run build and tests; commit and push if passing (first push creates upstream branch)
+3. Create draft PR immediately after first push
+4. Implement main entry point in src/main.rs  
+5. Run build and tests; commit and push if passing
+6. Add error handling for invalid arguments
+7. Run build and tests; commit and push if passing
+8. Review PLANNING.md, update with current status, and determine next tasks
 
 This ensures:
 1. **Extremely frequent verification** that code compiles and tests pass
 2. **Incremental commits** capturing each small working change
 3. **Early detection** of any breaking changes
 4. **Clean commit history** with each commit representing buildable code
-5. The plan stays current with actual progress
-6. No steps are missed within or between phases
-7. Continuous forward momentum
-8. Clear handoff between work sessions
+5. **Early PR creation** for visibility and CI feedback
+6. The plan stays current with actual progress
+7. No steps are missed within or between phases
+8. Continuous forward momentum
+9. Clear handoff between work sessions
 
 **Note**: Build and test checks should happen AT LEAST this frequently, if not more often. You may add additional build/test/commit steps between tasks whenever it makes sense.
 
@@ -285,7 +287,9 @@ This ensures:
    - Subsequent pushes: `git push`
    - **Remember**: The todo list structure enforces this frequency - every implementation task is followed by a build/test/commit task
 
-4. **Create Draft Pull Request (on first push)**
+4. **Create Draft Pull Request (IMMEDIATELY after first push)**
+   - **CRITICAL**: This must be the VERY NEXT task in your todo list after the first push
+   - Creating the draft PR early ensures visibility and CI feedback throughout development
    ```bash
    gh pr create \
      --draft \
@@ -478,7 +482,8 @@ When implementing each phase:
 - [ ] Create feature branch from correct base
 - [ ] Write acceptance tests first
 - [ ] Make first commit once tests compile (even if failing)
-- [ ] Push branch and create draft PR
+- [ ] Push branch with first commit
+- [ ] **Create draft PR immediately after first push**
 - [ ] Implement functionality preserving type signatures
 - [ ] Follow the todo list pattern: every implementation task followed by build/test/commit task
 - [ ] Commit after each small buildable change:
@@ -496,4 +501,5 @@ When implementing each phase:
 
 **Remember**: 
 - Every other task in your todo list must be "Run build and tests; commit and push if passing"
+- The first push must be immediately followed by creating a draft PR
 - The last todo item in every TodoWrite list must be "Review PLANNING.md, update with current status, and determine next tasks"
