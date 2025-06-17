@@ -322,9 +322,6 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
                 file.write_all(svg_content.as_bytes())?;
 
                 println!("Generated SVG: {}", output_path.display());
-                println!(
-                    "Note: Full diagram rendering will be implemented in Phase 5 (Integration)"
-                );
             }
             OutputFormat::Pdf => {
                 // PDF export not yet implemented
