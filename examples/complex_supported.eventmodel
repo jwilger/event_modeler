@@ -1,0 +1,112 @@
+Title: Complex Order Processing System (Supported Types)
+
+Swimlane: Customer Interface
+- Command: BrowseCatalog
+- Command: AddToCart
+- Command: RemoveFromCart
+- Command: Checkout
+- Command: ViewOrderStatus
+
+Swimlane: Order Service
+- Event: ItemAddedToCart
+- Event: ItemRemovedFromCart
+- Event: OrderPlaced
+- Event: OrderValidated
+- Event: OrderRejected
+- Event: OrderConfirmed
+- Event: OrderFulfillmentStarted
+- Event: OrderShipped
+- Event: OrderDelivered
+- Event: OrderCancelled
+- Projection: ActiveCarts
+- Projection: OrderHistory
+- Projection: OrderStatus
+- Policy: ValidateOrder
+- Policy: ProcessOrderFulfillment
+
+Swimlane: Inventory Service
+- Command: ReserveInventory
+- Command: ReleaseInventory
+- Event: InventoryReserved
+- Event: InventoryReleased
+- Event: InsufficientInventory
+- Projection: AvailableInventory
+- Policy: CheckInventoryAvailability
+
+Swimlane: Payment Service
+- Command: ProcessPayment
+- Command: RefundPayment
+- Event: PaymentProcessed
+- Event: PaymentFailed
+- Event: PaymentRefunded
+- Projection: PaymentHistory
+- Policy: ValidatePaymentDetails
+
+Swimlane: Shipping Service
+- Command: CreateShipment
+- Command: UpdateShipmentStatus
+- Event: ShipmentCreated
+- Event: ShipmentDispatched
+- Event: ShipmentDelivered
+- Projection: ShipmentTracking
+- Command: TrackShipment
+
+Swimlane: Notification Service
+- Command: SendNotification
+- Event: NotificationSent
+- Event: NotificationFailed
+- Policy: DetermineNotificationType
+- External System: EmailSender
+- External System: SMSSender
+
+AddToCart -> ItemAddedToCart
+RemoveFromCart -> ItemRemovedFromCart
+Checkout -> OrderPlaced
+OrderPlaced -> ValidateOrder
+ValidateOrder -> ReserveInventory
+ReserveInventory -> InventoryReserved
+ReserveInventory -> InsufficientInventory
+InventoryReserved -> ProcessPayment
+InsufficientInventory -> OrderRejected
+ProcessPayment -> PaymentProcessed
+ProcessPayment -> PaymentFailed
+PaymentProcessed -> OrderConfirmed
+PaymentFailed -> ReleaseInventory
+ReleaseInventory -> InventoryReleased
+InventoryReleased -> OrderRejected
+OrderConfirmed -> ProcessOrderFulfillment
+ProcessOrderFulfillment -> OrderFulfillmentStarted
+OrderFulfillmentStarted -> CreateShipment
+CreateShipment -> ShipmentCreated
+ShipmentCreated -> OrderShipped
+OrderShipped -> UpdateShipmentStatus
+UpdateShipmentStatus -> ShipmentDispatched
+ShipmentDispatched -> ShipmentDelivered
+ShipmentDelivered -> OrderDelivered
+ItemAddedToCart -> ActiveCarts
+ItemRemovedFromCart -> ActiveCarts
+OrderPlaced -> OrderHistory
+OrderConfirmed -> OrderStatus
+OrderRejected -> OrderStatus
+OrderShipped -> OrderStatus
+OrderDelivered -> OrderStatus
+OrderCancelled -> OrderStatus
+InventoryReserved -> AvailableInventory
+InventoryReleased -> AvailableInventory
+PaymentProcessed -> PaymentHistory
+PaymentRefunded -> PaymentHistory
+ShipmentCreated -> ShipmentTracking
+ShipmentDispatched -> ShipmentTracking
+ShipmentDelivered -> ShipmentTracking
+OrderConfirmed -> SendNotification
+OrderRejected -> SendNotification
+OrderShipped -> SendNotification
+OrderDelivered -> SendNotification
+SendNotification -> DetermineNotificationType
+DetermineNotificationType -> EmailSender
+DetermineNotificationType -> SMSSender
+EmailSender -> NotificationSent
+SMSSender -> NotificationSent
+EmailSender -> NotificationFailed
+SMSSender -> NotificationFailed
+TrackShipment -> ShipmentTracking

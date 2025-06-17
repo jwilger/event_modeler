@@ -25,6 +25,269 @@ pub struct SvgDocument {
     pub defs: SvgDefs,
 }
 
+impl SvgDocument {
+    /// Serialize the SVG document to XML string.
+    pub fn to_xml(&self) -> String {
+        let mut xml = String::new();
+
+        // XML declaration
+        xml.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+
+        // SVG root element with namespace and viewBox
+        xml.push_str(&format!(
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"{} {} {} {}\" width=\"{}\" height=\"{}\">\n",
+            self.viewbox.x.into_inner().value(),
+            self.viewbox.y.into_inner().value(),
+            self.viewbox.width.into_inner().value(),
+            self.viewbox.height.into_inner().value(),
+            self.viewbox.width.into_inner().value(),
+            self.viewbox.height.into_inner().value()
+        ));
+
+        // Add defs section if there are any definitions
+        if !self.defs.patterns.is_empty()
+            || !self.defs.gradients.is_empty()
+            || !self.defs.markers.is_empty()
+        {
+            xml.push_str("  <defs>\n");
+            // TODO: Serialize patterns, gradients, and markers
+            xml.push_str("  </defs>\n");
+        }
+
+        // Serialize all elements
+        for element in &self.elements {
+            xml.push_str(&self.serialize_element(element, 1));
+        }
+
+        // Close SVG
+        xml.push_str("</svg>\n");
+
+        xml
+    }
+
+    /// Serialize a single SVG element with proper indentation.
+    fn serialize_element(&self, element: &SvgElement, indent_level: usize) -> String {
+        let indent = "  ".repeat(indent_level);
+
+        match element {
+            SvgElement::Group(group) => {
+                let mut xml = format!("{}<g", indent);
+                if let Some(id) = &group.id {
+                    xml.push_str(&format!(" id=\"{}\"", id.clone().into_inner().as_str()));
+                }
+                if let Some(class) = &group.class {
+                    xml.push_str(&format!(
+                        " class=\"{}\"",
+                        class.clone().into_inner().as_str()
+                    ));
+                }
+                // TODO: Add transform attribute if present
+                xml.push_str(">\n");
+
+                // Serialize children
+                for child in &group.children {
+                    xml.push_str(&self.serialize_element(child, indent_level + 1));
+                }
+
+                xml.push_str(&format!("{}</g>\n", indent));
+                xml
+            }
+
+            SvgElement::Rectangle(rect) => {
+                let mut xml = format!("{}<rect", indent);
+                if let Some(id) = &rect.id {
+                    xml.push_str(&format!(" id=\"{}\"", id.clone().into_inner().as_str()));
+                }
+                if let Some(class) = &rect.class {
+                    xml.push_str(&format!(
+                        " class=\"{}\"",
+                        class.clone().into_inner().as_str()
+                    ));
+                }
+                xml.push_str(&format!(
+                    " x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\"",
+                    rect.x.into_inner().value(),
+                    rect.y.into_inner().value(),
+                    rect.width.into_inner().value(),
+                    rect.height.into_inner().value()
+                ));
+                if let Some(rx) = &rect.rx {
+                    xml.push_str(&format!(" rx=\"{}\"", rx.into_inner().value()));
+                }
+                if let Some(ry) = &rect.ry {
+                    xml.push_str(&format!(" ry=\"{}\"", ry.into_inner().value()));
+                }
+
+                // Add style attributes
+                xml.push_str(&self.serialize_entity_style(&rect.style));
+
+                xml.push_str("/>\n");
+                xml
+            }
+
+            SvgElement::Text(text) => {
+                let mut xml = format!("{}<text", indent);
+                if let Some(id) = &text.id {
+                    xml.push_str(&format!(" id=\"{}\"", id.clone().into_inner().as_str()));
+                }
+                if let Some(class) = &text.class {
+                    xml.push_str(&format!(
+                        " class=\"{}\"",
+                        class.clone().into_inner().as_str()
+                    ));
+                }
+                xml.push_str(&format!(
+                    " x=\"{}\" y=\"{}\"",
+                    text.x.into_inner().value(),
+                    text.y.into_inner().value()
+                ));
+
+                // Add text style attributes
+                xml.push_str(&self.serialize_text_style(&text.style));
+
+                xml.push_str(&format!(
+                    ">{}</text>\n",
+                    text.content.clone().into_inner().as_str()
+                ));
+                xml
+            }
+
+            SvgElement::Path(path) => {
+                let mut xml = format!("{}<path", indent);
+                if let Some(id) = &path.id {
+                    xml.push_str(&format!(" id=\"{}\"", id.clone().into_inner().as_str()));
+                }
+                if let Some(class) = &path.class {
+                    xml.push_str(&format!(
+                        " class=\"{}\"",
+                        class.clone().into_inner().as_str()
+                    ));
+                }
+                xml.push_str(&format!(" d=\"{}\"", path.d.clone().into_inner().as_str()));
+
+                // Add path style attributes
+                xml.push_str(&self.serialize_connection_style(&path.style));
+
+                xml.push_str("/>\n");
+                xml
+            }
+
+            SvgElement::Image(_img) => {
+                // TODO: Implement image serialization
+                format!("{}<!-- Image element not yet implemented -->\n", indent)
+            }
+        }
+    }
+
+    /// Serialize entity style attributes.
+    fn serialize_entity_style(&self, style: &crate::diagram::style::EntityStyle) -> String {
+        let mut attrs = String::new();
+
+        // Fill style
+        attrs.push_str(&format!(
+            " fill=\"{}\"",
+            style.fill.color.clone().into_inner().as_str()
+        ));
+        if let Some(opacity) = &style.fill.opacity {
+            attrs.push_str(&format!(
+                " fill-opacity=\"{}\"",
+                opacity.into_inner().value()
+            ));
+        }
+
+        // Stroke style
+        attrs.push_str(&format!(
+            " stroke=\"{}\"",
+            style.stroke.color.clone().into_inner().as_str()
+        ));
+        attrs.push_str(&format!(
+            " stroke-width=\"{}\"",
+            style.stroke.width.into_inner().value()
+        ));
+        if let Some(opacity) = &style.stroke.opacity {
+            attrs.push_str(&format!(
+                " stroke-opacity=\"{}\"",
+                opacity.into_inner().value()
+            ));
+        }
+        // TODO: Add stroke-dasharray if present
+
+        attrs
+    }
+
+    /// Serialize text style attributes.
+    fn serialize_text_style(&self, style: &TextStyle) -> String {
+        let mut attrs = String::new();
+
+        attrs.push_str(&format!(
+            " font-family=\"{}\"",
+            style.font_family.clone().into_inner().as_str()
+        ));
+        attrs.push_str(&format!(
+            " font-size=\"{}\"",
+            style.font_size.into_inner().value()
+        ));
+        attrs.push_str(&format!(
+            " fill=\"{}\"",
+            style.fill.clone().into_inner().as_str()
+        ));
+
+        if let Some(weight) = &style.font_weight {
+            let weight_str = match weight {
+                FontWeight::Normal => "normal",
+                FontWeight::Bold => "bold",
+                FontWeight::Bolder => "bolder",
+                FontWeight::Lighter => "lighter",
+                FontWeight::Weight(w) => {
+                    // TODO: Convert numeric weight to string
+                    let _ = w; // Avoid unused warning
+                    "normal"
+                }
+            };
+            attrs.push_str(&format!(" font-weight=\"{}\"", weight_str));
+        }
+
+        if let Some(anchor) = &style.anchor {
+            let anchor_str = match anchor {
+                TextAnchor::Start => "start",
+                TextAnchor::Middle => "middle",
+                TextAnchor::End => "end",
+            };
+            attrs.push_str(&format!(" text-anchor=\"{}\"", anchor_str));
+        }
+
+        attrs
+    }
+
+    /// Serialize connection style attributes.
+    fn serialize_connection_style(&self, style: &crate::diagram::style::ConnectionStyle) -> String {
+        let mut attrs = String::new();
+
+        // No fill for paths
+        attrs.push_str(" fill=\"none\"");
+
+        // Stroke style
+        attrs.push_str(&format!(
+            " stroke=\"{}\"",
+            style.stroke.color.clone().into_inner().as_str()
+        ));
+        attrs.push_str(&format!(
+            " stroke-width=\"{}\"",
+            style.stroke.width.into_inner().value()
+        ));
+        if let Some(opacity) = &style.stroke.opacity {
+            attrs.push_str(&format!(
+                " stroke-opacity=\"{}\"",
+                opacity.into_inner().value()
+            ));
+        }
+        // TODO: Add stroke-dasharray if present
+        // TODO: Add marker-end and marker-start if present
+
+        attrs
+    }
+}
+
 /// SVG viewBox defining the coordinate system.
 #[derive(Debug, Clone)]
 pub struct ViewBox {
@@ -391,6 +654,8 @@ pub struct MatrixValue(FiniteFloat);
 pub struct SvgRenderer {
     /// Configuration for rendering.
     config: SvgRenderConfig,
+    /// Theme to use for styling.
+    theme: crate::diagram::style::Theme,
 }
 
 /// Configuration for SVG rendering.
@@ -425,18 +690,245 @@ pub struct EmbedFonts(bool);
 
 impl SvgRenderer {
     /// Create a new SVG renderer.
-    pub fn new(config: SvgRenderConfig) -> Self {
-        Self { config }
+    pub fn new(config: SvgRenderConfig, theme: crate::diagram::style::Theme) -> Self {
+        Self { config, theme }
     }
 
     /// Render a layout to an SVG document.
-    pub fn render(&self, _layout: &Layout) -> Result<SvgDocument, SvgRenderError> {
-        todo!()
+    pub fn render(&self, layout: &Layout) -> Result<SvgDocument, SvgRenderError> {
+        // Create viewbox from canvas dimensions
+        let viewbox = ViewBox {
+            x: XCoordinate::new(NonNegativeFloat::parse(0.0).unwrap()),
+            y: YCoordinate::new(NonNegativeFloat::parse(0.0).unwrap()),
+            width: Width::new(
+                PositiveFloat::parse(layout.canvas.width.into_inner().value() as f32).unwrap(),
+            ),
+            height: Height::new(
+                PositiveFloat::parse(layout.canvas.height.into_inner().value() as f32).unwrap(),
+            ),
+        };
+
+        // Create SVG elements
+        let mut elements = Vec::new();
+
+        // Render swimlanes
+        for (swimlane_id, swimlane_layout) in &layout.swimlane_layouts {
+            let swimlane_group = self.render_swimlane(swimlane_id, swimlane_layout)?;
+            elements.push(SvgElement::Group(swimlane_group));
+        }
+
+        // Render entities
+        for (entity_id, entity_position) in &layout.entity_positions {
+            let entity_element = self.render_entity(entity_id, entity_position)?;
+            elements.push(entity_element);
+        }
+
+        // Render connectors
+        for connection in &layout.connections {
+            let connector_element = self.render_connector(connection)?;
+            elements.push(connector_element);
+        }
+
+        // Create empty defs for now
+        let defs = SvgDefs {
+            patterns: vec![],
+            gradients: vec![],
+            markers: vec![],
+        };
+
+        Ok(SvgDocument {
+            viewbox,
+            elements,
+            defs,
+        })
     }
 
     /// Get the current configuration.
     pub fn config(&self) -> &SvgRenderConfig {
         &self.config
+    }
+
+    /// Render a swimlane as an SVG group.
+    fn render_swimlane(
+        &self,
+        swimlane_id: &crate::event_model::diagram::SwimlaneId,
+        layout: &crate::diagram::layout::SwimlaneLayout,
+    ) -> Result<SvgGroup, SvgRenderError> {
+        let mut children = Vec::new();
+
+        // Create swimlane background rectangle
+        let background = SvgRectangle {
+            id: Some(ElementId::new(
+                NonEmptyString::parse(format!(
+                    "swimlane-{}",
+                    swimlane_id.clone().into_inner().as_str()
+                ))
+                .unwrap(),
+            )),
+            class: Some(CssClass::new(
+                NonEmptyString::parse("swimlane".to_string()).unwrap(),
+            )),
+            x: layout.position.x,
+            y: layout.position.y,
+            width: layout.dimensions.width,
+            height: layout.dimensions.height,
+            rx: None,
+            ry: None,
+            style: crate::diagram::style::EntityStyle {
+                fill: self.theme.swimlane_style.background.clone(),
+                stroke: self.theme.swimlane_style.border.clone(),
+                shadow: None,
+            },
+        };
+        children.push(SvgElement::Rectangle(background));
+
+        // Create swimlane label
+        let label_x = layout.position.x.into_inner().value() + 10.0;
+        let label_y = layout.position.y.into_inner().value() + 25.0;
+
+        let label = SvgText {
+            id: None,
+            class: Some(CssClass::new(
+                NonEmptyString::parse("swimlane-label".to_string()).unwrap(),
+            )),
+            x: XCoordinate::new(NonNegativeFloat::parse(label_x).unwrap()),
+            y: YCoordinate::new(NonNegativeFloat::parse(label_y).unwrap()),
+            content: TextContent::new(
+                NonEmptyString::parse(swimlane_id.clone().into_inner().as_str().to_string())
+                    .unwrap(),
+            ),
+            style: TextStyle {
+                font_family: FontFamily::new(
+                    self.theme
+                        .swimlane_style
+                        .label_style
+                        .font
+                        .family
+                        .clone()
+                        .into_inner(),
+                ),
+                font_size: FontSize::new(
+                    self.theme.swimlane_style.label_style.font.size.into_inner(),
+                ),
+                font_weight: match self.theme.swimlane_style.label_style.font.weight {
+                    crate::diagram::style::StyleFontWeight::Bold => Some(FontWeight::Bold),
+                    crate::diagram::style::StyleFontWeight::Normal => Some(FontWeight::Normal),
+                },
+                fill: Color::new(
+                    self.theme
+                        .swimlane_style
+                        .label_style
+                        .color
+                        .clone()
+                        .into_inner(),
+                ),
+                anchor: match self.theme.swimlane_style.label_style.alignment {
+                    crate::diagram::style::TextAlignment::Left => Some(TextAnchor::Start),
+                    crate::diagram::style::TextAlignment::Center => Some(TextAnchor::Middle),
+                    crate::diagram::style::TextAlignment::Right => Some(TextAnchor::End),
+                },
+            },
+        };
+        children.push(SvgElement::Text(label));
+
+        Ok(SvgGroup {
+            id: None,
+            class: None,
+            transform: None,
+            children,
+        })
+    }
+
+    /// Render an entity as an SVG element.
+    fn render_entity(
+        &self,
+        entity_id: &crate::event_model::entities::EntityId,
+        position: &crate::diagram::layout::EntityPosition,
+    ) -> Result<SvgElement, SvgRenderError> {
+        // For now, render all entities as rectangles with rounded corners
+        let rect = SvgRectangle {
+            id: Some(ElementId::new(
+                NonEmptyString::parse(format!(
+                    "entity-{}",
+                    entity_id.clone().into_inner().as_str()
+                ))
+                .unwrap(),
+            )),
+            class: Some(CssClass::new(
+                NonEmptyString::parse("entity".to_string()).unwrap(),
+            )),
+            x: position.position.x,
+            y: position.position.y,
+            width: position.dimensions.width,
+            height: position.dimensions.height,
+            rx: Some(BorderRadius::new(NonNegativeFloat::parse(8.0).unwrap())),
+            ry: Some(BorderRadius::new(NonNegativeFloat::parse(8.0).unwrap())),
+            style: match position.entity_type {
+                crate::event_model::entities::EntityType::Wireframe => {
+                    self.theme.wireframe_style.clone()
+                }
+                crate::event_model::entities::EntityType::Command => {
+                    self.theme.command_style.clone()
+                }
+                crate::event_model::entities::EntityType::Event => self.theme.event_style.clone(),
+                crate::event_model::entities::EntityType::Projection => {
+                    self.theme.projection_style.clone()
+                }
+                crate::event_model::entities::EntityType::Query => self.theme.query_style.clone(),
+                crate::event_model::entities::EntityType::Automation => {
+                    self.theme.automation_style.clone()
+                }
+            },
+        };
+
+        Ok(SvgElement::Rectangle(rect))
+    }
+
+    /// Render a connector as an SVG path.
+    fn render_connector(
+        &self,
+        connection: &crate::diagram::layout::Connection,
+    ) -> Result<SvgElement, SvgRenderError> {
+        // Create path data from connection points
+        let mut path_commands = Vec::new();
+
+        // Move to first point
+        if let Some(first_point) = connection.path.points.first() {
+            path_commands.push(format!(
+                "M {} {}",
+                first_point.x.into_inner().value(),
+                first_point.y.into_inner().value()
+            ));
+
+            // Line to subsequent points
+            for point in connection.path.points.iter().skip(1) {
+                path_commands.push(format!(
+                    "L {} {}",
+                    point.x.into_inner().value(),
+                    point.y.into_inner().value()
+                ));
+            }
+        }
+
+        let path_data = path_commands.join(" ");
+
+        let path = SvgPath {
+            id: Some(ElementId::new(
+                NonEmptyString::parse(format!(
+                    "connector-{}-{}",
+                    connection.from.clone().into_inner().as_str(),
+                    connection.to.clone().into_inner().as_str()
+                ))
+                .unwrap(),
+            )),
+            class: Some(CssClass::new(
+                NonEmptyString::parse("connector".to_string()).unwrap(),
+            )),
+            d: PathData::new(NonEmptyString::parse(path_data).unwrap()),
+            style: self.theme.connection_style.clone(),
+        };
+
+        Ok(SvgElement::Path(path))
     }
 }
 
@@ -451,3 +943,7 @@ pub enum SvgRenderError {
     #[error("Resource not found: {0}")]
     ResourceNotFound(String),
 }
+
+#[cfg(test)]
+#[path = "svg_tests.rs"]
+mod tests;

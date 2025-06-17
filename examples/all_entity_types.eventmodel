@@ -1,0 +1,21 @@
+Title: All Supported Entity Types
+
+Swimlane: User Interface
+- Command: UpdateSettings
+- Command: GetUserPreferences
+
+Swimlane: Core System
+- Event: SettingsUpdated
+- Event: PreferencesLoaded
+- Projection: UserPreferences
+- Policy: ValidateSettings
+- External System: NotificationService
+- Aggregate: UserSettings
+
+UpdateSettings -> ValidateSettings
+ValidateSettings -> SettingsUpdated
+SettingsUpdated -> UserPreferences
+GetUserPreferences -> UserPreferences
+UserPreferences -> PreferencesLoaded
+SettingsUpdated -> NotificationService
+NotificationService -> PreferencesLoaded

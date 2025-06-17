@@ -134,12 +134,13 @@ impl Cli {
         // Basic argument parsing - for now just support: event_modeler input.eventmodel -o output.svg
         if args.len() < 2 {
             return Err(Error::InvalidArguments(
-                "Usage: event_modeler <input.eventmodel> [-o <output.svg>]".to_string(),
+                "Usage: event_modeler <input.eventmodel> [-o <output.svg>] [--dark]".to_string(),
             ));
         }
 
         let input_path = &args[1];
         let mut output_path = None;
+        let mut use_dark_theme = false;
 
         // Parse output flag
         let mut i = 2;
@@ -147,6 +148,9 @@ impl Cli {
             if args[i] == "-o" && i + 1 < args.len() {
                 output_path = Some(args[i + 1].clone());
                 i += 2;
+            } else if args[i] == "--dark" {
+                use_dark_theme = true;
+                i += 1;
             } else {
                 i += 1;
             }
@@ -189,7 +193,11 @@ impl Cli {
             input,
             options: RenderOptions {
                 formats,
-                style: RenderStyle::GithubLight, // Default style
+                style: if use_dark_theme {
+                    RenderStyle::GithubDark
+                } else {
+                    RenderStyle::GithubLight
+                },
                 include_links: IncludeLinks::new(false), // Default to no links
                 output_dir,
             },
@@ -209,12 +217,121 @@ impl Cli {
 }
 
 /// Execute a render command.
-fn execute_render(_cmd: RenderCommand) -> Result<()> {
-    // This is where we'll orchestrate the full pipeline:
-    // 1. Parse the input file
-    // 2. Build the event model
-    // 3. Compute layout
-    // 4. Render to requested formats
-    // For now, just a placeholder
-    todo!("Render command implementation")
+fn execute_render(cmd: RenderCommand) -> Result<()> {
+    use std::fs;
+    use std::io::Write;
+
+    // 1. Read the input file
+    let input_content = fs::read_to_string(cmd.input.as_path_buf())?;
+
+    // 2. Parse the event model text
+    let parser = crate::infrastructure::parsing::simple_parser::EventModelParser::new();
+    let parsed_model = parser
+        .parse(&input_content)
+        .map_err(|e| Error::InvalidArguments(format!("Parse error: {:?}", e)))?;
+
+    // 3. Convert ParsedEventModel to EventModelDiagram
+    let entity_info = crate::event_model::converter::count_entities(&parsed_model);
+    let event_model_diagram = crate::event_model::converter::convert_to_diagram(parsed_model)
+        .map_err(|e| Error::InvalidArguments(format!("Conversion error: {:?}", e)))?;
+
+    println!(
+        "Successfully converted event model: {}",
+        event_model_diagram
+            .metadata
+            .title
+            .clone()
+            .into_inner()
+            .as_str()
+    );
+    println!("Found {} swimlanes", event_model_diagram.swimlanes.len());
+    println!("Found {} entities total", {
+        entity_info.wireframe_count
+            + entity_info.command_count
+            + entity_info.event_count
+            + entity_info.projection_count
+            + entity_info.query_count
+            + entity_info.automation_count
+    });
+
+    // 4. Create layout from the diagram
+    use crate::diagram::layout::{LayoutConfig, LayoutEngine};
+    use crate::infrastructure::types::PositiveFloat;
+
+    let layout_config = LayoutConfig {
+        entity_spacing: crate::diagram::layout::EntitySpacing::new(
+            PositiveFloat::parse(30.0).unwrap(),
+        ),
+        swimlane_height: crate::diagram::layout::SwimlaneHeight::new(
+            PositiveFloat::parse(120.0).unwrap(),
+        ),
+        slice_gutter: crate::diagram::layout::SliceGutter::new(PositiveFloat::parse(20.0).unwrap()),
+        connection_routing: crate::diagram::layout::ConnectionRouting::Straight,
+    };
+
+    let layout_engine = LayoutEngine::new(layout_config);
+    let layout = layout_engine
+        .compute_layout(&event_model_diagram)
+        .map_err(|e| Error::InvalidArguments(format!("Layout error: {:?}", e)))?;
+
+    // 5. Render to requested formats
+    for format in cmd.options.formats.iter() {
+        match format {
+            OutputFormat::Svg => {
+                // Create theme based on style
+                let theme = match cmd.options.style {
+                    RenderStyle::GithubLight => crate::diagram::theme::ThemedRenderer::<
+                        crate::diagram::theme::GithubLight,
+                    >::github_light()
+                    .theme()
+                    .clone(),
+                    RenderStyle::GithubDark => crate::diagram::theme::ThemedRenderer::<
+                        crate::diagram::theme::GithubDark,
+                    >::github_dark()
+                    .theme()
+                    .clone(),
+                };
+
+                // Create SVG renderer
+                let svg_config = crate::diagram::svg::SvgRenderConfig {
+                    precision: crate::diagram::svg::DecimalPrecision::new(
+                        crate::infrastructure::types::PositiveInt::parse(2).unwrap(),
+                    ),
+                    optimize: crate::diagram::svg::OptimizationLevel::Basic,
+                    embed_fonts: crate::diagram::svg::EmbedFonts::new(false),
+                };
+
+                let renderer = crate::diagram::svg::SvgRenderer::new(svg_config, theme);
+                let svg_doc = renderer
+                    .render(&layout)
+                    .map_err(|e| Error::InvalidArguments(format!("SVG render error: {}", e)))?;
+
+                // Generate output filename
+                let input_stem = cmd
+                    .input
+                    .as_path_buf()
+                    .file_stem()
+                    .unwrap_or_default()
+                    .to_string_lossy();
+                let output_filename = format!("{}.svg", input_stem);
+                let output_path = cmd.options.output_dir.as_path_buf().join(&output_filename);
+
+                // Write SVG to file
+                let svg_content = svg_doc.to_xml();
+                let mut file = fs::File::create(&output_path)?;
+                file.write_all(svg_content.as_bytes())?;
+
+                println!("Generated SVG: {}", output_path.display());
+                println!(
+                    "Note: Full diagram rendering will be implemented in Phase 5 (Integration)"
+                );
+            }
+            OutputFormat::Pdf => {
+                // PDF export not yet implemented
+                eprintln!("Warning: PDF export not yet implemented");
+            }
+        }
+    }
+
+    Ok(())
 }

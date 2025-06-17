@@ -1,0 +1,12 @@
+Title: Simple Test Model
+
+Swimlane: Customer
+- Command: PlaceOrder
+- Event: OrderPlaced
+
+Swimlane: System
+- Projection: OrderList
+- Policy: ProcessPayment
+
+PlaceOrder -> OrderPlaced
+OrderPlaced -> OrderList

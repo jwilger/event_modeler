@@ -1,0 +1,6 @@
+Title: Empty Swimlane Test
+
+Swimlane: EmptyService
+
+Swimlane: NonEmptyService
+- Event: SomethingHappened

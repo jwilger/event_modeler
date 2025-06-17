@@ -19,6 +19,8 @@ pub struct EventModelDiagram<W, C, E, P, Q, A> {
     pub entities: EntityRegistry<W, C, E, P, Q, A>,
     /// Vertical slices defining feature boundaries.
     pub slices: NonEmpty<Slice>,
+    /// Connections between entities.
+    pub connectors: Vec<Connector>,
 }
 
 /// Metadata about the diagram.
@@ -124,3 +126,18 @@ pub struct WhenAction(NonEmptyString);
 /// Then expectation in acceptance criteria.
 #[nutype(derive(Debug, Clone))]
 pub struct ThenExpectation(NonEmptyString);
+
+/// A connection between two entities.
+#[derive(Debug, Clone)]
+pub struct Connector {
+    /// Source entity ID.
+    pub from: EntityId,
+    /// Target entity ID.
+    pub to: EntityId,
+    /// Optional label for the connection.
+    pub label: Option<ConnectorLabel>,
+}
+
+/// Label for a connector.
+#[nutype(derive(Debug, Clone))]
+pub struct ConnectorLabel(NonEmptyString);

@@ -1,0 +1,5 @@
+Title: Invalid Syntax
+
+Swimlane: System
+- NotAnEntityType: Something
+- Event ShouldHaveColon
