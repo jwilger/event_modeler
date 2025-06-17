@@ -733,7 +733,7 @@ projection OrderSummary {
                           <div class="install-option">
                               <h3>🦀 Install with Cargo</h3>
                               <p>For Rust developers</p>
-                              <div class="code-block" style="margin-top: 1rem;">cargo install --git https://github.com/jwilger/event_modeler --tag ${{ github.event.release.tag_name }}</div>
+                              <div class="code-block" style="margin-top: 1rem;">cargo install --git https://github.com/jwilger/event_modeler --tag \${{ github.event.release.tag_name }}</div>
                           </div>
                       </div>
                   </div>
