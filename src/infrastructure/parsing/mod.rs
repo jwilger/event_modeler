@@ -1,31 +1,19 @@
-//! Parser for Event Model DSL files.
+//! Text parsing infrastructure for Event Model files.
 //!
-//! This module provides a parser that converts text-based Event Model
-//! descriptions into an Abstract Syntax Tree (AST). The parser follows
-//! a two-phase approach:
+//! This module handles the technical details of reading `.eventmodel` files
+//! and converting them into structured data. This is infrastructure code
+//! that supports the domain but is not part of the domain itself.
 //!
-//! 1. **Lexical Analysis**: Tokenizes the input into meaningful symbols
-//! 2. **Syntax Analysis**: Builds an AST from the token stream
+//! The parsing process converts text like:
 //!
-//! # Example
-//!
-//! ```ignore
-//! use event_modeler::parser::Parser;
-//!
-//! let input = r#"
-//!     @title "Order Processing System"
-//!     
-//!     swimlane "Customer" {
-//!         wireframe "OrderForm" {
-//!             inputs: ["productId", "quantity"]
-//!             outputs: ["orderTotal"]
-//!         }
-//!     }
-//! "#;
-//!
-//! let mut parser = Parser::new(input);
-//! let model = parser.parse()?;
+//! ```text
+//! title: "Order Processing System"
+//! 
+//! swimlane Customer:
+//!   wireframe "Place Order" -> command "Submit Order"
 //! ```
+//!
+//! Into domain objects that represent the Event Model.
 
 pub mod lexer;
 pub mod ast;

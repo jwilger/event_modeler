@@ -4,8 +4,8 @@
 //! including page layout, metadata, and font embedding.
 
 use nutype::nutype;
-use crate::renderer::svg::SvgDocument;
-use crate::type_safety::{NonEmptyString, PositiveFloat, NonNegativeFloat};
+use crate::diagram::svg::SvgDocument;
+use crate::infrastructure::types::{NonEmptyString, PositiveFloat, NonNegativeFloat};
 use std::path::PathBuf;
 
 /// A complete PDF document.

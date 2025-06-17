@@ -4,9 +4,9 @@
 //! including all visual elements, styles, and optimizations.
 
 use nutype::nutype;
-use crate::renderer::layout::{Layout, XCoordinate, YCoordinate, Width, Height};
-use crate::renderer::styles::{EntityStyle, ConnectionStyle};
-use crate::type_safety::{NonEmptyString, PositiveFloat, NonNegativeFloat, Percentage as ValidatedPercentage, FiniteFloat, PositiveInt};
+use crate::diagram::layout::{Layout, XCoordinate, YCoordinate, Width, Height};
+use crate::diagram::style::{EntityStyle, ConnectionStyle};
+use crate::infrastructure::types::{NonEmptyString, PositiveFloat, NonNegativeFloat, Percentage as ValidatedPercentage, FiniteFloat, PositiveInt};
 
 /// A complete SVG document.
 #[derive(Debug, Clone)]

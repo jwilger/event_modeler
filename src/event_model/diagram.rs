@@ -6,7 +6,7 @@
 use nutype::nutype;
 use super::entities::EntityId;
 use super::registry::EntityRegistry;
-use crate::type_safety::{NonEmpty, NonEmptyString, NonNegativeInt};
+use crate::infrastructure::types::{NonEmpty, NonEmptyString, NonNegativeInt};
 
 /// A complete Event Model diagram with entities and layout information.
 #[derive(Debug, Clone)]

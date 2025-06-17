@@ -12,7 +12,7 @@
 //! - Slices defining feature boundaries
 
 use nutype::nutype;
-use crate::type_safety::{NonEmptyString, NonNegativeInt};
+use crate::infrastructure::types::{NonEmptyString, NonNegativeInt};
 
 /// The root AST node representing a complete Event Model.
 #[derive(Debug, Clone)]

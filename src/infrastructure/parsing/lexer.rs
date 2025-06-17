@@ -9,7 +9,7 @@
 //! - Punctuation (braces, brackets, colons)
 //! - Whitespace and comments
 
-use crate::type_safety::{NonEmptyString, NonNegativeInt, Identifier};
+use crate::infrastructure::types::{NonEmptyString, NonNegativeInt, Identifier};
 
 /// A token produced by the lexer.
 #[derive(Debug, Clone, PartialEq)]

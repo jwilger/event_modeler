@@ -5,9 +5,9 @@
 //! slices, and connections between entities.
 
 use nutype::nutype;
-use crate::model::entities::EntityId;
-use crate::model::diagram::{SwimlaneId, SliceId};
-use crate::type_safety::{PositiveInt, PositiveFloat, NonNegativeFloat};
+use crate::event_model::entities::EntityId;
+use crate::event_model::diagram::{SwimlaneId, SliceId};
+use crate::infrastructure::types::{PositiveInt, PositiveFloat, NonNegativeFloat};
 use std::collections::HashMap;
 
 /// Complete layout information for a diagram.
@@ -233,7 +233,7 @@ impl LayoutEngine {
     }
     
     /// Compute the layout for a diagram.
-    pub fn compute_layout<W, C, E, P, Q, A>(&self, _diagram: &crate::model::diagram::EventModelDiagram<W, C, E, P, Q, A>) -> Result<Layout, LayoutError> {
+    pub fn compute_layout<W, C, E, P, Q, A>(&self, _diagram: &crate::event_model::diagram::EventModelDiagram<W, C, E, P, Q, A>) -> Result<Layout, LayoutError> {
         todo!()
     }
     

@@ -4,9 +4,9 @@
 //! Event Model diagrams, including SVG embedding and cross-referencing.
 
 use nutype::nutype;
-use crate::model::diagram::EventModelDiagram;
-use crate::renderer::svg::SvgDocument;
-use crate::type_safety::{NonEmptyString, PositiveInt};
+use crate::event_model::diagram::EventModelDiagram;
+use crate::diagram::svg::SvgDocument;
+use crate::infrastructure::types::{NonEmptyString, PositiveInt};
 use std::path::PathBuf;
 
 /// A complete Markdown document.
@@ -224,7 +224,7 @@ pub enum LinkStyle {
     Absolute,
 }
 
-use crate::type_safety::{TypedPath, AnyFile, Directory, MaybeExists};
+use crate::infrastructure::types::{TypedPath, AnyFile, Directory, MaybeExists};
 
 /// Directory for storing SVG files.
 pub type SvgDirectory = TypedPath<AnyFile, Directory, MaybeExists>;

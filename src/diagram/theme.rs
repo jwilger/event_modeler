@@ -4,7 +4,7 @@
 //! particularly GitHub's light and dark modes. Themes are selected at compile
 //! time using phantom types.
 
-use super::styles::Theme;
+use super::style::Theme;
 use std::marker::PhantomData;
 
 // Phantom types for theme variants

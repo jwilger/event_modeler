@@ -7,11 +7,10 @@
 //! visual diagrams suitable for documentation and analysis.
 
 pub mod cli;
-pub mod parser;
-pub mod model;
-pub mod renderer;
+pub mod event_model;
+pub mod diagram;
 pub mod export;
-pub mod type_safety;
+pub mod infrastructure;
 
 fn main() {
     todo!()

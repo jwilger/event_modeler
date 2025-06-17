@@ -5,7 +5,7 @@
 //! ensuring that the rest of the application works with valid paths.
 
 use nutype::nutype;
-use crate::type_safety::{TypedPath, EventModelFile, Directory, File, Exists, MaybeExists, NonEmpty, AnyFile, Port as ValidatedPort};
+use crate::infrastructure::types::{TypedPath, EventModelFile, Directory, File, Exists, MaybeExists, NonEmpty, AnyFile, Port as ValidatedPort};
 
 /// The main CLI structure containing the command to execute.
 #[derive(Debug, Clone)]

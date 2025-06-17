@@ -5,7 +5,7 @@
 //! maintained throughout the application.
 
 use nutype::nutype;
-use crate::type_safety::{TypedPath, MarkdownFile, File, MaybeExists, NonEmpty, NonEmptyString, EventName as SafeEventName, NonNegativeInt};
+use crate::infrastructure::types::{TypedPath, MarkdownFile, File, MaybeExists, NonEmpty, NonEmptyString, EventName as SafeEventName, NonNegativeInt};
 
 /// A UI wireframe showing user interface elements.
 #[derive(Debug, Clone)]

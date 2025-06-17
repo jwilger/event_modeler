@@ -4,7 +4,7 @@
 //! applied to entities, connections, swimlanes, and other diagram elements.
 
 use nutype::nutype;
-use crate::type_safety::{NonEmptyString, PositiveFloat, NonNegativeFloat, FiniteFloat};
+use crate::infrastructure::types::{NonEmptyString, PositiveFloat, NonNegativeFloat, FiniteFloat};
 
 /// Visual style for entities (wireframes, commands, events, etc.).
 #[derive(Debug, Clone)]
