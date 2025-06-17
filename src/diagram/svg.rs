@@ -717,16 +717,16 @@ impl SvgRenderer {
             elements.push(SvgElement::Group(swimlane_group));
         }
 
-        // Render entities
-        for (entity_id, entity_position) in &layout.entity_positions {
-            let entity_element = self.render_entity(entity_id, entity_position)?;
-            elements.push(entity_element);
-        }
-
-        // Render connectors
+        // Render connectors BEFORE entities so they appear behind
         for connection in &layout.connections {
             let connector_element = self.render_connector(connection)?;
             elements.push(connector_element);
+        }
+
+        // Render entities on top of connectors
+        for (entity_id, entity_position) in &layout.entity_positions {
+            let entity_element = self.render_entity(entity_id, entity_position)?;
+            elements.push(entity_element);
         }
 
         // Create empty defs for now
