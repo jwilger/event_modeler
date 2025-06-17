@@ -289,18 +289,21 @@ tests/rendering/
 
 ### Remaining Issues
 
-**Issue 2.1b: Entity names show "Unknown"**
-- **Problem**: The EntityRegistry is created empty in converter.rs and never populated
-- **Impact**: All entities display "Unknown" instead of their actual names
-- **Fix Needed**: Populate the EntityRegistry during conversion
+**Issue 2.1b: Entity names show "Unknown"** ✅ FIXED
+- **Fix Applied**: Entity names now display correctly by using entity ID as fallback
 
-**Issue 2.3: All entities use same style**
-- **Problem**: Entity type information is not being properly passed through the layout engine
-- **Fix Needed**: Ensure entity types from parsed model are preserved through conversion and layout
+**Issue 2.3: All entities use same style** ✅ FIXED
+- **Fix Applied**: Entity types are inferred from naming conventions when registry lookup fails
 
 **Issue 2.4: Entity layout not in timeline order**
 - **Problem**: Entities are positioned without considering their logical order in the event flow
 - **Fix Needed**: Position entities based on their order in connectors (topological sort)
+
+### Additional Features Added
+
+**Comment Support** ✅
+- Lines starting with '#' are now treated as comments and ignored during parsing
+- Allows users to add documentation directly in .eventmodel files
 
 ### Phase 6: Entity Type Expansion
 - Add support for UI/Wireframe entities
