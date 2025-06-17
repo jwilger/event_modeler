@@ -2,6 +2,18 @@
 
 This document outlines the detailed plan for implementing the remaining functionality in Event Modeler while adhering to our type-driven development principles and architectural decisions.
 
+## 🚨 MANDATORY FIRST STEP 🚨
+
+**ALWAYS create a todo list using TodoWrite as your VERY FIRST action when starting work.** This applies to:
+- Starting a new work session
+- Resuming work after a break
+- Beginning implementation of any phase
+- Even when you're just reviewing the plan
+
+Your first todo item might simply be: "Review PLANNING.md to determine next tasks"
+
+This ensures all work is tracked, organized, and nothing is missed.
+
 ## Current Status
 
 **Last Updated**: [To be updated as work progresses]
@@ -17,6 +29,8 @@ This document outlines the detailed plan for implementing the remaining function
 **Current Focus**: Ready to begin Phase 1 (CLI Foundation)
 
 ## Overview
+
+**CRITICAL**: The VERY FIRST step when starting any work session is to create a todo list using the TodoWrite tool. Even if the only item is "Review PLANNING.md to determine next tasks", you MUST create this todo list before doing anything else. This ensures work is always tracked and organized.
 
 The implementation will follow a PR-driven workflow with feature branch chaining:
 1. Create a feature branch for each phase
