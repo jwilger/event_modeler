@@ -22,6 +22,58 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name }}
       
+      - name: Get commit SHA for tag
+        id: get_sha
+        run: |
+          COMMIT_SHA=$(git rev-parse HEAD)
+          echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+          echo "Validating release for commit: $COMMIT_SHA"
+      
+      - name: Check CI status for commit
+        id: check_ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          COMMIT_SHA="${{ steps.get_sha.outputs.commit_sha }}"
+          echo "Checking CI status for commit $COMMIT_SHA"
+          
+          # Wait up to 10 minutes for CI to complete
+          MAX_ATTEMPTS=40
+          ATTEMPT=0
+          
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            # Get all check runs for this commit
+            CHECK_RUNS=$(gh api "/repos/${{ github.repository }}/commits/$COMMIT_SHA/check-runs" --jq '.check_runs')
+            
+            # Check if CI workflow exists and its status
+            CI_STATUS=$(echo "$CHECK_RUNS" | jq -r '.[] | select(.name == "Build") | .status')
+            CI_CONCLUSION=$(echo "$CHECK_RUNS" | jq -r '.[] | select(.name == "Build") | .conclusion')
+            
+            if [ -z "$CI_STATUS" ]; then
+              echo "CI workflow not found for this commit. Waiting..."
+              sleep 15
+              ATTEMPT=$((ATTEMPT + 1))
+              continue
+            fi
+            
+            if [ "$CI_STATUS" = "completed" ]; then
+              if [ "$CI_CONCLUSION" = "success" ]; then
+                echo "CI passed for commit $COMMIT_SHA"
+                exit 0
+              else
+                echo "CI failed for commit $COMMIT_SHA with conclusion: $CI_CONCLUSION"
+                exit 1
+              fi
+            else
+              echo "CI is still running (status: $CI_STATUS). Waiting..."
+              sleep 15
+              ATTEMPT=$((ATTEMPT + 1))
+            fi
+          done
+          
+          echo "Timeout waiting for CI to complete"
+          exit 1
+      
       - name: Extract version from Cargo.toml
         id: cargo_version
         run: |
