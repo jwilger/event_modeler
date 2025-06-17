@@ -25,6 +25,7 @@
 pub mod ast;
 pub mod lexer;
 pub mod simple_lexer;
+pub mod simple_parser;
 
 use ast::EventModel;
 use lexer::{LexError, Lexer};

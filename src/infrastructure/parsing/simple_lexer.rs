@@ -59,6 +59,20 @@ impl Lexer {
         }
     }
 
+    /// Reads the rest of the current line as a single string.
+    pub fn read_line(&mut self) -> String {
+        let mut line = String::new();
+        while let Some(ch) = self.current_char() {
+            if ch == '\n' {
+                self.advance();
+                break;
+            }
+            line.push(ch);
+            self.advance();
+        }
+        line.trim().to_string()
+    }
+
     /// Returns the next token from the input.
     pub fn next_token(&mut self) -> Option<Token> {
         if self.position >= self.input.len() {
