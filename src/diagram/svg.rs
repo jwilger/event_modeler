@@ -452,7 +452,12 @@ impl SvgRenderer {
             elements.push(SvgElement::Group(swimlane_group));
         }
 
-        // TODO: Add entity rendering
+        // Render entities
+        for (entity_id, entity_position) in &layout.entity_positions {
+            let entity_element = self.render_entity(entity_id, entity_position)?;
+            elements.push(entity_element);
+        }
+
         // TODO: Add connector rendering
 
         // Create empty defs for now
@@ -555,6 +560,54 @@ impl SvgRenderer {
             transform: None,
             children,
         })
+    }
+
+    /// Render an entity as an SVG element.
+    fn render_entity(
+        &self,
+        entity_id: &crate::event_model::entities::EntityId,
+        position: &crate::diagram::layout::EntityPosition,
+    ) -> Result<SvgElement, SvgRenderError> {
+        // For now, render all entities as rectangles with rounded corners
+        let rect = SvgRectangle {
+            id: Some(ElementId::new(
+                NonEmptyString::parse(format!(
+                    "entity-{}",
+                    entity_id.clone().into_inner().as_str()
+                ))
+                .unwrap(),
+            )),
+            class: Some(CssClass::new(
+                NonEmptyString::parse("entity".to_string()).unwrap(),
+            )),
+            x: position.position.x,
+            y: position.position.y,
+            width: position.dimensions.width,
+            height: position.dimensions.height,
+            rx: Some(BorderRadius::new(NonNegativeFloat::parse(8.0).unwrap())),
+            ry: Some(BorderRadius::new(NonNegativeFloat::parse(8.0).unwrap())),
+            style: crate::diagram::style::EntityStyle {
+                fill: crate::diagram::style::FillStyle {
+                    color: crate::diagram::style::StyleColor::new(
+                        NonEmptyString::parse("#1f2937".to_string()).unwrap(),
+                    ),
+                    opacity: None,
+                },
+                stroke: crate::diagram::style::StrokeStyle {
+                    color: crate::diagram::style::StyleColor::new(
+                        NonEmptyString::parse("#374151".to_string()).unwrap(),
+                    ),
+                    width: crate::diagram::style::StrokeWidth::new(
+                        PositiveFloat::parse(2.0).unwrap(),
+                    ),
+                    dasharray: None,
+                    opacity: None,
+                },
+                shadow: None,
+            },
+        };
+
+        Ok(SvgElement::Rectangle(rect))
     }
 }
 
