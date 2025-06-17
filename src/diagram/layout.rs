@@ -59,6 +59,8 @@ pub struct EntityPosition {
     pub dimensions: Dimensions,
     /// Type of the entity.
     pub entity_type: crate::event_model::entities::EntityType,
+    /// Name of the entity.
+    pub entity_name: crate::infrastructure::types::NonEmptyString,
 }
 
 /// Layout information for a vertical slice.
@@ -293,6 +295,11 @@ impl LayoutEngine {
                 .get_entity_type(entity_id)
                 .unwrap_or(crate::event_model::entities::EntityType::Command); // Default to command if not found
 
+            // Look up entity name from registry
+            let entity_name = registry.get_entity_name(entity_id).unwrap_or_else(|| {
+                crate::infrastructure::types::NonEmptyString::parse("Unknown".to_string()).unwrap()
+            });
+
             let position = EntityPosition {
                 swimlane_id: swimlane.id.clone(),
                 position: Position {
@@ -304,6 +311,7 @@ impl LayoutEngine {
                     height: Height::new(PositiveFloat::parse(entity_height.max(1.0)).unwrap()),
                 },
                 entity_type,
+                entity_name,
             };
 
             positions.insert(entity_id.clone(), position);

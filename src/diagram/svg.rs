@@ -881,7 +881,53 @@ impl SvgRenderer {
             },
         };
 
-        Ok(SvgElement::Rectangle(rect))
+        // Create a group to hold both the rectangle and text
+        let mut group_elements = vec![SvgElement::Rectangle(rect)];
+
+        // Add text element for entity name
+        let text_x = position.position.x.into_inner().value()
+            + position.dimensions.width.into_inner().value() / 2.0;
+        let text_y = position.position.y.into_inner().value()
+            + position.dimensions.height.into_inner().value() / 2.0;
+
+        let text = SvgText {
+            id: None,
+            class: Some(CssClass::new(
+                NonEmptyString::parse("entity-text".to_string()).unwrap(),
+            )),
+            x: XCoordinate::new(NonNegativeFloat::parse(text_x).unwrap()),
+            y: YCoordinate::new(NonNegativeFloat::parse(text_y).unwrap()),
+            content: TextContent::new(position.entity_name.clone()),
+            style: TextStyle {
+                font_family: FontFamily::new(
+                    NonEmptyString::parse("Arial, sans-serif".to_string()).unwrap(),
+                ),
+                font_size: FontSize::new(
+                    crate::infrastructure::types::PositiveFloat::parse(14.0).unwrap(),
+                ),
+                font_weight: Some(FontWeight::Normal),
+                fill: Color::new(NonEmptyString::parse("#000000".to_string()).unwrap()),
+                anchor: Some(TextAnchor::Middle),
+            },
+        };
+
+        group_elements.push(SvgElement::Text(text));
+
+        // Return a group containing both elements
+        let group = SvgGroup {
+            id: Some(ElementId::new(
+                NonEmptyString::parse(format!(
+                    "entity-group-{}",
+                    entity_id.clone().into_inner().as_str()
+                ))
+                .unwrap(),
+            )),
+            class: None,
+            transform: None,
+            children: group_elements,
+        };
+
+        Ok(SvgElement::Group(group))
     }
 
     /// Render a connector as an SVG path.

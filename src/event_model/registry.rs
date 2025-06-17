@@ -308,6 +308,43 @@ impl<W, C, E, P, Q, A> EntityRegistry<W, C, E, P, Q, A> {
         }
         None
     }
+
+    /// Get the name of an entity by its ID.
+    pub fn get_entity_name(
+        &self,
+        id: &EntityId,
+    ) -> Option<crate::infrastructure::types::NonEmptyString> {
+        // Check wireframes
+        if let Some((_, wireframe)) = self.wireframes.iter().find(|(eid, _)| eid == id) {
+            return Some(wireframe.name.clone().into_inner());
+        }
+        // Check commands
+        if let Some((_, command)) = self.commands.iter().find(|(eid, _)| eid == id) {
+            return Some(command.name.clone().into_inner());
+        }
+        // Check events
+        if let Some((_, event)) = self.events.iter().find(|(eid, _)| eid == id) {
+            return Some(
+                crate::infrastructure::types::NonEmptyString::parse(
+                    event.name.clone().into_inner().as_str().to_string(),
+                )
+                .unwrap(),
+            );
+        }
+        // Check projections
+        if let Some((_, projection)) = self.projections.iter().find(|(eid, _)| eid == id) {
+            return Some(projection.name.clone().into_inner());
+        }
+        // Check queries
+        if let Some((_, query)) = self.queries.iter().find(|(eid, _)| eid == id) {
+            return Some(query.name.clone().into_inner());
+        }
+        // Check automations
+        if let Some((_, automation)) = self.automations.iter().find(|(eid, _)| eid == id) {
+            return Some(automation.name.clone().into_inner());
+        }
+        None
+    }
 }
 
 // Alternative: Use const generics for compile-time entity tracking
