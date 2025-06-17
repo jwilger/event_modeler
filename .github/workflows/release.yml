@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  release:
+    types: [created]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-release:
+    name: Build Release
+    strategy:
+      matrix:
+        include:
+          # Linux
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary: event_modeler
+            name: event-modeler-linux-x86_64
+          
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            binary: event_modeler
+            name: event-modeler-linux-x86_64-musl
+            use-cross: true
+          
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            binary: event_modeler
+            name: event-modeler-linux-aarch64
+            use-cross: true
+          
+          # macOS
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            binary: event_modeler
+            name: event-modeler-macos-x86_64
+          
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            binary: event_modeler
+            name: event-modeler-macos-aarch64
+          
+          # Windows
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: event_modeler.exe
+            name: event-modeler-windows-x86_64
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      
+      - name: Install cross
+        if: matrix.use-cross == true
+        run: cargo install cross --git https://github.com/cross-rs/cross
+      
+      - name: Build
+        run: |
+          if [ "${{ matrix.use-cross }}" = "true" ]; then
+            cross build --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+        shell: bash
+      
+      - name: Package
+        run: |
+          cd target/${{ matrix.target }}/release
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            7z a ../../../${{ matrix.name }}.zip ${{ matrix.binary }}
+          else
+            tar czf ../../../${{ matrix.name }}.tar.gz ${{ matrix.binary }}
+          fi
+          cd -
+        shell: bash
+      
+      - name: Upload Release Asset (tar.gz)
+        if: matrix.os != 'windows-latest'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ matrix.name }}.tar.gz
+          asset_name: ${{ matrix.name }}.tar.gz
+          asset_content_type: application/gzip
+      
+      - name: Upload Release Asset (zip)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ matrix.name }}.zip
+          asset_name: ${{ matrix.name }}.zip
+          asset_content_type: application/zip
