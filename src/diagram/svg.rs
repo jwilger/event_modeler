@@ -391,6 +391,8 @@ pub struct MatrixValue(FiniteFloat);
 pub struct SvgRenderer {
     /// Configuration for rendering.
     config: SvgRenderConfig,
+    /// Theme to use for styling.
+    theme: crate::diagram::style::Theme,
 }
 
 /// Configuration for SVG rendering.
@@ -425,8 +427,8 @@ pub struct EmbedFonts(bool);
 
 impl SvgRenderer {
     /// Create a new SVG renderer.
-    pub fn new(config: SvgRenderConfig) -> Self {
-        Self { config }
+    pub fn new(config: SvgRenderConfig, theme: crate::diagram::style::Theme) -> Self {
+        Self { config, theme }
     }
 
     /// Render a layout to an SVG document.
@@ -510,22 +512,8 @@ impl SvgRenderer {
             rx: None,
             ry: None,
             style: crate::diagram::style::EntityStyle {
-                fill: crate::diagram::style::FillStyle {
-                    color: crate::diagram::style::StyleColor::new(
-                        NonEmptyString::parse("#f6f8fa".to_string()).unwrap(),
-                    ),
-                    opacity: None,
-                },
-                stroke: crate::diagram::style::StrokeStyle {
-                    color: crate::diagram::style::StyleColor::new(
-                        NonEmptyString::parse("#d1d5db".to_string()).unwrap(),
-                    ),
-                    width: crate::diagram::style::StrokeWidth::new(
-                        PositiveFloat::parse(1.0).unwrap(),
-                    ),
-                    dasharray: None,
-                    opacity: None,
-                },
+                fill: self.theme.swimlane_style.background.clone(),
+                stroke: self.theme.swimlane_style.border.clone(),
                 shadow: None,
             },
         };
@@ -548,12 +536,34 @@ impl SvgRenderer {
             ),
             style: TextStyle {
                 font_family: FontFamily::new(
-                    NonEmptyString::parse("Arial, sans-serif".to_string()).unwrap(),
+                    self.theme
+                        .swimlane_style
+                        .label_style
+                        .font
+                        .family
+                        .clone()
+                        .into_inner(),
                 ),
-                font_size: FontSize::new(PositiveFloat::parse(14.0).unwrap()),
-                font_weight: Some(FontWeight::Bold),
-                fill: Color::new(NonEmptyString::parse("#24292e".to_string()).unwrap()),
-                anchor: Some(TextAnchor::Start),
+                font_size: FontSize::new(
+                    self.theme.swimlane_style.label_style.font.size.into_inner(),
+                ),
+                font_weight: match self.theme.swimlane_style.label_style.font.weight {
+                    crate::diagram::style::StyleFontWeight::Bold => Some(FontWeight::Bold),
+                    crate::diagram::style::StyleFontWeight::Normal => Some(FontWeight::Normal),
+                },
+                fill: Color::new(
+                    self.theme
+                        .swimlane_style
+                        .label_style
+                        .color
+                        .clone()
+                        .into_inner(),
+                ),
+                anchor: match self.theme.swimlane_style.label_style.alignment {
+                    crate::diagram::style::TextAlignment::Left => Some(TextAnchor::Start),
+                    crate::diagram::style::TextAlignment::Center => Some(TextAnchor::Middle),
+                    crate::diagram::style::TextAlignment::Right => Some(TextAnchor::End),
+                },
             },
         };
         children.push(SvgElement::Text(label));
@@ -590,25 +600,9 @@ impl SvgRenderer {
             height: position.dimensions.height,
             rx: Some(BorderRadius::new(NonNegativeFloat::parse(8.0).unwrap())),
             ry: Some(BorderRadius::new(NonNegativeFloat::parse(8.0).unwrap())),
-            style: crate::diagram::style::EntityStyle {
-                fill: crate::diagram::style::FillStyle {
-                    color: crate::diagram::style::StyleColor::new(
-                        NonEmptyString::parse("#1f2937".to_string()).unwrap(),
-                    ),
-                    opacity: None,
-                },
-                stroke: crate::diagram::style::StrokeStyle {
-                    color: crate::diagram::style::StyleColor::new(
-                        NonEmptyString::parse("#374151".to_string()).unwrap(),
-                    ),
-                    width: crate::diagram::style::StrokeWidth::new(
-                        PositiveFloat::parse(2.0).unwrap(),
-                    ),
-                    dasharray: None,
-                    opacity: None,
-                },
-                shadow: None,
-            },
+            // TODO: Determine entity type and use appropriate style (command, event, etc.)
+            // For now, use command style as default
+            style: self.theme.command_style.clone(),
         };
 
         Ok(SvgElement::Rectangle(rect))
@@ -655,28 +649,7 @@ impl SvgRenderer {
                 NonEmptyString::parse("connector".to_string()).unwrap(),
             )),
             d: PathData::new(NonEmptyString::parse(path_data).unwrap()),
-            style: crate::diagram::style::ConnectionStyle {
-                stroke: crate::diagram::style::StrokeStyle {
-                    color: crate::diagram::style::StyleColor::new(
-                        NonEmptyString::parse("#6b7280".to_string()).unwrap(),
-                    ),
-                    width: crate::diagram::style::StrokeWidth::new(
-                        PositiveFloat::parse(2.0).unwrap(),
-                    ),
-                    dasharray: None,
-                    opacity: None,
-                },
-                marker_end: Some(crate::diagram::style::MarkerStyle {
-                    marker_type: crate::diagram::style::MarkerType::Arrow,
-                    size: crate::diagram::style::MarkerStyleSize::new(
-                        PositiveFloat::parse(10.0).unwrap(),
-                    ),
-                    color: crate::diagram::style::StyleColor::new(
-                        NonEmptyString::parse("#6b7280".to_string()).unwrap(),
-                    ),
-                }),
-                marker_start: None,
-            },
+            style: self.theme.connection_style.clone(),
         };
 
         Ok(SvgElement::Path(path))

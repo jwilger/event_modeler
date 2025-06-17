@@ -45,7 +45,204 @@ impl ThemedRenderer<GithubLight> {
 
     /// Build the GitHub light theme configuration.
     fn create_github_light_theme() -> Theme {
-        todo!()
+        use super::style::*;
+        use crate::infrastructure::types::{NonEmptyString, NonNegativeFloat, PositiveFloat};
+
+        Theme {
+            name: ThemeName::new(NonEmptyString::parse("github-light".to_string()).unwrap()),
+
+            // Wireframe style - neutral gray
+            wireframe_style: EntityStyle {
+                fill: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#f6f8fa".to_string()).unwrap()),
+                    opacity: None,
+                },
+                stroke: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#d1d5db".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(1.5).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                shadow: None,
+            },
+
+            // Command style - blue
+            command_style: EntityStyle {
+                fill: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#dbeafe".to_string()).unwrap()),
+                    opacity: None,
+                },
+                stroke: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#0969da".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                shadow: None,
+            },
+
+            // Event style - orange
+            event_style: EntityStyle {
+                fill: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#fff7ed".to_string()).unwrap()),
+                    opacity: None,
+                },
+                stroke: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#fb923c".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                shadow: None,
+            },
+
+            // Projection style - green
+            projection_style: EntityStyle {
+                fill: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#f0fdf4".to_string()).unwrap()),
+                    opacity: None,
+                },
+                stroke: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#22c55e".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                shadow: None,
+            },
+
+            // Query style - purple
+            query_style: EntityStyle {
+                fill: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#f3e8ff".to_string()).unwrap()),
+                    opacity: None,
+                },
+                stroke: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#9333ea".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                shadow: None,
+            },
+
+            // Automation style - teal
+            automation_style: EntityStyle {
+                fill: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#f0fdfa".to_string()).unwrap()),
+                    opacity: None,
+                },
+                stroke: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#14b8a6".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                shadow: None,
+            },
+
+            // Connection style
+            connection_style: ConnectionStyle {
+                stroke: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#6b7280".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                marker_end: Some(MarkerStyle {
+                    marker_type: MarkerType::Arrow,
+                    size: MarkerStyleSize::new(PositiveFloat::parse(10.0).unwrap()),
+                    color: StyleColor::new(NonEmptyString::parse("#6b7280".to_string()).unwrap()),
+                }),
+                marker_start: None,
+            },
+
+            // Swimlane style
+            swimlane_style: SwimlaneStyle {
+                background: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#ffffff".to_string()).unwrap()),
+                    opacity: None,
+                },
+                border: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#e5e7eb".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(1.0).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                label_style: LabelStyle {
+                    font: FontConfig {
+                        family: StyleFontFamily::new(
+                            NonEmptyString::parse(
+                                "ui-sans-serif, system-ui, sans-serif".to_string(),
+                            )
+                            .unwrap(),
+                        ),
+                        size: StyleFontSize::new(PositiveFloat::parse(14.0).unwrap()),
+                        weight: StyleFontWeight::Bold,
+                    },
+                    color: StyleColor::new(NonEmptyString::parse("#1f2937".to_string()).unwrap()),
+                    alignment: TextAlignment::Left,
+                },
+            },
+
+            // Slice style
+            slice_style: SliceStyle {
+                background: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#fafafa".to_string()).unwrap()),
+                    opacity: Some(StyleOpacity::new(NonNegativeFloat::parse(0.5).unwrap())),
+                },
+                border: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#d1d5db".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(1.0).unwrap()),
+                    dasharray: Some(DashArray {
+                        pattern: vec![
+                            DashValue::new(PositiveFloat::parse(5.0).unwrap()),
+                            DashValue::new(PositiveFloat::parse(5.0).unwrap()),
+                        ],
+                    }),
+                    opacity: None,
+                },
+                gutter_style: GutterStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#e5e7eb".to_string()).unwrap()),
+                    pattern: GutterPattern::Dashed,
+                },
+            },
+
+            // Text styles
+            text_style: TextStyleConfig {
+                entity_name: FontConfig {
+                    family: StyleFontFamily::new(
+                        NonEmptyString::parse("ui-sans-serif, system-ui, sans-serif".to_string())
+                            .unwrap(),
+                    ),
+                    size: StyleFontSize::new(PositiveFloat::parse(12.0).unwrap()),
+                    weight: StyleFontWeight::Bold,
+                },
+                field_name: FontConfig {
+                    family: StyleFontFamily::new(
+                        NonEmptyString::parse("ui-monospace, monospace".to_string()).unwrap(),
+                    ),
+                    size: StyleFontSize::new(PositiveFloat::parse(10.0).unwrap()),
+                    weight: StyleFontWeight::Normal,
+                },
+                slice_label: FontConfig {
+                    family: StyleFontFamily::new(
+                        NonEmptyString::parse("ui-sans-serif, system-ui, sans-serif".to_string())
+                            .unwrap(),
+                    ),
+                    size: StyleFontSize::new(PositiveFloat::parse(14.0).unwrap()),
+                    weight: StyleFontWeight::Bold,
+                },
+                swimlane_label: FontConfig {
+                    family: StyleFontFamily::new(
+                        NonEmptyString::parse("ui-sans-serif, system-ui, sans-serif".to_string())
+                            .unwrap(),
+                    ),
+                    size: StyleFontSize::new(PositiveFloat::parse(14.0).unwrap()),
+                    weight: StyleFontWeight::Bold,
+                },
+            },
+        }
     }
 }
 
@@ -60,7 +257,204 @@ impl ThemedRenderer<GithubDark> {
 
     /// Build the GitHub dark theme configuration.
     fn create_github_dark_theme() -> Theme {
-        todo!()
+        use super::style::*;
+        use crate::infrastructure::types::{NonEmptyString, NonNegativeFloat, PositiveFloat};
+
+        Theme {
+            name: ThemeName::new(NonEmptyString::parse("github-dark".to_string()).unwrap()),
+
+            // Wireframe style - dark gray
+            wireframe_style: EntityStyle {
+                fill: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#21262d".to_string()).unwrap()),
+                    opacity: None,
+                },
+                stroke: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#30363d".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(1.5).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                shadow: None,
+            },
+
+            // Command style - blue
+            command_style: EntityStyle {
+                fill: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#0c2d6b".to_string()).unwrap()),
+                    opacity: None,
+                },
+                stroke: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#388bfd".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                shadow: None,
+            },
+
+            // Event style - orange
+            event_style: EntityStyle {
+                fill: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#5a1e02".to_string()).unwrap()),
+                    opacity: None,
+                },
+                stroke: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#fb923c".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                shadow: None,
+            },
+
+            // Projection style - green
+            projection_style: EntityStyle {
+                fill: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#04260f".to_string()).unwrap()),
+                    opacity: None,
+                },
+                stroke: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#22c55e".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                shadow: None,
+            },
+
+            // Query style - purple
+            query_style: EntityStyle {
+                fill: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#271052".to_string()).unwrap()),
+                    opacity: None,
+                },
+                stroke: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#a371f7".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                shadow: None,
+            },
+
+            // Automation style - teal
+            automation_style: EntityStyle {
+                fill: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#033a3a".to_string()).unwrap()),
+                    opacity: None,
+                },
+                stroke: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#2dd4bf".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                shadow: None,
+            },
+
+            // Connection style
+            connection_style: ConnectionStyle {
+                stroke: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#848d97".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                marker_end: Some(MarkerStyle {
+                    marker_type: MarkerType::Arrow,
+                    size: MarkerStyleSize::new(PositiveFloat::parse(10.0).unwrap()),
+                    color: StyleColor::new(NonEmptyString::parse("#848d97".to_string()).unwrap()),
+                }),
+                marker_start: None,
+            },
+
+            // Swimlane style
+            swimlane_style: SwimlaneStyle {
+                background: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#0d1117".to_string()).unwrap()),
+                    opacity: None,
+                },
+                border: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#30363d".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(1.0).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                label_style: LabelStyle {
+                    font: FontConfig {
+                        family: StyleFontFamily::new(
+                            NonEmptyString::parse(
+                                "ui-sans-serif, system-ui, sans-serif".to_string(),
+                            )
+                            .unwrap(),
+                        ),
+                        size: StyleFontSize::new(PositiveFloat::parse(14.0).unwrap()),
+                        weight: StyleFontWeight::Bold,
+                    },
+                    color: StyleColor::new(NonEmptyString::parse("#e6edf3".to_string()).unwrap()),
+                    alignment: TextAlignment::Left,
+                },
+            },
+
+            // Slice style
+            slice_style: SliceStyle {
+                background: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#161b22".to_string()).unwrap()),
+                    opacity: Some(StyleOpacity::new(NonNegativeFloat::parse(0.5).unwrap())),
+                },
+                border: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#30363d".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(1.0).unwrap()),
+                    dasharray: Some(DashArray {
+                        pattern: vec![
+                            DashValue::new(PositiveFloat::parse(5.0).unwrap()),
+                            DashValue::new(PositiveFloat::parse(5.0).unwrap()),
+                        ],
+                    }),
+                    opacity: None,
+                },
+                gutter_style: GutterStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#21262d".to_string()).unwrap()),
+                    pattern: GutterPattern::Dashed,
+                },
+            },
+
+            // Text styles
+            text_style: TextStyleConfig {
+                entity_name: FontConfig {
+                    family: StyleFontFamily::new(
+                        NonEmptyString::parse("ui-sans-serif, system-ui, sans-serif".to_string())
+                            .unwrap(),
+                    ),
+                    size: StyleFontSize::new(PositiveFloat::parse(12.0).unwrap()),
+                    weight: StyleFontWeight::Bold,
+                },
+                field_name: FontConfig {
+                    family: StyleFontFamily::new(
+                        NonEmptyString::parse("ui-monospace, monospace".to_string()).unwrap(),
+                    ),
+                    size: StyleFontSize::new(PositiveFloat::parse(10.0).unwrap()),
+                    weight: StyleFontWeight::Normal,
+                },
+                slice_label: FontConfig {
+                    family: StyleFontFamily::new(
+                        NonEmptyString::parse("ui-sans-serif, system-ui, sans-serif".to_string())
+                            .unwrap(),
+                    ),
+                    size: StyleFontSize::new(PositiveFloat::parse(14.0).unwrap()),
+                    weight: StyleFontWeight::Bold,
+                },
+                swimlane_label: FontConfig {
+                    family: StyleFontFamily::new(
+                        NonEmptyString::parse("ui-sans-serif, system-ui, sans-serif".to_string())
+                            .unwrap(),
+                    ),
+                    size: StyleFontSize::new(PositiveFloat::parse(14.0).unwrap()),
+                    weight: StyleFontWeight::Bold,
+                },
+            },
+        }
     }
 }
 

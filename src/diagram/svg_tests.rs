@@ -16,7 +16,9 @@ mod basic_tests {
             embed_fonts: EmbedFonts::new(false),
         };
 
-        let renderer = SvgRenderer::new(config);
+        // Create a default theme for testing
+        let theme = crate::diagram::theme::ThemedRenderer::<crate::diagram::theme::GithubLight>::github_light().theme().clone();
+        let renderer = SvgRenderer::new(config, theme);
         assert!(matches!(
             renderer.config().optimize,
             OptimizationLevel::Basic
@@ -74,7 +76,9 @@ mod rendering_tests {
             embed_fonts: EmbedFonts::new(false),
         };
 
-        let renderer = SvgRenderer::new(config);
+        // Create a default theme for testing
+        let theme = crate::diagram::theme::ThemedRenderer::<crate::diagram::theme::GithubLight>::github_light().theme().clone();
+        let renderer = SvgRenderer::new(config, theme);
         let result = renderer.render(&layout);
 
         assert!(result.is_ok());
