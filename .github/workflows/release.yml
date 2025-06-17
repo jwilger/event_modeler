@@ -89,12 +89,16 @@ jobs:
           popd
         shell: bash
       
-      - name: Upload Release Asset
+      - name: Upload Release Asset (tar.gz)
+        if: matrix.os != 'windows-latest'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            gh release upload "${{ github.event.release.tag_name }}" "${{ matrix.name }}.zip" --clobber
-          else
-            gh release upload "${{ github.event.release.tag_name }}" "${{ matrix.name }}.tar.gz" --clobber
-          fi
+        run: gh release upload "${{ github.event.release.tag_name }}" "${{ matrix.name }}.tar.gz" --clobber
+        shell: bash
+      
+      - name: Upload Release Asset (zip)
+        if: matrix.os == 'windows-latest'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" "${{ matrix.name }}.zip" --clobber
+        shell: bash
