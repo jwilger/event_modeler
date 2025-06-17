@@ -246,6 +246,63 @@ impl LayoutEngine {
         }
     }
 
+    /// Calculate positions for entities within a swimlane.
+    fn position_entities_in_swimlane(
+        &self,
+        swimlane: &crate::event_model::diagram::Swimlane,
+        swimlane_layout: &SwimlaneLayout,
+    ) -> HashMap<EntityId, EntityPosition> {
+        let mut positions = HashMap::new();
+        let entity_count = swimlane.entities.len();
+
+        if entity_count == 0 {
+            return positions;
+        }
+
+        // Calculate available width for entities
+        let swimlane_width = swimlane_layout.dimensions.width.into_inner().value();
+        let entity_spacing = self.config.entity_spacing.into_inner().value();
+
+        // Simple entity dimensions (will be made configurable later)
+        let entity_width = 120.0_f32;
+        let entity_height = 60.0_f32;
+
+        // Calculate horizontal spacing between entities
+        let total_entity_width = entity_count as f32 * entity_width;
+        let total_spacing = (entity_count - 1).max(0) as f32 * entity_spacing;
+        let content_width = total_entity_width + total_spacing;
+
+        // Center entities horizontally within swimlane
+        let start_x = swimlane_layout.position.x.into_inner().value()
+            + (swimlane_width - content_width) / 2.0;
+
+        // Vertically center entities within swimlane
+        let swimlane_height = swimlane_layout.dimensions.height.into_inner().value();
+        let y = swimlane_layout.position.y.into_inner().value()
+            + (swimlane_height - entity_height) / 2.0;
+
+        // Position each entity
+        for (index, entity_id) in swimlane.entities.iter().enumerate() {
+            let x = start_x + (index as f32) * (entity_width + entity_spacing);
+
+            let position = EntityPosition {
+                swimlane_id: swimlane.id.clone(),
+                position: Position {
+                    x: XCoordinate::new(NonNegativeFloat::parse(x).unwrap()),
+                    y: YCoordinate::new(NonNegativeFloat::parse(y).unwrap()),
+                },
+                dimensions: Dimensions {
+                    width: Width::new(PositiveFloat::parse(entity_width).unwrap()),
+                    height: Height::new(PositiveFloat::parse(entity_height).unwrap()),
+                },
+            };
+
+            positions.insert(entity_id.clone(), position);
+        }
+
+        positions
+    }
+
     /// Compute the layout for a diagram.
     pub fn compute_layout<W, C, E, P, Q, A>(
         &self,
@@ -280,10 +337,20 @@ impl LayoutEngine {
             );
         }
 
+        // Position entities within each swimlane
+        let mut entity_positions = HashMap::new();
+        for swimlane in diagram.swimlanes.iter() {
+            if let Some(swimlane_layout) = swimlane_layouts.get(&swimlane.id) {
+                let swimlane_entities =
+                    self.position_entities_in_swimlane(swimlane, swimlane_layout);
+                entity_positions.extend(swimlane_entities);
+            }
+        }
+
         Ok(Layout {
             canvas,
             swimlane_layouts,
-            entity_positions: HashMap::new(),
+            entity_positions,
             slice_layouts: HashMap::new(),
             connections: Vec::new(),
         })
