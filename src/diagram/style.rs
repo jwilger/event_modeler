@@ -3,8 +3,8 @@
 //! This module defines styles, themes, and visual properties that can be
 //! applied to entities, connections, swimlanes, and other diagram elements.
 
+use crate::infrastructure::types::{FiniteFloat, NonEmptyString, NonNegativeFloat, PositiveFloat};
 use nutype::nutype;
-use crate::infrastructure::types::{NonEmptyString, PositiveFloat, NonNegativeFloat, FiniteFloat};
 
 /// Visual style for entities (wireframes, commands, events, etc.).
 #[derive(Debug, Clone)]
@@ -221,61 +221,41 @@ pub enum StyleFontWeight {
 }
 
 /// Color value (hex, rgb, or named).
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct StyleColor(NonEmptyString);
 
 /// Opacity value (0.0-1.0).
-#[nutype(
-    derive(Debug, Clone, Copy, PartialEq, PartialOrd)
-)]
+#[nutype(derive(Debug, Clone, Copy, PartialEq, PartialOrd))]
 pub struct StyleOpacity(NonNegativeFloat);
 
 /// Width of a stroke.
-#[nutype(
-    derive(Debug, Clone, Copy, PartialEq, PartialOrd)
-)]
+#[nutype(derive(Debug, Clone, Copy, PartialEq, PartialOrd))]
 pub struct StrokeWidth(PositiveFloat);
 
 /// Shadow offset value.
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct ShadowOffset(FiniteFloat);
 
 /// Blur radius for shadows.
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct BlurRadius(NonNegativeFloat);
 
 /// Size of a marker.
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct MarkerStyleSize(PositiveFloat);
 
 /// Length of a dash or gap in a dash pattern.
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct DashValue(PositiveFloat);
 
 /// Name of a theme.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct ThemeName(NonEmptyString);
 
 /// Font family name.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct StyleFontFamily(NonEmptyString);
 
 /// Font size in pixels.
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct StyleFontSize(PositiveFloat);

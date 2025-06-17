@@ -80,36 +80,41 @@ impl<T> NonEmpty<T> {
             tail: vec![],
         }
     }
-    
+
     /// Creates a `NonEmpty` collection from a head element and a tail vector.
     ///
     /// The resulting collection will always have at least one element (the head).
     pub fn from_head_and_tail(head: T, tail: Vec<T>) -> Self {
         Self { head, tail }
     }
-    
+
     /// Returns a reference to the first (head) element.
     ///
     /// This is guaranteed to exist and never panics.
     pub fn head(&self) -> &T {
         &self.head
     }
-    
+
     /// Returns a slice of the tail elements (may be empty).
     pub fn tail(&self) -> &[T] {
         &self.tail
     }
-    
+
     /// Returns an iterator over all elements in the collection.
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         std::iter::once(&self.head).chain(self.tail.iter())
     }
-    
+
     /// Returns the number of elements in the collection.
     ///
     /// Always returns at least 1.
     pub fn len(&self) -> usize {
         1 + self.tail.len()
+    }
+
+    /// Returns false because NonEmpty collections are never empty.
+    pub const fn is_empty(&self) -> bool {
+        false
     }
 }
 
@@ -162,9 +167,14 @@ impl PathBuilder {
     /// # Errors
     ///
     /// Returns `ParseError::InvalidEventModelFile` if requirements are not met.
-    pub fn parse_event_model_file(path: PathBuf) -> Result<TypedPath<EventModelFile, File, Exists>, ParseError> {
+    pub fn parse_event_model_file(
+        path: PathBuf,
+    ) -> Result<TypedPath<EventModelFile, File, Exists>, ParseError> {
         // This validation happens once at system boundary
-        if path.extension().map_or(false, |ext| ext == "eventmodel") && path.exists() && path.is_file() {
+        if path.extension().is_some_and(|ext| ext == "eventmodel")
+            && path.exists()
+            && path.is_file()
+        {
             Ok(TypedPath {
                 path,
                 _file_type: PhantomData,
@@ -175,7 +185,7 @@ impl PathBuilder {
             Err(ParseError::InvalidEventModelFile)
         }
     }
-    
+
     /// Parses a path as a Markdown file.
     ///
     /// # Requirements
@@ -188,8 +198,10 @@ impl PathBuilder {
     /// # Errors
     ///
     /// Returns `ParseError::InvalidMarkdownFile` if the extension is not `.md`.
-    pub fn parse_markdown_file(path: PathBuf) -> Result<TypedPath<MarkdownFile, File, MaybeExists>, ParseError> {
-        if path.extension().map_or(false, |ext| ext == "md") {
+    pub fn parse_markdown_file(
+        path: PathBuf,
+    ) -> Result<TypedPath<MarkdownFile, File, MaybeExists>, ParseError> {
+        if path.extension().is_some_and(|ext| ext == "md") {
             Ok(TypedPath {
                 path,
                 _file_type: PhantomData,
@@ -200,7 +212,7 @@ impl PathBuilder {
             Err(ParseError::InvalidMarkdownFile)
         }
     }
-    
+
     /// Parses a path as an existing directory.
     ///
     /// # Requirements
@@ -211,7 +223,9 @@ impl PathBuilder {
     /// # Errors
     ///
     /// Returns `ParseError::InvalidDirectory` if requirements are not met.
-    pub fn parse_directory(path: PathBuf) -> Result<TypedPath<AnyFile, Directory, Exists>, ParseError> {
+    pub fn parse_directory(
+        path: PathBuf,
+    ) -> Result<TypedPath<AnyFile, Directory, Exists>, ParseError> {
         if path.exists() && path.is_dir() {
             Ok(TypedPath {
                 path,
@@ -223,7 +237,7 @@ impl PathBuilder {
             Err(ParseError::InvalidDirectory)
         }
     }
-    
+
     /// Parses a path as an output directory.
     ///
     /// # Requirements
@@ -235,8 +249,10 @@ impl PathBuilder {
     /// # Errors
     ///
     /// Returns `ParseError::InvalidOutputDirectory` if parent doesn't exist.
-    pub fn parse_output_directory(path: PathBuf) -> Result<TypedPath<AnyFile, Directory, MaybeExists>, ParseError> {
-        if path.parent().map_or(true, |p| p.exists()) {
+    pub fn parse_output_directory(
+        path: PathBuf,
+    ) -> Result<TypedPath<AnyFile, Directory, MaybeExists>, ParseError> {
+        if path.parent().is_none_or(|p| p.exists()) {
             Ok(TypedPath {
                 path,
                 _file_type: PhantomData,
@@ -255,43 +271,43 @@ pub enum ParseError {
     /// The path is not a valid Event Model file.
     #[error("Invalid event model file: must have .eventmodel extension and exist")]
     InvalidEventModelFile,
-    
+
     /// The path is not a valid Markdown file.
     #[error("Invalid markdown file: must have .md extension")]
     InvalidMarkdownFile,
-    
+
     /// The path is not a valid directory.
     #[error("Invalid directory: must exist and be a directory")]
     InvalidDirectory,
-    
+
     /// The output directory path is invalid.
     #[error("Invalid output directory: parent must exist")]
     InvalidOutputDirectory,
-    
+
     /// String cannot be empty.
     #[error("String cannot be empty")]
     EmptyString,
-    
+
     /// Invalid identifier format.
     #[error("Invalid identifier format")]
     InvalidIdentifier,
-    
+
     /// Event name must start with uppercase letter.
     #[error("Event name must start with uppercase letter")]
     InvalidEventName,
-    
+
     /// Value must be greater than zero.
     #[error("Value must be greater than zero")]
     NotPositive,
-    
+
     /// Port must be between 1 and 65535.
     #[error("Port must be between 1 and 65535")]
     InvalidPort,
-    
+
     /// Float must be finite.
     #[error("Float must be finite")]
     NotFinite,
-    
+
     /// Percentage must be between 0 and 100.
     #[error("Percentage must be between 0 and 100")]
     InvalidPercentage,
@@ -304,6 +320,12 @@ pub enum ParseError {
 /// This type has no runtime cost and is used to track properties
 /// at compile time using phantom types.
 pub struct Proof<T>(PhantomData<T>);
+
+impl<T> Default for Proof<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl<T> Proof<T> {
     /// Creates a new proof.
@@ -342,12 +364,12 @@ impl NonEmptyString {
             Ok(Self(s))
         }
     }
-    
+
     /// Returns the inner string value.
     pub fn as_str(&self) -> &str {
         &self.0
     }
-    
+
     /// Consumes self and returns the inner string.
     pub fn into_inner(self) -> String {
         self.0
@@ -368,21 +390,21 @@ impl Identifier {
         if s.is_empty() {
             return Err(ParseError::EmptyString);
         }
-        
+
         let chars: Vec<char> = s.chars().collect();
         if !chars[0].is_ascii_alphabetic() && chars[0] != '_' {
             return Err(ParseError::InvalidIdentifier);
         }
-        
+
         for &ch in &chars[1..] {
             if !ch.is_ascii_alphanumeric() && ch != '_' {
                 return Err(ParseError::InvalidIdentifier);
             }
         }
-        
+
         Ok(Self(s))
     }
-    
+
     /// Returns the identifier as a string slice.
     pub fn as_str(&self) -> &str {
         &self.0
@@ -403,15 +425,15 @@ impl EventName {
         if s.is_empty() {
             return Err(ParseError::EmptyString);
         }
-        
+
         let first_char = s.chars().next().unwrap();
         if !first_char.is_ascii_uppercase() {
             return Err(ParseError::InvalidEventName);
         }
-        
+
         Ok(Self(s))
     }
-    
+
     /// Returns the event name as a string slice.
     pub fn as_str(&self) -> &str {
         &self.0
@@ -431,7 +453,7 @@ impl NonNegativeInt {
     pub const fn new(value: u32) -> Self {
         Self(value)
     }
-    
+
     /// Returns the inner value.
     pub const fn value(self) -> u32 {
         self.0
@@ -453,7 +475,7 @@ impl PositiveInt {
             Ok(Self(value))
         }
     }
-    
+
     /// Returns the inner value.
     pub const fn value(self) -> u32 {
         self.0
@@ -475,7 +497,7 @@ impl Port {
             Ok(Self(value))
         }
     }
-    
+
     /// Returns the port number.
     pub const fn value(self) -> u16 {
         self.0
@@ -497,7 +519,7 @@ impl FiniteFloat {
             Err(ParseError::NotFinite)
         }
     }
-    
+
     /// Returns the inner value.
     pub const fn value(self) -> f32 {
         self.0
@@ -513,13 +535,13 @@ impl Percentage {
     ///
     /// This should only be called at system boundaries.
     pub fn parse(value: f32) -> Result<Self, ParseError> {
-        if value >= 0.0 && value <= 100.0 && value.is_finite() {
+        if (0.0..=100.0).contains(&value) && value.is_finite() {
             Ok(Self(value))
         } else {
             Err(ParseError::InvalidPercentage)
         }
     }
-    
+
     /// Returns the percentage value.
     pub const fn value(self) -> f32 {
         self.0
@@ -541,7 +563,7 @@ impl PositiveFloat {
             Err(ParseError::NotPositive)
         }
     }
-    
+
     /// Returns the inner value.
     pub const fn value(self) -> f32 {
         self.0
@@ -563,10 +585,9 @@ impl NonNegativeFloat {
             Err(ParseError::NotPositive)
         }
     }
-    
+
     /// Returns the inner value.
     pub const fn value(self) -> f32 {
         self.0
     }
 }
-

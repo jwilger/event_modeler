@@ -3,11 +3,11 @@
 //! This module handles the generation of Markdown documentation from
 //! Event Model diagrams, including SVG embedding and cross-referencing.
 
-use nutype::nutype;
-use crate::event_model::diagram::EventModelDiagram;
 use crate::diagram::svg::SvgDocument;
+use crate::event_model::diagram::EventModelDiagram;
 use crate::infrastructure::types::{NonEmptyString, PositiveInt};
-use std::path::PathBuf;
+use nutype::nutype;
+use std::path::Path;
 
 /// A complete Markdown document.
 #[derive(Debug, Clone)]
@@ -113,69 +113,47 @@ pub struct ListItem {
 }
 
 /// Heading level (1-6).
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct HeadingLevel(PositiveInt);
 
 /// Content of a heading.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct HeadingContent(NonEmptyString);
 
 /// Content of a paragraph.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct ParagraphContent(NonEmptyString);
 
 /// Alternative text for an image.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct ImageAltText(NonEmptyString);
 
 /// Path to an image file.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct ImagePath(NonEmptyString);
 
 /// Title/tooltip for an image.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct ImageTitle(NonEmptyString);
 
 /// Programming language for syntax highlighting.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct CodeLanguage(NonEmptyString);
 
 /// Content of a code block.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct CodeContent(NonEmptyString);
 
 /// Header text for a table column.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct TableHeader(NonEmptyString);
 
 /// Content of a table cell.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct TableCell(String);
 
 /// Content of a list item.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct ListItemContent(NonEmptyString);
 
 /// Exporter for generating Markdown documentation.
@@ -224,7 +202,7 @@ pub enum LinkStyle {
     Absolute,
 }
 
-use crate::infrastructure::types::{TypedPath, AnyFile, Directory, MaybeExists};
+use crate::infrastructure::types::{AnyFile, Directory, MaybeExists, TypedPath};
 
 /// Directory for storing SVG files.
 pub type SvgDirectory = TypedPath<AnyFile, Directory, MaybeExists>;
@@ -234,17 +212,25 @@ impl MarkdownExporter {
     pub fn new(config: MarkdownExportConfig) -> Self {
         Self { config }
     }
-    
+
     /// Export a diagram to Markdown format.
-    pub fn export_diagram<W, C, E, P, Q, A>(&self, _diagram: &EventModelDiagram<W, C, E, P, Q, A>, _svg: &SvgDocument) -> Result<MarkdownDocument, MarkdownExportError> {
+    pub fn export_diagram<W, C, E, P, Q, A>(
+        &self,
+        _diagram: &EventModelDiagram<W, C, E, P, Q, A>,
+        _svg: &SvgDocument,
+    ) -> Result<MarkdownDocument, MarkdownExportError> {
         todo!()
     }
-    
+
     /// Write a Markdown document to a file.
-    pub fn write_to_file(&self, _document: &MarkdownDocument, _path: &PathBuf) -> Result<(), MarkdownExportError> {
+    pub fn write_to_file(
+        &self,
+        _document: &MarkdownDocument,
+        _path: &Path,
+    ) -> Result<(), MarkdownExportError> {
         todo!()
     }
-    
+
     /// Get the current configuration.
     pub fn config(&self) -> &MarkdownExportConfig {
         &self.config
@@ -257,11 +243,11 @@ pub enum MarkdownExportError {
     /// I/O error occurred.
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    
+
     /// The diagram is invalid.
     #[error("Invalid diagram: {0}")]
     InvalidDiagram(String),
-    
+
     /// Export failed for another reason.
     #[error("Export failed: {0}")]
     ExportFailed(String),

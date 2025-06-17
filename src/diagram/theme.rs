@@ -39,7 +39,7 @@ impl ThemedRenderer<GithubLight> {
             _phantom: PhantomData,
         }
     }
-    
+
     /// Build the GitHub light theme configuration.
     fn create_github_light_theme() -> Theme {
         todo!()
@@ -54,7 +54,7 @@ impl ThemedRenderer<GithubDark> {
             _phantom: PhantomData,
         }
     }
-    
+
     /// Build the GitHub dark theme configuration.
     fn create_github_dark_theme() -> Theme {
         todo!()

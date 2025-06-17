@@ -8,18 +8,18 @@
 //!
 //! ```text
 //! title: "Order Processing System"
-//! 
+//!
 //! swimlane Customer:
 //!   wireframe "Place Order" -> command "Submit Order"
 //! ```
 //!
 //! Into domain objects that represent the Event Model.
 
-pub mod lexer;
 pub mod ast;
+pub mod lexer;
 
 use ast::EventModel;
-use lexer::{Lexer, LexError};
+use lexer::{LexError, Lexer};
 
 /// Parser for Event Model DSL files.
 ///
@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
             lexer: Lexer::new(input),
         }
     }
-    
+
     /// Parses the input and returns an `EventModel` AST.
     ///
     /// # Errors
@@ -48,7 +48,7 @@ impl<'a> Parser<'a> {
     pub fn parse(&mut self) -> Result<EventModel, ParseError> {
         todo!()
     }
-    
+
     /// Returns a reference to the internal lexer.
     pub fn lexer(&self) -> &Lexer<'a> {
         &self.lexer
@@ -61,11 +61,11 @@ pub enum ParseError {
     /// An error occurred during lexical analysis.
     #[error("Lexical error: {0}")]
     LexError(#[from] LexError),
-    
+
     /// A syntax error occurred at a specific position.
     #[error("Syntax error at {0}:{1}: expected {2}")]
     SyntaxError(u32, u32, String),
-    
+
     /// A semantic error was detected in the model.
     #[error("Semantic error: {0}")]
     SemanticError(String),

@@ -11,8 +11,8 @@
 //! - Swimlanes containing entities
 //! - Slices defining feature boundaries
 
-use nutype::nutype;
 use crate::infrastructure::types::{NonEmptyString, NonNegativeInt};
+use nutype::nutype;
 
 /// The root AST node representing a complete Event Model.
 #[derive(Debug, Clone)]
@@ -35,15 +35,11 @@ pub struct ModelMetadata {
 }
 
 /// Title of an Event Model.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct ModelTitle(NonEmptyString);
 
 /// Description of an Event Model.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct ModelDescription(NonEmptyString);
 
 /// A horizontal swimlane grouping related entities.
@@ -58,9 +54,7 @@ pub struct Swimlane {
 }
 
 /// Name of a swimlane.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct SwimlaneName(NonEmptyString);
 
 /// An entity in the Event Model.
@@ -187,109 +181,73 @@ pub struct GivenWhenThen {
 // These wrap already-validated types from type_safety module
 
 /// Name of an entity.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq, Hash)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq, Hash))]
 pub struct EntityName(NonEmptyString);
 
 /// Name of an actor.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct ActorName(NonEmptyString);
 
 /// Input field name.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct InputField(NonEmptyString);
 
 /// Output field name.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct OutputField(NonEmptyString);
 
 /// Command payload field name.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct PayloadField(NonEmptyString);
 
 /// Event data field name.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct DataField(NonEmptyString);
 
 /// Projection field name.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct ProjectionField(NonEmptyString);
 
 /// Query parameter name.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct QueryParameter(NonEmptyString);
 
 /// Logical timestamp for event ordering.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct Timestamp(NonNegativeInt);
 
 /// Reference to an event by name.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct EventReference(NonEmptyString);
 
 /// Reference to a projection by name.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct ProjectionReference(NonEmptyString);
 
 /// Reference to a command by name.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct CommandReference(NonEmptyString);
 
 /// Reference to any entity by name.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct EntityReference(NonEmptyString);
 
 /// Name of a slice.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct SliceName(NonEmptyString);
 
 /// Given clause in acceptance criteria.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct ScenarioGiven(NonEmptyString);
 
 /// When clause in acceptance criteria.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct ScenarioWhen(NonEmptyString);
 
 /// Then clause in acceptance criteria.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct ScenarioThen(NonEmptyString);
 
 /// Link to external documentation.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct DocumentationLink(NonEmptyString);

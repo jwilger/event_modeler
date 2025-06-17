@@ -3,10 +3,13 @@
 //! This module handles the generation of SVG documents from layout information,
 //! including all visual elements, styles, and optimizations.
 
+use crate::diagram::layout::{Height, Layout, Width, XCoordinate, YCoordinate};
+use crate::diagram::style::{ConnectionStyle, EntityStyle};
+use crate::infrastructure::types::{
+    FiniteFloat, NonEmptyString, NonNegativeFloat, Percentage as ValidatedPercentage,
+    PositiveFloat, PositiveInt,
+};
 use nutype::nutype;
-use crate::diagram::layout::{Layout, XCoordinate, YCoordinate, Width, Height};
-use crate::diagram::style::{EntityStyle, ConnectionStyle};
-use crate::infrastructure::types::{NonEmptyString, PositiveFloat, NonNegativeFloat, Percentage as ValidatedPercentage, FiniteFloat, PositiveInt};
 
 /// A complete SVG document.
 #[derive(Debug, Clone)]
@@ -298,129 +301,87 @@ pub struct Matrix {
 }
 
 /// Unique identifier for an SVG element.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct ElementId(NonEmptyString);
 
 /// CSS class name.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct CssClass(NonEmptyString);
 
 /// Border radius for rounded corners.
-#[nutype(
-    derive(Debug, Clone, Copy, PartialEq, PartialOrd)
-)]
+#[nutype(derive(Debug, Clone, Copy, PartialEq, PartialOrd))]
 pub struct BorderRadius(NonNegativeFloat);
 
 /// Text content to display.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct TextContent(NonEmptyString);
 
 /// SVG path data string.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct PathData(NonEmptyString);
 
 /// Image URL or data URI.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct ImageHref(NonEmptyString);
 
 /// Unique identifier for a pattern.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct PatternId(NonEmptyString);
 
 /// Size of a pattern.
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct PatternSize(PositiveFloat);
 
 /// Unique identifier for a gradient.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct GradientId(NonEmptyString);
 
 /// Percentage value (0-100).
-#[nutype(
-    derive(Debug, Clone, Copy, PartialEq, PartialOrd)
-)]
+#[nutype(derive(Debug, Clone, Copy, PartialEq, PartialOrd))]
 pub struct Percentage(ValidatedPercentage);
 
 /// Color value (hex or rgb).
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct Color(NonEmptyString);
 
 /// Opacity value (0.0-1.0).
-#[nutype(
-    derive(Debug, Clone, Copy, PartialEq, PartialOrd)
-)]
+#[nutype(derive(Debug, Clone, Copy, PartialEq, PartialOrd))]
 pub struct Opacity(NonNegativeFloat);
 
 /// Unique identifier for a marker.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct MarkerId(NonEmptyString);
 
 /// Size of a marker.
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct MarkerSize(PositiveFloat);
 
 /// Reference point for a marker.
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct MarkerRef(FiniteFloat);
 
 /// Font family name.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct FontFamily(NonEmptyString);
 
 /// Font size in pixels.
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct FontSize(PositiveFloat);
 
 /// Font weight value (100-900).
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct FontWeightValue(PositiveInt);
 
 /// Scale transformation factor.
-#[nutype(
-    derive(Debug, Clone, Copy, PartialEq, PartialOrd)
-)]
+#[nutype(derive(Debug, Clone, Copy, PartialEq, PartialOrd))]
 pub struct ScaleFactor(PositiveFloat);
 
 /// Rotation angle in degrees.
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct RotationAngle(FiniteFloat);
 
 /// Value in a transformation matrix.
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct MatrixValue(FiniteFloat);
 
 /// Renderer for converting layouts to SVG documents.
@@ -452,15 +413,11 @@ pub enum OptimizationLevel {
 }
 
 /// Decimal precision for coordinates (0-6).
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct DecimalPrecision(PositiveInt);
 
 /// Whether to embed fonts in the SVG.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct EmbedFonts(bool);
 
 impl SvgRenderer {
@@ -468,12 +425,12 @@ impl SvgRenderer {
     pub fn new(config: SvgRenderConfig) -> Self {
         Self { config }
     }
-    
+
     /// Render a layout to an SVG document.
     pub fn render(&self, _layout: &Layout) -> Result<SvgDocument, SvgRenderError> {
         todo!()
     }
-    
+
     /// Get the current configuration.
     pub fn config(&self) -> &SvgRenderConfig {
         &self.config
@@ -486,7 +443,7 @@ pub enum SvgRenderError {
     /// The layout is invalid for SVG generation.
     #[error("Invalid layout: {0}")]
     InvalidLayout(String),
-    
+
     /// A required resource was not found.
     #[error("Resource not found: {0}")]
     ResourceNotFound(String),

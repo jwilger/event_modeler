@@ -7,8 +7,8 @@
 //! This module handles exporting diagrams to different formats suitable for
 //! documentation, presentations, and reports.
 
-pub mod pdf;
 pub mod markdown;
+pub mod pdf;
 
-pub use pdf::{PdfExporter, PdfExportConfig, PdfExportError};
-pub use markdown::{MarkdownExporter, MarkdownExportConfig, MarkdownExportError};
+pub use markdown::{MarkdownExportConfig, MarkdownExportError, MarkdownExporter};
+pub use pdf::{PdfExportConfig, PdfExportError, PdfExporter};

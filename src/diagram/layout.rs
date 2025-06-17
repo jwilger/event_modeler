@@ -4,10 +4,10 @@
 //! for all visual elements in a diagram, including swimlanes, entities,
 //! slices, and connections between entities.
 
-use nutype::nutype;
+use crate::event_model::diagram::{SliceId, SwimlaneId};
 use crate::event_model::entities::EntityId;
-use crate::event_model::diagram::{SwimlaneId, SliceId};
-use crate::infrastructure::types::{PositiveInt, PositiveFloat, NonNegativeFloat};
+use crate::infrastructure::types::{NonNegativeFloat, PositiveFloat, PositiveInt};
+use nutype::nutype;
 use std::collections::HashMap;
 
 /// Complete layout information for a diagram.
@@ -137,45 +137,31 @@ pub struct Padding {
 }
 
 /// Width of the canvas in pixels.
-#[nutype(
-    derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)
-)]
+#[nutype(derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord))]
 pub struct CanvasWidth(PositiveInt);
 
 /// Height of the canvas in pixels.
-#[nutype(
-    derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)
-)]
+#[nutype(derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord))]
 pub struct CanvasHeight(PositiveInt);
 
 /// Horizontal coordinate value.
-#[nutype(
-    derive(Debug, Clone, Copy, PartialEq, PartialOrd)
-)]
+#[nutype(derive(Debug, Clone, Copy, PartialEq, PartialOrd))]
 pub struct XCoordinate(NonNegativeFloat);
 
 /// Vertical coordinate value.
-#[nutype(
-    derive(Debug, Clone, Copy, PartialEq, PartialOrd)
-)]
+#[nutype(derive(Debug, Clone, Copy, PartialEq, PartialOrd))]
 pub struct YCoordinate(NonNegativeFloat);
 
 /// Width value.
-#[nutype(
-    derive(Debug, Clone, Copy, PartialEq, PartialOrd)
-)]
+#[nutype(derive(Debug, Clone, Copy, PartialEq, PartialOrd))]
 pub struct Width(PositiveFloat);
 
 /// Height value.
-#[nutype(
-    derive(Debug, Clone, Copy, PartialEq, PartialOrd)
-)]
+#[nutype(derive(Debug, Clone, Copy, PartialEq, PartialOrd))]
 pub struct Height(PositiveFloat);
 
 /// Padding value.
-#[nutype(
-    derive(Debug, Clone, Copy, PartialEq, PartialOrd)
-)]
+#[nutype(derive(Debug, Clone, Copy, PartialEq, PartialOrd))]
 pub struct PaddingValue(NonNegativeFloat);
 
 /// Engine for computing diagram layouts.
@@ -209,21 +195,15 @@ pub enum ConnectionRouting {
 }
 
 /// Spacing between entities.
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct EntitySpacing(PositiveFloat);
 
 /// Height of a swimlane.
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct SwimlaneHeight(PositiveFloat);
 
 /// Space between slices.
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct SliceGutter(PositiveFloat);
 
 impl LayoutEngine {
@@ -231,12 +211,15 @@ impl LayoutEngine {
     pub fn new(config: LayoutConfig) -> Self {
         Self { config }
     }
-    
+
     /// Compute the layout for a diagram.
-    pub fn compute_layout<W, C, E, P, Q, A>(&self, _diagram: &crate::event_model::diagram::EventModelDiagram<W, C, E, P, Q, A>) -> Result<Layout, LayoutError> {
+    pub fn compute_layout<W, C, E, P, Q, A>(
+        &self,
+        _diagram: &crate::event_model::diagram::EventModelDiagram<W, C, E, P, Q, A>,
+    ) -> Result<Layout, LayoutError> {
         todo!()
     }
-    
+
     /// Get the current configuration.
     pub fn config(&self) -> &LayoutConfig {
         &self.config
@@ -249,11 +232,11 @@ pub enum LayoutError {
     /// Not enough space to place an entity.
     #[error("No space available for entity {0}")]
     NoSpaceAvailable(String),
-    
+
     /// Entities have circular dependencies.
     #[error("Circular dependency detected")]
     CircularDependency,
-    
+
     /// Slice boundaries are invalid.
     #[error("Invalid slice boundaries")]
     InvalidSliceBoundaries,

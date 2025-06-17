@@ -27,8 +27,8 @@
 //! works with types that maintain invariants by construction.
 
 pub mod cli;
-pub mod event_model;
 pub mod diagram;
+pub mod event_model;
 pub mod export;
 pub mod infrastructure;
 

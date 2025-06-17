@@ -3,10 +3,10 @@
 //! This module defines the structure of a complete Event Model diagram,
 //! combining entities with layout information for rendering.
 
-use nutype::nutype;
 use super::entities::EntityId;
 use super::registry::EntityRegistry;
 use crate::infrastructure::types::{NonEmpty, NonEmptyString, NonNegativeInt};
+use nutype::nutype;
 
 /// A complete Event Model diagram with entities and layout information.
 #[derive(Debug, Clone)]
@@ -82,67 +82,45 @@ pub struct AcceptanceCriteria {
 // The inner types are already validated at system boundaries
 
 /// Title of a diagram.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct DiagramTitle(NonEmptyString);
 
 /// Description of a diagram.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct DiagramDescription(NonEmptyString);
 
 /// Unique identifier for a swimlane.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq, Hash)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq, Hash))]
 pub struct SwimlaneId(NonEmptyString);
 
 /// Display name of a swimlane.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct SwimlaneName(NonEmptyString);
 
 /// Vertical position of a swimlane.
-#[nutype(
-    derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)
-)]
+#[nutype(derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord))]
 pub struct SwimlanePosition(NonNegativeInt);
 
 /// Unique identifier for a slice.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq, Hash)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq, Hash))]
 pub struct SliceId(NonEmptyString);
 
 /// Display name of a slice.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct SliceName(NonEmptyString);
 
 /// Horizontal position in the diagram.
-#[nutype(
-    derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)
-)]
+#[nutype(derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord))]
 pub struct HorizontalPosition(NonNegativeInt);
 
 /// Given condition in acceptance criteria.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct GivenCondition(NonEmptyString);
 
 /// When action in acceptance criteria.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct WhenAction(NonEmptyString);
 
 /// Then expectation in acceptance criteria.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct ThenExpectation(NonEmptyString);

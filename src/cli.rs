@@ -4,8 +4,11 @@
 //! type-safe constructs. All path validation happens at parse time,
 //! ensuring that the rest of the application works with valid paths.
 
+use crate::infrastructure::types::{
+    AnyFile, Directory, EventModelFile, Exists, File, MaybeExists, NonEmpty, Port as ValidatedPort,
+    TypedPath,
+};
 use nutype::nutype;
-use crate::infrastructure::types::{TypedPath, EventModelFile, Directory, File, Exists, MaybeExists, NonEmpty, AnyFile, Port as ValidatedPort};
 
 /// The main CLI structure containing the command to execute.
 #[derive(Debug, Clone)]
@@ -83,13 +86,9 @@ pub enum RenderStyle {
 
 /// Port number for serving rendered diagrams.
 /// Wraps a validated port to ensure it's CLI-specific.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct ServePort(ValidatedPort);
 
 /// Flag indicating whether to include documentation links in rendered output.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct IncludeLinks(bool);

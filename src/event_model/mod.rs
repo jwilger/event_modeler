@@ -14,10 +14,10 @@
 //! - **Automations**: System reactions to events
 //! - **Wireframes**: Visual mockups showing user interactions
 
-pub mod entities;
 pub mod diagram;
+pub mod entities;
 pub mod registry;
 
-pub use diagram::{EventModelDiagram, DiagramMetadata};
-pub use entities::{Wireframe, Command, Event, Projection, Query, Automation};
-pub use registry::{EntityRegistry, EntityRef};
+pub use diagram::{DiagramMetadata, EventModelDiagram};
+pub use entities::{Automation, Command, Event, Projection, Query, Wireframe};
+pub use registry::{EntityRef, EntityRegistry};

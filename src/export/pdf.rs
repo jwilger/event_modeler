@@ -3,10 +3,10 @@
 //! This module handles the conversion of SVG diagrams to PDF format,
 //! including page layout, metadata, and font embedding.
 
-use nutype::nutype;
 use crate::diagram::svg::SvgDocument;
-use crate::infrastructure::types::{NonEmptyString, PositiveFloat, NonNegativeFloat};
-use std::path::PathBuf;
+use crate::infrastructure::types::{NonEmptyString, NonNegativeFloat, PositiveFloat};
+use nutype::nutype;
+use std::path::Path;
 
 /// A complete PDF document.
 #[derive(Debug, Clone)]
@@ -127,81 +127,55 @@ pub enum PdfFont {
 }
 
 /// PDF document title.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct PdfTitle(NonEmptyString);
 
 /// PDF document author.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct PdfAuthor(NonEmptyString);
 
 /// PDF document subject.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct PdfSubject(NonEmptyString);
 
 /// PDF document keywords.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct PdfKeywords(NonEmptyString);
 
 /// PDF creator software name.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct PdfCreator(NonEmptyString);
 
 /// PDF creation date.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct PdfDate(NonEmptyString);
 
 /// Width of a PDF page.
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct PageWidth(PositiveFloat);
 
 /// Height of a PDF page.
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct PageHeight(PositiveFloat);
 
 /// Margin value.
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct MarginValue(NonNegativeFloat);
 
 /// Text content for PDF.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct TextContent(NonEmptyString);
 
 /// Font size for PDF text.
-#[nutype(
-    derive(Debug, Clone, Copy)
-)]
+#[nutype(derive(Debug, Clone, Copy))]
 pub struct PdfFontSize(PositiveFloat);
 
 /// Color for PDF text.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct PdfColor(NonEmptyString);
 
 /// Custom font name.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct PdfFontName(NonEmptyString);
 
 /// Exporter for converting SVG to PDF.
@@ -233,15 +207,11 @@ pub enum ColorSpace {
 }
 
 /// Whether PDF compression is enabled.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct CompressionEnabled(bool);
 
 /// Whether to embed fonts in the PDF.
-#[nutype(
-    derive(Debug, Clone)
-)]
+#[nutype(derive(Debug, Clone))]
 pub struct EmbedPdfFonts(bool);
 
 impl PdfExporter {
@@ -249,17 +219,17 @@ impl PdfExporter {
     pub fn new(config: PdfExportConfig) -> Self {
         Self { config }
     }
-    
+
     /// Export an SVG document to a PDF file.
-    pub fn export(&self, _svg: &SvgDocument, _path: &PathBuf) -> Result<(), PdfExportError> {
+    pub fn export(&self, _svg: &SvgDocument, _path: &Path) -> Result<(), PdfExportError> {
         todo!()
     }
-    
+
     /// Export an SVG document to a PDF byte buffer.
     pub fn export_to_buffer(&self, _svg: &SvgDocument) -> Result<Vec<u8>, PdfExportError> {
         todo!()
     }
-    
+
     /// Get the current configuration.
     pub fn config(&self) -> &PdfExportConfig {
         &self.config
@@ -272,15 +242,15 @@ pub enum PdfExportError {
     /// I/O error occurred.
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    
+
     /// The SVG document is invalid.
     #[error("Invalid SVG: {0}")]
     InvalidSvg(String),
-    
+
     /// A required font was not found.
     #[error("Font not found: {0}")]
     FontNotFound(String),
-    
+
     /// Export failed for another reason.
     #[error("Export failed: {0}")]
     ExportFailed(String),

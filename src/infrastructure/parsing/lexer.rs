@@ -9,7 +9,7 @@
 //! - Punctuation (braces, brackets, colons)
 //! - Whitespace and comments
 
-use crate::infrastructure::types::{NonEmptyString, NonNegativeInt, Identifier};
+use crate::infrastructure::types::{Identifier, NonEmptyString, NonNegativeInt};
 
 /// A token produced by the lexer.
 #[derive(Debug, Clone, PartialEq)]
@@ -76,17 +76,17 @@ pub enum TokenKind {
     Then,
     /// `link` keyword for documentation links.
     Link,
-    
+
     // Literals
     /// String literal value.
     StringLiteral(NonEmptyString),
     /// Numeric literal value.
     NumberLiteral(NonNegativeInt),
-    
+
     // Identifiers
     /// User-defined identifier.
     Identifier(Identifier),
-    
+
     // Punctuation
     /// Opening brace `{`.
     LeftBrace,
@@ -100,7 +100,7 @@ pub enum TokenKind {
     Colon,
     /// Comma `,`.
     Comma,
-    
+
     // End of file
     /// End of input marker.
     Eof,
@@ -139,7 +139,7 @@ impl LineNumber {
         assert!(line > 0, "Line numbers must be 1-indexed");
         Self(line)
     }
-    
+
     /// Returns the line number.
     pub const fn value(self) -> u32 {
         self.0
@@ -159,7 +159,7 @@ impl ColumnNumber {
         assert!(column > 0, "Column numbers must be 1-indexed");
         Self(column)
     }
-    
+
     /// Returns the column number.
     pub const fn value(self) -> u32 {
         self.0
@@ -183,7 +183,7 @@ impl<'a> Lexer<'a> {
     pub fn new(_input: &'a str) -> Self {
         todo!()
     }
-    
+
     /// Returns the next token from the input.
     ///
     /// # Errors
@@ -196,12 +196,12 @@ impl<'a> Lexer<'a> {
     pub fn next_token(&mut self) -> Result<Token, LexError> {
         todo!()
     }
-    
+
     /// Returns the input string being lexed.
     pub fn input(&self) -> &'a str {
         self.input
     }
-    
+
     /// Returns the current position in the input.
     pub fn current_position(&self) -> &Position {
         &self.current_position
@@ -214,15 +214,15 @@ pub enum LexError {
     /// An unexpected character was encountered.
     #[error("Unexpected character '{0}' at {1}:{2}")]
     UnexpectedCharacter(char, u32, u32),
-    
+
     /// A string literal was not properly terminated.
     #[error("Unterminated string literal at {0}:{1}")]
     UnterminatedString(u32, u32),
-    
+
     /// A number literal could not be parsed.
     #[error("Invalid number literal at {0}:{1}")]
     InvalidNumber(u32, u32),
-    
+
     /// An identifier contains invalid characters.
     #[error("Invalid identifier at {0}:{1}")]
     InvalidIdentifier(u32, u32),

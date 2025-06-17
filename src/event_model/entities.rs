@@ -4,8 +4,11 @@
 //! All types use compile-time validation to ensure invariants are
 //! maintained throughout the application.
 
+use crate::infrastructure::types::{
+    EventName as SafeEventName, File, MarkdownFile, MaybeExists, NonEmpty, NonEmptyString,
+    NonNegativeInt, TypedPath,
+};
 use nutype::nutype;
-use crate::infrastructure::types::{TypedPath, MarkdownFile, File, MaybeExists, NonEmpty, NonEmptyString, EventName as SafeEventName, NonNegativeInt};
 
 /// A UI wireframe showing user interface elements.
 #[derive(Debug, Clone)]
@@ -101,109 +104,73 @@ pub struct Automation {
 // The inner types are already validated at system boundaries
 
 /// Unique identifier for an entity.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq, Hash)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq, Hash))]
 pub struct EntityId(NonEmptyString);
 
 /// Name of a wireframe.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct WireframeName(NonEmptyString);
 
 /// Name of a command.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct CommandName(NonEmptyString);
 
 /// Name of an event (must start with uppercase letter).
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct EventName(SafeEventName);
 
 /// Name of a projection.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct ProjectionName(NonEmptyString);
 
 /// Name of a query.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct QueryName(NonEmptyString);
 
 /// Name of an automation.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct AutomationName(NonEmptyString);
 
 /// Actor who can issue commands.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct Actor(NonEmptyString);
 
 /// Input field name.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct InputField(NonEmptyString);
 
 /// Output field name.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct OutputField(NonEmptyString);
 
 /// Command payload field name.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct PayloadField(NonEmptyString);
 
 /// Event data field name.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct EventDataField(NonEmptyString);
 
 /// Projection field name.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct ProjectionField(NonEmptyString);
 
 /// Query parameter name.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct QueryParameter(NonEmptyString);
 
 /// Logical timestamp for event ordering.
-#[nutype(
-    derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)
-)]
+#[nutype(derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord))]
 pub struct EventTimestamp(NonNegativeInt);
 
 /// Reference to an event by ID.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq, Hash)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq, Hash))]
 pub struct EventId(NonEmptyString);
 
 /// Reference to a command by ID.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq, Hash)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq, Hash))]
 pub struct CommandId(NonEmptyString);
 
 /// Reference to a projection by ID.
-#[nutype(
-    derive(Debug, Clone, PartialEq, Eq, Hash)
-)]
+#[nutype(derive(Debug, Clone, PartialEq, Eq, Hash))]
 pub struct ProjectionId(NonEmptyString);

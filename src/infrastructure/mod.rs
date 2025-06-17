@@ -8,5 +8,5 @@
 //! type safety utilities, parsing infrastructure, and other cross-cutting
 //! concerns.
 
-pub mod types;
 pub mod parsing;
+pub mod types;

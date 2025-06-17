@@ -10,10 +10,10 @@
 
 pub mod layout;
 pub mod style;
-pub mod theme;
 pub mod svg;
+pub mod theme;
 
-pub use layout::{Layout, LayoutEngine, LayoutConfig, LayoutError};
-pub use svg::{SvgDocument, SvgRenderer, SvgRenderConfig, SvgRenderError};
+pub use layout::{Layout, LayoutConfig, LayoutEngine, LayoutError};
 pub use style::Theme;
-pub use theme::{ThemedRenderer, GithubLight, GithubDark};
+pub use svg::{SvgDocument, SvgRenderConfig, SvgRenderError, SvgRenderer};
+pub use theme::{GithubDark, GithubLight, ThemedRenderer};
