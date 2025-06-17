@@ -134,12 +134,13 @@ impl Cli {
         // Basic argument parsing - for now just support: event_modeler input.eventmodel -o output.svg
         if args.len() < 2 {
             return Err(Error::InvalidArguments(
-                "Usage: event_modeler <input.eventmodel> [-o <output.svg>]".to_string(),
+                "Usage: event_modeler <input.eventmodel> [-o <output.svg>] [--dark]".to_string(),
             ));
         }
 
         let input_path = &args[1];
         let mut output_path = None;
+        let mut use_dark_theme = false;
 
         // Parse output flag
         let mut i = 2;
@@ -147,6 +148,9 @@ impl Cli {
             if args[i] == "-o" && i + 1 < args.len() {
                 output_path = Some(args[i + 1].clone());
                 i += 2;
+            } else if args[i] == "--dark" {
+                use_dark_theme = true;
+                i += 1;
             } else {
                 i += 1;
             }
@@ -189,7 +193,11 @@ impl Cli {
             input,
             options: RenderOptions {
                 formats,
-                style: RenderStyle::GithubLight, // Default style
+                style: if use_dark_theme {
+                    RenderStyle::GithubDark
+                } else {
+                    RenderStyle::GithubLight
+                },
                 include_links: IncludeLinks::new(false), // Default to no links
                 output_dir,
             },
