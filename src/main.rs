@@ -32,6 +32,17 @@ pub mod event_model;
 pub mod export;
 pub mod infrastructure;
 
+use cli::{Cli, Error};
+use std::process;
+
 fn main() {
-    todo!()
+    if let Err(e) = run() {
+        eprintln!("Error: {}", e);
+        process::exit(1);
+    }
+}
+
+fn run() -> Result<(), Error> {
+    let cli = Cli::from_args()?;
+    cli.execute()
 }
