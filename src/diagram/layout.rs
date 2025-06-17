@@ -215,12 +215,231 @@ impl LayoutEngine {
         Self { config }
     }
 
+    /// Calculate the position for a swimlane based on its index.
+    fn calculate_swimlane_position(&self, index: usize, padding: &Padding) -> Position {
+        // Start position after top padding
+        let base_y = padding.top.into_inner().value();
+
+        // Calculate Y position based on index and swimlane height
+        let swimlane_height = self.config.swimlane_height.into_inner().value();
+        let spacing = self.config.entity_spacing.into_inner().value();
+        let y = base_y + (index as f32) * (swimlane_height + spacing);
+
+        Position {
+            x: XCoordinate::new(
+                NonNegativeFloat::parse(padding.left.into_inner().value()).unwrap(),
+            ),
+            y: YCoordinate::new(NonNegativeFloat::parse(y).unwrap()),
+        }
+    }
+
+    /// Calculate the dimensions for a swimlane.
+    fn calculate_swimlane_dimensions(&self, canvas_width: f64, padding: &Padding) -> Dimensions {
+        let width = canvas_width
+            - (padding.left.into_inner().value() as f64)
+            - (padding.right.into_inner().value() as f64);
+        let height = self.config.swimlane_height.into_inner().value();
+
+        Dimensions {
+            width: Width::new(PositiveFloat::parse(width as f32).unwrap()),
+            height: Height::new(PositiveFloat::parse(height).unwrap()),
+        }
+    }
+
+    /// Calculate positions for entities within a swimlane.
+    fn position_entities_in_swimlane(
+        &self,
+        swimlane: &crate::event_model::diagram::Swimlane,
+        swimlane_layout: &SwimlaneLayout,
+    ) -> HashMap<EntityId, EntityPosition> {
+        let mut positions = HashMap::new();
+        let entity_count = swimlane.entities.len();
+
+        if entity_count == 0 {
+            return positions;
+        }
+
+        // Calculate available width for entities
+        let swimlane_width = swimlane_layout.dimensions.width.into_inner().value();
+        let entity_spacing = self.config.entity_spacing.into_inner().value();
+
+        // Simple entity dimensions (will be made configurable later)
+        let entity_width = 120.0_f32;
+        let entity_height = 60.0_f32;
+
+        // Calculate horizontal spacing between entities
+        let total_entity_width = entity_count as f32 * entity_width;
+        let total_spacing = (entity_count - 1).max(0) as f32 * entity_spacing;
+        let content_width = total_entity_width + total_spacing;
+
+        // Center entities horizontally within swimlane
+        let start_x = swimlane_layout.position.x.into_inner().value()
+            + (swimlane_width - content_width) / 2.0;
+
+        // Vertically center entities within swimlane
+        let swimlane_height = swimlane_layout.dimensions.height.into_inner().value();
+        let y = swimlane_layout.position.y.into_inner().value()
+            + (swimlane_height - entity_height) / 2.0;
+
+        // Position each entity
+        for (index, entity_id) in swimlane.entities.iter().enumerate() {
+            let x = start_x + (index as f32) * (entity_width + entity_spacing);
+
+            let position = EntityPosition {
+                swimlane_id: swimlane.id.clone(),
+                position: Position {
+                    x: XCoordinate::new(NonNegativeFloat::parse(x).unwrap()),
+                    y: YCoordinate::new(NonNegativeFloat::parse(y).unwrap()),
+                },
+                dimensions: Dimensions {
+                    width: Width::new(PositiveFloat::parse(entity_width).unwrap()),
+                    height: Height::new(PositiveFloat::parse(entity_height).unwrap()),
+                },
+            };
+
+            positions.insert(entity_id.clone(), position);
+        }
+
+        positions
+    }
+
+    /// Route connectors between entities.
+    ///
+    /// This creates straight-line connections between entities.
+    /// In the future, this will support more sophisticated routing algorithms.
+    #[allow(dead_code)]
+    fn route_connectors(
+        &self,
+        from_to_pairs: &[(EntityId, EntityId)],
+        entity_positions: &HashMap<EntityId, EntityPosition>,
+    ) -> Vec<Connection> {
+        let mut connections = Vec::new();
+
+        for (from_id, to_id) in from_to_pairs {
+            // Get positions for both entities
+            let from_pos = match entity_positions.get(from_id) {
+                Some(pos) => pos,
+                None => continue,
+            };
+
+            let to_pos = match entity_positions.get(to_id) {
+                Some(pos) => pos,
+                None => continue,
+            };
+
+            // Calculate connection points (center of entities for now)
+            let from_center = Point {
+                x: XCoordinate::new(
+                    NonNegativeFloat::parse(
+                        from_pos.position.x.into_inner().value()
+                            + from_pos.dimensions.width.into_inner().value() / 2.0,
+                    )
+                    .unwrap(),
+                ),
+                y: YCoordinate::new(
+                    NonNegativeFloat::parse(
+                        from_pos.position.y.into_inner().value()
+                            + from_pos.dimensions.height.into_inner().value() / 2.0,
+                    )
+                    .unwrap(),
+                ),
+            };
+
+            let to_center = Point {
+                x: XCoordinate::new(
+                    NonNegativeFloat::parse(
+                        to_pos.position.x.into_inner().value()
+                            + to_pos.dimensions.width.into_inner().value() / 2.0,
+                    )
+                    .unwrap(),
+                ),
+                y: YCoordinate::new(
+                    NonNegativeFloat::parse(
+                        to_pos.position.y.into_inner().value()
+                            + to_pos.dimensions.height.into_inner().value() / 2.0,
+                    )
+                    .unwrap(),
+                ),
+            };
+
+            // Create simple straight-line path
+            let path = ConnectionPath {
+                points: vec![from_center, to_center],
+            };
+
+            // Create connection with appropriate style
+            let connection = Connection {
+                from: from_id.clone(),
+                to: to_id.clone(),
+                path,
+                style: ConnectionStyle::Solid, // Default style for now
+            };
+
+            connections.push(connection);
+        }
+
+        connections
+    }
+
     /// Compute the layout for a diagram.
     pub fn compute_layout<W, C, E, P, Q, A>(
         &self,
-        _diagram: &crate::event_model::diagram::EventModelDiagram<W, C, E, P, Q, A>,
+        diagram: &crate::event_model::diagram::EventModelDiagram<W, C, E, P, Q, A>,
     ) -> Result<Layout, LayoutError> {
-        todo!()
+        // Define canvas with padding
+        let canvas = Canvas {
+            width: CanvasWidth::new(PositiveInt::parse(1200).unwrap()),
+            height: CanvasHeight::new(PositiveInt::parse(800).unwrap()),
+            padding: Padding {
+                top: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
+                right: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
+                bottom: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
+                left: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
+            },
+        };
+
+        let canvas_width = canvas.width.into_inner().value() as f64;
+
+        // Position swimlanes
+        let mut swimlane_layouts = HashMap::new();
+        for (index, swimlane) in diagram.swimlanes.iter().enumerate() {
+            let position = self.calculate_swimlane_position(index, &canvas.padding);
+            let dimensions = self.calculate_swimlane_dimensions(canvas_width, &canvas.padding);
+
+            swimlane_layouts.insert(
+                swimlane.id.clone(),
+                SwimlaneLayout {
+                    position,
+                    dimensions,
+                },
+            );
+        }
+
+        // Position entities within each swimlane
+        let mut entity_positions = HashMap::new();
+        for swimlane in diagram.swimlanes.iter() {
+            if let Some(swimlane_layout) = swimlane_layouts.get(&swimlane.id) {
+                let swimlane_entities =
+                    self.position_entities_in_swimlane(swimlane, swimlane_layout);
+                entity_positions.extend(swimlane_entities);
+            }
+        }
+
+        // Route connections between entities
+        // TODO: Once connectors are added to EventModelDiagram, we'll use them here
+        // For now, create an empty connections list
+        let connections = Vec::new();
+
+        // Example of how we would use the route_connectors method:
+        // let connections = self.route_connectors(&connector_pairs, &entity_positions);
+
+        Ok(Layout {
+            canvas,
+            swimlane_layouts,
+            entity_positions,
+            slice_layouts: HashMap::new(),
+            connections,
+        })
     }
 
     /// Get the current configuration.
@@ -244,3 +463,7 @@ pub enum LayoutError {
     #[error("Invalid slice boundaries")]
     InvalidSliceBoundaries,
 }
+
+#[cfg(test)]
+#[path = "layout_tests.rs"]
+mod tests;

@@ -21,12 +21,12 @@ This ensures all work is tracked, organized, and nothing is missed.
 | Phase | Branch | Status | PR # | Notes |
 |-------|--------|--------|------|-------|
 | CLI Foundation | `feature/cli-foundation` | Complete | #4 (merged) | CLI args parsing, main entry point, e2e test framework |
-| Text Parsing | `feature/text-parsing` | Complete | #6 (draft) | Lexer and parser implementation with comprehensive tests |
-| Layout Engine | `feature/layout-engine` | Not Started | - | - |
+| Text Parsing | `feature/text-parsing` | Complete | #6 (merged) | Lexer and parser implementation with comprehensive tests |
+| Layout Engine | `feature/layout-engine` | Complete | #7 (draft) | Swimlane/entity positioning, connector routing foundation |
 | SVG Rendering | `feature/svg-rendering` | Not Started | - | - |
 | Integration | `feature/integration-polish` | Not Started | - | - |
 
-**Current Focus**: Text Parsing complete. Ready to mark PR #6 as ready and start Phase 3 (Layout Engine)
+**Current Focus**: Layout Engine complete. Ready to mark PR #7 as ready and start Phase 4 (SVG Rendering)
 
 ## Overview
 

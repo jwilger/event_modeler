@@ -1,0 +1,40 @@
+Title: Complex Layout Test
+Swimlane: Customer
+- Command: SearchProducts
+- Event: ProductsSearched
+- Command: ViewProduct
+- Event: ProductViewed
+- Command: AddToCart
+- Event: ItemAddedToCart
+- Command: Checkout
+- Event: CheckoutStarted
+
+Swimlane: Inventory
+- Event: ProductsSearched
+- Projection: AvailableProducts
+- Event: ItemAddedToCart
+- Policy: ReserveStock
+- Command: UpdateInventory
+- Event: InventoryUpdated
+
+Swimlane: Orders
+- Event: CheckoutStarted
+- Policy: CreateOrder
+- Command: ProcessPayment
+- Event: PaymentProcessed
+- Event: OrderConfirmed
+
+Swimlane: Shipping
+- Event: OrderConfirmed
+- Policy: ScheduleShipment
+- Command: ShipOrder
+- Event: OrderShipped
+
+ProductsSearched -> AvailableProducts
+ItemAddedToCart -> ReserveStock
+ReserveStock -> UpdateInventory
+CheckoutStarted -> CreateOrder
+CreateOrder -> ProcessPayment
+PaymentProcessed -> OrderConfirmed
+OrderConfirmed -> ScheduleShipment
+ScheduleShipment -> ShipOrder
