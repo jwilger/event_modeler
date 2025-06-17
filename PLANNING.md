@@ -221,15 +221,34 @@ Following our type-driven testing ADR:
 
 ## Important: Todo List Management
 
-**CRITICAL**: When using the TodoWrite tool to track implementation progress, the LAST item on EVERY todo list must always be:
-- "Review PLANNING.md, update with current status, and determine next tasks"
+**CRITICAL**: When using the TodoWrite tool to track implementation progress:
+
+1. **EVERY OTHER TASK** in your todo list must be:
+   - "Run the build (cargo build) and tests (cargo test --workspace), and if everything passes (except e2e tests), commit changes and push"
+   
+2. The **LAST item** on EVERY todo list must always be:
+   - "Review PLANNING.md, update with current status, and determine next tasks"
+
+### Example Todo List Structure:
+1. Implement CLI argument parsing in src/cli.rs
+2. Run build and tests; commit and push if passing
+3. Implement main entry point in src/main.rs  
+4. Run build and tests; commit and push if passing
+5. Add error handling for invalid arguments
+6. Run build and tests; commit and push if passing
+7. Review PLANNING.md, update with current status, and determine next tasks
 
 This ensures:
-1. The plan stays current with actual progress
-2. No steps are missed within or between phases
-3. Continuous forward momentum
-4. Clear handoff between work sessions
-5. Flexibility to continue current phase work or move to next phase as appropriate
+1. **Extremely frequent verification** that code compiles and tests pass
+2. **Incremental commits** capturing each small working change
+3. **Early detection** of any breaking changes
+4. **Clean commit history** with each commit representing buildable code
+5. The plan stays current with actual progress
+6. No steps are missed within or between phases
+7. Continuous forward momentum
+8. Clear handoff between work sessions
+
+**Note**: Build and test checks should happen AT LEAST this frequently, if not more often. You may add additional build/test/commit steps between tasks whenever it makes sense.
 
 ## PR-Driven Development Workflow
 
@@ -252,15 +271,19 @@ This ensures:
      ```
 
 3. **Incremental Commits and Pushes**
-   - **Commit frequently**: Every time you have a small subset of changes that pass the build (not necessarily e2e tests)
+   - **Commit extremely frequently**: Follow the todo list pattern where every other task is "Run build and tests; commit and push if passing"
+   - This means committing after EVERY small implementation task that builds successfully
    - Write descriptive commit messages (no prefixes) explaining the "why"
    - Example commit points:
      - After implementing a single function that compiles
      - After adding a new test that passes
      - After fixing a compiler error
      - After any refactoring that maintains working code
+     - After adding a type definition
+     - After implementing any todo!() placeholder
    - First push: `git push -u origin feature/<name>`
    - Subsequent pushes: `git push`
+   - **Remember**: The todo list structure enforces this frequency - every implementation task is followed by a build/test/commit task
 
 4. **Create Draft Pull Request (on first push)**
    ```bash
@@ -457,10 +480,13 @@ When implementing each phase:
 - [ ] Make first commit once tests compile (even if failing)
 - [ ] Push branch and create draft PR
 - [ ] Implement functionality preserving type signatures
+- [ ] Follow the todo list pattern: every implementation task followed by build/test/commit task
 - [ ] Commit after each small buildable change:
   - [ ] After implementing each function
   - [ ] After fixing compilation errors
   - [ ] After adding/updating tests
+  - [ ] After adding type definitions
+  - [ ] After implementing any todo!() placeholder
   - [ ] Push commits regularly to update draft PR
 - [ ] Run cargo fmt, clippy, and tests before marking PR ready
 - [ ] Mark PR as ready for review when feature complete
@@ -468,4 +494,6 @@ When implementing each phase:
 - [ ] Update PLANNING.md status table
 - [ ] Start next phase by branching from current
 
-**Remember**: The last todo item in every TodoWrite list must be "Review PLANNING.md, update with current status, and determine next tasks"
+**Remember**: 
+- Every other task in your todo list must be "Run build and tests; commit and push if passing"
+- The last todo item in every TodoWrite list must be "Review PLANNING.md, update with current status, and determine next tasks"
