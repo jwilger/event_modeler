@@ -1,6 +1,6 @@
 [package]
 name = "event_modeler"
-version = "0.1.4"
+version = "0.2.0"
 edition = "2024"
 authors = ["John Wilger"]
 description = "A type-safe Event Modeling diagram generator"
