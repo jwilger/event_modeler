@@ -793,10 +793,7 @@ impl SvgRenderer {
             )),
             x: XCoordinate::new(NonNegativeFloat::parse(label_x).unwrap()),
             y: YCoordinate::new(NonNegativeFloat::parse(label_y).unwrap()),
-            content: TextContent::new(
-                NonEmptyString::parse(swimlane_id.clone().into_inner().as_str().to_string())
-                    .unwrap(),
-            ),
+            content: TextContent::new(layout.name.clone()),
             style: TextStyle {
                 font_family: FontFamily::new(
                     self.theme

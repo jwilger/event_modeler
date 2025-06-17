@@ -46,6 +46,8 @@ pub struct SwimlaneLayout {
     pub position: Position,
     /// Width and height of the swimlane.
     pub dimensions: Dimensions,
+    /// Display name of the swimlane.
+    pub name: crate::infrastructure::types::NonEmptyString,
 }
 
 /// Position and size of an entity.
@@ -451,6 +453,7 @@ impl LayoutEngine {
                 SwimlaneLayout {
                     position,
                     dimensions,
+                    name: swimlane.name.clone().into_inner(),
                 },
             );
         }

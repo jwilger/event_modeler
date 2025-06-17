@@ -91,10 +91,7 @@ pub fn convert_to_diagram(
     let mut swimlanes = Vec::new();
     for (idx, parsed_swimlane) in parsed.swimlanes.into_iter().enumerate() {
         let swimlane = Swimlane {
-            id: SwimlaneId::new(
-                NonEmptyString::parse(format!("swimlane_{}", idx))
-                    .expect("Generated swimlane ID is always non-empty"),
-            ),
+            id: SwimlaneId::new(parsed_swimlane.name.clone()),
             name: SwimlaneName::new(parsed_swimlane.name),
             position: SwimlanePosition::new(NonNegativeInt::new(idx as u32)),
             entities: swimlane_entities.get(&idx).cloned().unwrap_or_default(),
