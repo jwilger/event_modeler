@@ -30,7 +30,7 @@ For general architecture and contribution guidelines, see [README.md](README.md)
 
 ### Development Workflow
 
-- Check implementation priorities in "Current Implementation Status" section above
+- Check implementation priorities in [ROADMAP.md](ROADMAP.md)
 - Create feature branches for focused work
 - Implement functionality while preserving type signatures
 
@@ -77,25 +77,7 @@ src/
 
 ## Current Implementation Status
 
-**⚠️ Early Development Stage**: The type system and module structure are complete, but most functionality contains `todo!()` placeholders.
-
-### Completed:
-- ✅ Module organization with clear domain boundaries
-- ✅ Type-safe design throughout (zero runtime validation)
-- ✅ Comprehensive documentation
-- ✅ Domain model types (Event, Command, Projection, etc.)
-- ✅ Infrastructure utilities (NonEmptyString, TypedPath, etc.)
-
-### Next Development Priorities:
-1. Implement CLI argument parsing in `src/cli.rs`
-2. Implement text parsing in `src/infrastructure/parsing/`
-3. Implement layout computation in `src/diagram/layout.rs`
-4. Implement SVG rendering in `src/diagram/svg.rs`
-
-### Implementation Notes:
-- All `todo!()` functions should maintain the existing type signatures
-- Add implementation without changing the established type-safe interfaces
-- Maintain zero runtime validation principle
+See [ROADMAP.md](ROADMAP.md) for current development priorities and implementation status.
 
 ## Architecture Principles
 
@@ -123,7 +105,7 @@ See [README.md#architecture](README.md#architecture) for the core architecture p
 See [README.md#contributing](README.md#contributing) for the development workflow.
 
 Claude-specific notes:
-- Check "Current Implementation Status" section above for priorities
+- Check [ROADMAP.md](ROADMAP.md) for current development priorities
 - Use TodoWrite tool to track implementation progress
 - Preserve existing type signatures when adding implementations
 
@@ -164,7 +146,7 @@ Claude-specific notes:
 
 When implementing new functionality:
 
-1. Check priorities in "Current Implementation Status" section
+1. Check priorities in [ROADMAP.md](ROADMAP.md)
 2. Create a feature branch for your work
 3. Implement incrementally, keeping the app buildable
 4. Maintain existing type signatures
