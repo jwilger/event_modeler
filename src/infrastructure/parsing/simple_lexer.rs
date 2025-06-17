@@ -108,6 +108,13 @@ impl Lexer {
 
         self.skip_whitespace_except_newline();
 
+        // Skip comment lines
+        if self.current_char() == Some('#') {
+            self.skip_comment();
+            // After skipping comment, continue to next token
+            return self.next_token();
+        }
+
         // Check for punctuation
         match self.current_char() {
             Some(':') => {
@@ -193,6 +200,18 @@ impl Lexer {
                 self.advance();
             } else {
                 break;
+            }
+        }
+    }
+
+    fn skip_comment(&mut self) {
+        // If current char is '#', skip until end of line
+        if self.current_char() == Some('#') {
+            while let Some(ch) = self.current_char() {
+                self.advance();
+                if ch == '\n' {
+                    break;
+                }
             }
         }
     }
@@ -372,5 +391,36 @@ mod tests {
             assert_eq!(lexer.next_token().unwrap().kind, expected);
             assert_eq!(lexer.next_token().unwrap().kind, TokenKind::Colon);
         }
+    }
+
+    #[test]
+    fn lexer_skips_comment_lines() {
+        let input = "Title: Test
+# This is a comment
+Swimlane: First
+# Another comment
+- Command: Test";
+        let mut lexer = Lexer::new(input);
+
+        // Title
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Title);
+
+        // Colon
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Colon);
+
+        // Test
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Text("Test".to_string()));
+
+        // Newline
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Newline);
+
+        // Comment line should be skipped, next should be Swimlane
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Swimlane);
+        assert_eq!(token.line, 3); // Line 3 because comment was on line 2
     }
 }
