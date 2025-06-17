@@ -9,10 +9,69 @@ env:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  validate-release:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      
+      - name: Extract version from Cargo.toml
+        id: cargo_version
+        run: |
+          VERSION=$(grep '^version = ' Cargo.toml | head -1 | cut -d'"' -f2)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Validate version match
+        run: |
+          TAG_VERSION="${{ github.event.release.tag_name }}"
+          TAG_VERSION="${TAG_VERSION#v}"  # Remove 'v' prefix if present
+          CARGO_VERSION="${{ steps.cargo_version.outputs.version }}"
+          
+          # Extract major.minor.patch from both versions
+          TAG_BASE="${TAG_VERSION%%-*}"  # Remove everything after first hyphen
+          CARGO_BASE="${CARGO_VERSION%%-*}"  # Remove everything after first hyphen
+          
+          if [ "$TAG_BASE" != "$CARGO_BASE" ]; then
+            echo "Error: Tag version base ($TAG_BASE) does not match Cargo.toml version base ($CARGO_BASE)"
+            exit 1
+          fi
+      
+      - name: Check and update prerelease status
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG_VERSION="${{ github.event.release.tag_name }}"
+          TAG_VERSION="${TAG_VERSION#v}"  # Remove 'v' prefix if present
+          
+          # Check if version has a suffix (prerelease)
+          if [[ "$TAG_VERSION" == *"-"* ]]; then
+            # Version has suffix, should be prerelease
+            if [ "${{ github.event.release.prerelease }}" != "true" ]; then
+              echo "Version has suffix, marking as prerelease"
+              gh release edit "${{ github.event.release.tag_name }}" --prerelease
+            fi
+          fi
+      
+      - name: Delete release on validation failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Validation failed, deleting release and tag"
+          gh release delete "${{ github.event.release.tag_name }}" --yes
+          git push origin :refs/tags/${{ github.event.release.tag_name }}
 
 jobs:
   build-release:
     name: Build Release
+    needs: validate-release
     strategy:
       matrix:
         include:
@@ -102,3 +161,314 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "${{ github.event.release.tag_name }}" "${{ matrix.name }}.zip" --clobber
         shell: bash
+
+  publish-docs:
+    name: Publish Documentation
+    needs: build-release
+    runs-on: ubuntu-latest
+    if: github.event.release.prerelease == false
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install mdbook
+        run: |
+          curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.36/mdbook-v0.4.36-x86_64-unknown-linux-gnu.tar.gz | tar -xz
+          sudo mv mdbook /usr/local/bin/
+      
+      - name: Create docs directory structure
+        run: |
+          mkdir -p docs/
+          mkdir -p docs/adr/
+          mkdir -p docs/api/
+      
+      - name: Generate landing page
+        run: |
+          cat > docs/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Event Modeler</title>
+              <style>
+                  :root {
+                      --primary-color: #0366d6;
+                      --background-color: #ffffff;
+                      --text-color: #24292e;
+                      --border-color: #e1e4e8;
+                      --code-bg: #f6f8fa;
+                  }
+                  
+                  @media (prefers-color-scheme: dark) {
+                      :root {
+                          --primary-color: #58a6ff;
+                          --background-color: #0d1117;
+                          --text-color: #c9d1d9;
+                          --border-color: #30363d;
+                          --code-bg: #161b22;
+                      }
+                  }
+                  
+                  body {
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+                      line-height: 1.6;
+                      color: var(--text-color);
+                      background-color: var(--background-color);
+                      max-width: 1200px;
+                      margin: 0 auto;
+                      padding: 2rem;
+                  }
+                  
+                  h1, h2 {
+                      border-bottom: 1px solid var(--border-color);
+                      padding-bottom: 0.3rem;
+                  }
+                  
+                  a {
+                      color: var(--primary-color);
+                      text-decoration: none;
+                  }
+                  
+                  a:hover {
+                      text-decoration: underline;
+                  }
+                  
+                  .nav-links {
+                      display: flex;
+                      gap: 2rem;
+                      margin: 2rem 0;
+                  }
+                  
+                  .nav-link {
+                      display: inline-block;
+                      padding: 0.75rem 1.5rem;
+                      border: 1px solid var(--border-color);
+                      border-radius: 6px;
+                      transition: all 0.2s;
+                  }
+                  
+                  .nav-link:hover {
+                      border-color: var(--primary-color);
+                      text-decoration: none;
+                  }
+                  
+                  code {
+                      background-color: var(--code-bg);
+                      padding: 0.2em 0.4em;
+                      border-radius: 3px;
+                      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+                      font-size: 85%;
+                  }
+                  
+                  .install-section {
+                      background-color: var(--code-bg);
+                      padding: 1.5rem;
+                      border-radius: 6px;
+                      margin: 2rem 0;
+                  }
+                  
+                  .version-info {
+                      font-size: 0.9rem;
+                      color: var(--text-color);
+                      opacity: 0.8;
+                  }
+              </style>
+          </head>
+          <body>
+              <h1>Event Modeler</h1>
+              
+              <p class="version-info">Version: ${{ github.event.release.tag_name }}</p>
+              
+              <p>Event Modeler is a CLI application that converts text-based event model descriptions into visual diagrams.</p>
+              
+              <div class="nav-links">
+                  <a href="api/event_modeler/index.html" class="nav-link">📚 API Documentation</a>
+                  <a href="adr/index.html" class="nav-link">📋 Architecture Decisions</a>
+                  <a href="https://github.com/jwilger/event_modeler" class="nav-link">💻 GitHub Repository</a>
+              </div>
+              
+              <h2>Features</h2>
+              <ul>
+                  <li>Parse <code>.eventmodel</code> files with intuitive syntax</li>
+                  <li>Generate professional SVG and PDF diagrams</li>
+                  <li>Support for commands, events, projections, and external systems</li>
+                  <li>GitHub-themed light and dark color schemes</li>
+                  <li>Markdown export for documentation</li>
+              </ul>
+              
+              <h2>Installation</h2>
+              <div class="install-section">
+                  <p>Download the latest release for your platform:</p>
+                  <ul>
+                      <li><a href="https://github.com/jwilger/event_modeler/releases/tag/${{ github.event.release.tag_name }}">Release ${{ github.event.release.tag_name }}</a></li>
+                  </ul>
+                  <p>Or install from source:</p>
+                  <code>cargo install --git https://github.com/jwilger/event_modeler --tag ${{ github.event.release.tag_name }}</code>
+              </div>
+              
+              <h2>Quick Start</h2>
+              <p>Create an <code>.eventmodel</code> file and run:</p>
+              <code>event_modeler diagram your-model.eventmodel</code>
+              
+              <footer style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--border-color); text-align: center; opacity: 0.8;">
+                  <p>Generated from release ${{ github.event.release.tag_name }}</p>
+              </footer>
+          </body>
+          </html>
+          EOF
+      
+      - name: Build Rust documentation
+        run: |
+          cargo doc --no-deps --workspace
+          cp -r target/doc/* docs/api/
+      
+      - name: Convert ADRs to HTML
+        run: |
+          # Create ADR index
+          cat > docs/adr/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Architecture Decision Records - Event Modeler</title>
+              <style>
+                  :root {
+                      --primary-color: #0366d6;
+                      --background-color: #ffffff;
+                      --text-color: #24292e;
+                      --border-color: #e1e4e8;
+                      --code-bg: #f6f8fa;
+                  }
+                  
+                  @media (prefers-color-scheme: dark) {
+                      :root {
+                          --primary-color: #58a6ff;
+                          --background-color: #0d1117;
+                          --text-color: #c9d1d9;
+                          --border-color: #30363d;
+                          --code-bg: #161b22;
+                      }
+                  }
+                  
+                  body {
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+                      line-height: 1.6;
+                      color: var(--text-color);
+                      background-color: var(--background-color);
+                      max-width: 1200px;
+                      margin: 0 auto;
+                      padding: 2rem;
+                  }
+                  
+                  h1, h2 {
+                      border-bottom: 1px solid var(--border-color);
+                      padding-bottom: 0.3rem;
+                  }
+                  
+                  a {
+                      color: var(--primary-color);
+                      text-decoration: none;
+                  }
+                  
+                  a:hover {
+                      text-decoration: underline;
+                  }
+                  
+                  .adr-list {
+                      list-style: none;
+                      padding: 0;
+                  }
+                  
+                  .adr-item {
+                      margin: 1rem 0;
+                      padding: 1rem;
+                      border: 1px solid var(--border-color);
+                      border-radius: 6px;
+                  }
+                  
+                  .back-link {
+                      display: inline-block;
+                      margin-bottom: 1rem;
+                  }
+              </style>
+          </head>
+          <body>
+              <a href="../index.html" class="back-link">← Back to Home</a>
+              
+              <h1>Architecture Decision Records</h1>
+              
+              <p>This section contains the architecture decisions made for the Event Modeler project.</p>
+              
+              <ul class="adr-list">
+          EOF
+          
+          # Convert each ADR markdown to HTML
+          for adr in doc/adr/*.md; do
+              if [ -f "$adr" ]; then
+                  filename=$(basename "$adr" .md)
+                  title=$(grep -m 1 "^# " "$adr" | sed 's/^# //')
+                  
+                  # Add to index
+                  echo "                  <li class=\"adr-item\"><a href=\"${filename}.html\">${filename}</a> - ${title}</li>" >> docs/adr/index.html
+                  
+                  # Convert markdown to HTML
+                  cat > docs/adr/${filename}.html << EOF
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>${title} - Event Modeler ADR</title>
+              <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.0/github-markdown-light.min.css">
+              <style>
+                  body {
+                      box-sizing: border-box;
+                      min-width: 200px;
+                      max-width: 980px;
+                      margin: 0 auto;
+                      padding: 45px;
+                  }
+                  @media (prefers-color-scheme: dark) {
+                      body {
+                          background-color: #0d1117;
+                          color: #c9d1d9;
+                      }
+                  }
+              </style>
+          </head>
+          <body class="markdown-body">
+              <a href="index.html">← Back to ADR Index</a>
+              <article>
+          EOF
+                  
+                  # Use GitHub API to render markdown
+                  curl -s -X POST \
+                    -H "Accept: application/vnd.github+json" \
+                    -H "Authorization: Bearer ${{ github.token }}" \
+                    https://api.github.com/markdown \
+                    -d "{\"text\":$(jq -Rs . < "$adr"),\"mode\":\"gfm\"}" >> docs/adr/${filename}.html
+                  
+                  echo "</article></body></html>" >> docs/adr/${filename}.html
+              fi
+          done
+          
+          echo "              </ul></body></html>" >> docs/adr/index.html
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./docs
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
