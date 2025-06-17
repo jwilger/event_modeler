@@ -249,60 +249,58 @@ tests/rendering/
 
 ## Next Steps (Post-MVP)
 
-### URGENT BUGS TO FIX
+### URGENT BUGS TO FIX ✅ PARTIALLY FIXED
 
-#### Bug 1: CLI displays misleading "phase 5" message
+#### Bug 1: CLI displays misleading "phase 5" message ✅ FIXED
 **Problem**: The CLI tool includes a note about diagram generation coming in phase 5, which is:
 - Already completed
 - Meaningless to end users who don't know about development phases
 
 **Impact**: Confusing user experience
 
-#### Bug 2: Poor diagram quality
+**Fix Applied**: Removed the misleading message from src/cli.rs
+
+#### Bug 2: Poor diagram quality ⚠️ PARTIALLY FIXED
 **Problems**:
-1. Entity text is not displayed in the diagram
-2. Swimlane labels are missing
-3. All entities use the same style (should vary by type: command, event, projection, etc.)
-4. Entities not laid out in strict timeline order (left-to-right reading)
-5. Connectors drawn to entity centers and appear in front of boxes (should stop at edges or be behind)
+1. ✅ Entity text is not displayed in the diagram - **FIXED**: Added entity text rendering
+2. ✅ Swimlane labels are missing - **FIXED**: Now display actual swimlane names
+3. ❌ All entities use the same style (should vary by type: command, event, projection, etc.)
+4. ❌ Entities not laid out in strict timeline order (left-to-right reading)
+5. ✅ Connectors drawn to entity centers and appear in front of boxes - **FIXED**: Connectors now render behind entities
 
 **Impact**: Diagrams are not usable for their intended purpose
 
-### Proposed Fixes
+### Fixes Applied
 
-#### Fix 1: Remove misleading CLI message
+#### Fix 1: Remove misleading CLI message ✅
 **Location**: src/cli.rs:326
-**Current**: `println!("Note: Full diagram rendering will be implemented in Phase 5 (Integration)");`
-**Fix**: Remove this line entirely - it's outdated and confusing to users
+**Fix**: Removed the outdated phase 5 message
 
 #### Fix 2: Fix diagram quality issues
 
-**Issue 2.1: Missing entity text**
-- **Location**: src/diagram/svg.rs:843-885 (render_entity function)
-- **Problem**: The render_entity function only creates a rectangle, never adds text
-- **Fix**: After creating the rectangle, add a text element with the entity name
+**Issue 2.1: Missing entity text** ✅
+- **Fix Applied**: Added text rendering to entities, but entity names show "Unknown" because EntityRegistry is not populated
 
-**Issue 2.2: Wrong swimlane labels**
-- **Location**: src/event_model/converter.rs:94-98
-- **Problem**: Swimlanes are assigned generic IDs like "swimlane_0", "swimlane_1" instead of their actual names
-- **Fix**: Use the parsed swimlane name for both the ID and display label
+**Issue 2.2: Wrong swimlane labels** ✅
+- **Fix Applied**: Swimlanes now use actual names instead of generic IDs
+
+**Issue 2.5: Connectors overlap entity boxes** ✅
+- **Fix Applied**: Changed rendering order so connectors appear behind entities
+
+### Remaining Issues
+
+**Issue 2.1b: Entity names show "Unknown"**
+- **Problem**: The EntityRegistry is created empty in converter.rs and never populated
+- **Impact**: All entities display "Unknown" instead of their actual names
+- **Fix Needed**: Populate the EntityRegistry during conversion
 
 **Issue 2.3: All entities use same style**
-- **Location**: src/diagram/layout.rs
 - **Problem**: Entity type information is not being properly passed through the layout engine
-- **Fix**: Ensure entity types from parsed model are preserved through conversion and layout
+- **Fix Needed**: Ensure entity types from parsed model are preserved through conversion and layout
 
 **Issue 2.4: Entity layout not in timeline order**
-- **Location**: src/diagram/layout.rs (compute_layout function)
 - **Problem**: Entities are positioned without considering their logical order in the event flow
-- **Fix**: Position entities based on their order in connectors (topological sort)
-
-**Issue 2.5: Connectors overlap entity boxes**
-- **Location**: src/diagram/svg.rs:887-926 (render_connector function)
-- **Problem**: Connectors are drawn from center to center of entities
-- **Fix**: Either:
-  a) Calculate connector endpoints at entity edges (more complex)
-  b) Add connectors to a background layer so they render behind entities (simpler)
+- **Fix Needed**: Position entities based on their order in connectors (topological sort)
 
 ### Phase 6: Entity Type Expansion
 - Add support for UI/Wireframe entities

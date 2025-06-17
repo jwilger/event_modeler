@@ -298,8 +298,13 @@ impl LayoutEngine {
                 .unwrap_or(crate::event_model::entities::EntityType::Command); // Default to command if not found
 
             // Look up entity name from registry
+            // If registry lookup fails (which it will since we don't populate the registry yet),
+            // use the entity ID as the name (since IDs are created from entity names)
             let entity_name = registry.get_entity_name(entity_id).unwrap_or_else(|| {
-                crate::infrastructure::types::NonEmptyString::parse("Unknown".to_string()).unwrap()
+                crate::infrastructure::types::NonEmptyString::parse(
+                    entity_id.clone().into_inner().as_str().to_string(),
+                )
+                .unwrap()
             });
 
             let position = EntityPosition {
