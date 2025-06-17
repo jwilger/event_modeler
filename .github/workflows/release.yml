@@ -18,6 +18,7 @@ jobs:
             target: x86_64-unknown-linux-gnu
             binary: event_modeler
             name: event-modeler-linux-x86_64
+            use-cross: false
           
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
@@ -36,17 +37,20 @@ jobs:
             target: x86_64-apple-darwin
             binary: event_modeler
             name: event-modeler-macos-x86_64
+            use-cross: false
           
           - os: macos-latest
             target: aarch64-apple-darwin
             binary: event_modeler
             name: event-modeler-macos-aarch64
+            use-cross: false
           
           # Windows
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             binary: event_modeler.exe
             name: event-modeler-windows-x86_64
+            use-cross: false
     
     runs-on: ${{ matrix.os }}
     
