@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-EventModelRenderer is a CLI application that reads in a text description of an event model and renders it to SVG or PDF
+Event Modeler is a CLI application that reads in a text description of an event model and renders it to SVG or PDF.
+
+For general architecture and contribution guidelines, see [README.md](README.md).
 
 ## Development Setup
 
@@ -61,21 +63,14 @@ TBD
 
 ## Architecture Principles
 
-### Type-Driven Design
+See [README.md#architecture](README.md#architecture) for the core architecture principles.
 
-- Heavy use of algebraic types via Rust's type system
-- Use `nutype` crate for all domain-specific types
-- Primitive types only at system boundaries (terminal I/O, JSON parsing)
-- Traits for converting domain types to external representations
-- Make impossible scenarios impossible to represent
+### Claude-Specific Implementation Notes
 
-### Functional Core, Imperative Shell
-
-- Purely functional core with side effects at boundaries
-- Domain logic as pure functions with no side effects
-- I/O operations (terminal, process spawning) isolated in shell layer
-- Dependencies passed as function arguments for testability
-- State transformations through immutable data structures
+- Always use `nutype` crate for domain-specific types (never raw primitives)
+- When creating new types, consider if compile-time guarantees can replace runtime checks
+- Prefer message passing over `Arc<Mutex<>>`
+- Use `SmallVec` for small collections
 
 ### Development Process
 
@@ -87,13 +82,14 @@ TBD
 - Refactoring includes leveraging type system to prevent test failures
 - Always consider if new domain types can eliminate error cases
 
-### Story Management
+### Story Management for Claude
 
-- Stories are prioritized by 6-digit filename prefix (000010, 000020, etc.)
-- Move stories: `mv PLANNING/todo/000010-*.md PLANNING/doing/` to start work
-- Complete stories: `mv PLANNING/doing/000010-*.md PLANNING/done/` when deployed
-- Each story has clear acceptance criteria and definition of done
-- Stories build incrementally - complete dependencies before starting new stories
+See [README.md#contributing](README.md#contributing) for the story workflow.
+
+Claude-specific notes:
+- Always check for existing work in PLANNING/doing/ before starting
+- Update the "## Current Subtasks" section frequently as you work
+- Use TodoWrite tool to track implementation progress
 
 ### Active Story Development
 
@@ -188,65 +184,46 @@ cross build --release --target x86_64-pc-windows-gnu
 - Support standard terminal screen readers
 - Follow terminal color scheme preferences
 
-## Git and Commit Practices
+## Claude-Specific Git Instructions
 
 - Always make high-quality git commits that explain the _why_ not just the how
 - Commit whenever all tests are passing rather than waiting to complete a full story
 - NEVER add prefixes to commit message subject lines (no "feat:", "fix:", "chore:", etc.)
 - Keep commits focused and atomic
+- Use the commit message format shown in README.md
 
-## Code Quality Guidelines
+## Code Quality Guidelines for Claude
 
-- Never use `#[allow(...)]` annotations to bypass compiler/linter rules without explicit permission on a case-by-case basis
-- All code must pass `cargo fmt` and `cargo clippy` before committing
-- Write tests for all new functionality
-- Document public APIs with rustdoc comments
-- Use descriptive variable and function names
+See [README.md#development-standards](README.md#development-standards) for standards.
 
-## Type-Safety Techniques
+Additional Claude-specific rules:
+- Never use `#[allow(...)]` without getting explicit user permission
+- Always run `cargo fmt` and `cargo clippy` before suggesting commits
+- Document ALL public items with rustdoc comments
+- When naming things, be extremely descriptive (no single-letter variables)
 
-When implementing new functionality, apply these type-driven design principles:
+## Type-Safety Implementation Guide for Claude
+
+Core principles are in [README.md#architecture](README.md#architecture). When implementing:
 
 ### Parse, Don't Validate
+- Use the types in `src/type_safety.rs` module
+- Create parse functions that return `Result<ValidType, ParseError>`
+- Never use `.unwrap()` or `.expect()` on validation
 
-- Validation should happen once at system boundaries (I/O, JSON parsing, user input)
-- Use newtypes that can only be constructed through validated constructors
-- After parsing, work with validated types that maintain invariants
+### Making Illegal States Unrepresentable
+- Always check if a runtime `if` statement could be a compile-time type
+- Use phantom types (see `TypedPath` in type_safety.rs)
+- Use the typestate pattern (see `EntityRegistry` in model/registry.rs)
 
-### Make Illegal States Unrepresentable
+### Test-Driven Type Refinement Process
+1. Write test first (TDD)
+2. Make it pass with simple implementation
+3. Ask: "Can this test failure be made into a compile error?"
+4. If yes, refactor to use types and remove the test
+5. Document what compile-time guarantee replaced the test
 
-- Use sum types (enums) to represent mutually exclusive states
-- Use newtypes with validation to prevent invalid values
-- Leverage Rust's ownership system to enforce state transitions
-- Example: A `CounterValue` that cannot be negative by construction
-
-### Typestate Pattern
-
-- Track state transitions in the type system
-- Use phantom types to encode state at compile time
-- Make invalid state transitions compilation errors
-- Example: A builder that won't compile without required fields
-
-### Phantom Types
-
-- Encode compile-time guarantees without runtime cost
-- Use zero-sized types to track properties
-- Useful for units of measure, validation states, etc.
-
-### Sealed Traits
-
-- Use the sealed trait pattern to control implementations
-- Ensures exhaustive matching and prevents external implementations
-- Example: `MetricValue` trait that only our metric types can implement
-
-### Test-Driven Type Refinement
-
-1. Write tests first following TDD
-2. After tests pass, refactor types to make test scenarios impossible
-3. Document which compile-time guarantees replace each test
-4. Remove tests that are made redundant by type constraints
-5. Keep only integration tests at I/O boundaries
-
-### Examples of Type Safety in Practice
-
-- Required fields are enforced by the type system, not runtime checks
+### Examples in This Codebase
+- `NonEmpty<T>` - eliminates empty collection checks
+- `TypedPath<F,P,E>` - compile-time path validation
+- `ThemedRenderer<T>` - compile-time theme selection

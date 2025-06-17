@@ -1,47 +1,103 @@
 # Event Modeler
 
-A type-safe Event Modeling diagram generator written in Rust.
+Generate Event Modeling diagrams from text descriptions. Write `.eventmodel` files, get SVG/PDF diagrams.
 
-## Overview
-
-Event Modeler converts text-based Event Model descriptions (`.eventmodel` files) into visual diagrams suitable for documentation and analysis. It generates SVG and PDF outputs optimized for inclusion in GitHub markdown documentation.
-
-## Features
-
-- Text-based DSL for Event Modeling
-- SVG and PDF output formats
-- Type-safe design with compile-time guarantees
-- Support for all Event Modeling concepts:
-  - Swimlanes (actors/systems)
-  - Commands (user intentions)
-  - Events (state changes)
-  - Projections (read models)
-  - Queries (data retrieval)
-  - Automations (system reactions)
-  - Wireframes (UI mockups)
-  - Slices (feature boundaries)
-
-## Installation
+## Quick Start
 
 ```bash
+# Install
 cargo install event_modeler
+
+# Create an event model
+cat > example.eventmodel << 'EOF'
+title: Order Processing System
+
+swimlane Customer:
+  wireframe "Place Order" -> command "Submit Order"
+  
+swimlane Orders:
+  command "Submit Order" -> event "Order Placed"
+  event "Order Placed" -> projection "Order List"
+  query "Get Orders" <- projection "Order List"
+EOF
+
+# Generate diagram
+event_modeler render example.eventmodel
 ```
 
-## Usage
+## Project Status
+
+🚧 **Early Development** - Type system complete, implementation in progress.
+
+## Development Setup
 
 ```bash
-# Render a single event model file
-event_modeler render model.eventmodel
+# Clone and enter nix shell (includes all dependencies)
+git clone https://github.com/jwilger/event_modeler
+cd event_modeler
+nix develop  # or use direnv
 
-# Watch a directory for changes
-event_modeler watch ./models
+# Run tests
+cargo test
 
-# Validate without rendering
-event_modeler validate model.eventmodel
+# Build
+cargo build
+
+# Generate docs
+cargo doc --open
 ```
+
+This project is optimized for development with [Claude Code](https://claude.ai/code) - see [CLAUDE.md](CLAUDE.md) for AI pair programming guidelines.
+
+## Architecture
+
+### Type-Driven Design
+
+- Heavy use of algebraic types via Rust's type system
+- Domain-specific types via `nutype` crate
+- Primitive types only at system boundaries
+- Zero runtime validation - all invariants enforced at compile time
+
+### Functional Core, Imperative Shell
+
+- Pure functions for domain logic
+- Side effects isolated at boundaries
+- State transformations through immutable data
+
+### Key Principles
+
+- **Parse, Don't Validate**: Validation happens once at system boundaries
+- **Make Illegal States Unrepresentable**: Use sum types and newtypes
+- **Typestate Pattern**: Track state transitions in the type system
+
+See [docs/adr/](docs/adr/) for architecture decisions.
+
+## Documentation
+
+- **DSL Reference**: See [examples/](examples/) and [docs/syntax.md](docs/syntax.md) (coming soon)
+- **API Docs**: Run `cargo doc --open`
+- **Event Modeling**: Learn about the methodology at [eventmodeling.org](https://eventmodeling.org)
+
+## Contributing
+
+We use story-driven development with strict type safety:
+
+1. Pick a story from [PLANNING/todo/](PLANNING/todo/)
+2. Move to [PLANNING/doing/](PLANNING/doing/) (only one at a time)
+3. Create feature branch from story number
+4. Follow TDD: red-green-refactor
+5. Maintain zero runtime validation
+6. Move to [PLANNING/done/](PLANNING/done/) when complete
+
+### Development Standards
+
+- All code must pass `cargo fmt` and `cargo clippy`
+- No `#[allow(...)]` without explicit approval
+- High-quality commits explaining the "why"
+- No commit prefixes (no "feat:", "fix:", etc.)
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT - see [LICENSE](LICENSE)
 
 Copyright (c) 2025 John Wilger
