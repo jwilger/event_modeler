@@ -27,7 +27,10 @@ event_modeler render example.eventmodel
 
 ## Project Status
 
-🚧 **Early Development** - Type system complete, implementation in progress.
+🚧 **Early Development** - Module structure and type system complete, core functionality in progress.
+
+**What's Ready**: Complete type-safe domain model, module organization, documentation
+**What's Next**: CLI parsing, text processing, layout computation, SVG rendering
 
 ## Development Setup
 
@@ -70,24 +73,24 @@ This project is optimized for development with [Claude Code](https://claude.ai/c
 - **Make Illegal States Unrepresentable**: Use sum types and newtypes
 - **Typestate Pattern**: Track state transitions in the type system
 
-See [docs/adr/](docs/adr/) for architecture decisions.
+Architecture decisions are documented in the code and this README.
 
 ## Documentation
 
-- **DSL Reference**: See [examples/](examples/) and [docs/syntax.md](docs/syntax.md) (coming soon)
-- **API Docs**: Run `cargo doc --open`
+- **API Docs**: Run `cargo doc --open` for complete API documentation
+- **Module Structure**: See module documentation in the codebase
 - **Event Modeling**: Learn about the methodology at [eventmodeling.org](https://eventmodeling.org)
+- **DSL Reference**: Coming soon (examples/ and docs/syntax.md)
 
 ## Contributing
 
-We use story-driven development with strict type safety:
+We use feature-driven development with strict type safety:
 
-1. Pick a story from [PLANNING/todo/](PLANNING/todo/)
-2. Move to [PLANNING/doing/](PLANNING/doing/) (only one at a time)
-3. Create feature branch from story number
-4. Follow TDD: red-green-refactor
-5. Maintain zero runtime validation
-6. Move to [PLANNING/done/](PLANNING/done/) when complete
+1. Check current development priorities in [CLAUDE.md](CLAUDE.md)
+2. Create feature branch for your work
+3. Follow TDD: red-green-refactor
+4. Maintain zero runtime validation
+5. Add implementations without changing type signatures
 
 ### Development Standards
 

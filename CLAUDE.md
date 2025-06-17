@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-Event Modeler is a CLI application that reads in a text description of an event model and renders it to SVG or PDF.
+Event Modeler is a CLI application that converts text-based Event Model descriptions (`.eventmodel` files) into visual diagrams (SVG/PDF format).
 
 For general architecture and contribution guidelines, see [README.md](README.md).
 
@@ -18,48 +18,84 @@ For general architecture and contribution guidelines, see [README.md](README.md)
 
 - `nix develop` - Enter development shell with all dependencies
 - `cargo test --workspace` - Run all tests
-- `cargo run -- <evaluator>` - Run PrEval with evaluator
+- `cargo run` - Run Event Modeler CLI
 - `cargo fmt --all` - Format code
 - `cargo clippy --workspace --all-targets` - Run linter
 - `pre-commit install` - Install git hooks (when in nix shell)
 
-### ADR (Architecture Decision Records) Commands
+### Documentation Commands
 
-- `npm run adr:preview` - Preview ADR documentation locally (http://localhost:4004)
-- `npm run adr:build` - Build static ADR documentation site
-- View ADRs in `docs/adr/` directory
-- Create new ADRs by copying template and following naming convention: `YYYYMMDD-title-with-dashes.md`
+- `cargo doc --open` - Generate and view API documentation
+- View architecture decisions in README.md and module documentation
 
-### Story Workflow Commands
+### Development Workflow
 
-- `ls PLANNING/todo/` - View available stories prioritized by filename
-- `mv PLANNING/todo/00010-*.md PLANNING/doing/` - Start working on a story
-- `mv PLANNING/doing/00010-*.md PLANNING/done/` - Mark story complete
-- `ls PLANNING/doing/` - Check current work (should only be one story)
+- Check implementation priorities in "Current Implementation Status" section above
+- Create feature branches for focused work
+- Implement functionality while preserving type signatures
 
 ## Technical Architecture
 
 ### Core Technologies
 
 - **Language**: Rust (latest stable)
-- **TUI Framework**: Ratatui (with crossterm backend for cross-platform support)
-- **Async Runtime**: Tokio for process management and concurrent operations
-- **Serialization**: serde + serde_json for JSON parsing
-- **CLI**: clap for argument parsing
 - **Type Safety**: nutype for domain-specific types
+- **Error Handling**: thiserror for structured errors
+- **Validation**: Custom type-safe validation in infrastructure layer
 
 ### Key Dependencies (Cargo.toml)
 
 ```toml
 [dependencies]
-clap = { version = "4", features = ["derive"] }
 thiserror = "1"
-nutype = { version = "0.4", features = ["serde"] }
+nutype = { version = "0.4", features = ["serde", "regex"] }
+regex = "1"
+lazy_static = "1"
 ```
 
-### Project Structure
+### Current Project Structure
 
-TBD
+```
+src/
+├── event_model/     # Core Event Modeling concepts
+│   ├── entities.rs  # Command, Event, Projection, etc.
+│   ├── diagram.rs   # EventModelDiagram
+│   └── registry.rs  # EntityRegistry for compile-time tracking
+├── diagram/         # Visual representation
+│   ├── layout.rs    # Layout computation
+│   ├── style.rs     # Visual styles
+│   ├── theme.rs     # GitHub light/dark themes
+│   └── svg.rs       # SVG rendering
+├── export/          # Output formats
+│   ├── pdf.rs       # PDF export
+│   └── markdown.rs  # Markdown export
+├── infrastructure/ # Technical utilities
+│   ├── types.rs     # Type safety (NonEmptyString, etc.)
+│   └── parsing/     # Text parsing (lexer, AST)
+└── cli.rs          # Command-line interface
+```
+
+## Current Implementation Status
+
+**⚠️ Early Development Stage**: The type system and module structure are complete, but most functionality contains `todo!()` placeholders.
+
+### Completed:
+- ✅ Module organization with clear domain boundaries
+- ✅ Type-safe design throughout (zero runtime validation)
+- ✅ Comprehensive documentation
+- ✅ Domain model types (Event, Command, Projection, etc.)
+- ✅ Infrastructure utilities (NonEmptyString, TypedPath, etc.)
+
+### Next Development Priorities:
+1. Implement CLI argument parsing in `src/cli.rs`
+2. Implement text parsing in `src/infrastructure/parsing/`
+3. Implement layout computation in `src/diagram/layout.rs`
+4. Implement SVG rendering in `src/diagram/svg.rs`
+
+### Implementation Notes:
+- All `todo!()` functions should maintain the existing type signatures
+- Add implementation without changing the established type-safe interfaces
+- Maintain zero runtime validation principle
 
 ## Architecture Principles
 
@@ -82,26 +118,21 @@ See [README.md#architecture](README.md#architecture) for the core architecture p
 - Refactoring includes leveraging type system to prevent test failures
 - Always consider if new domain types can eliminate error cases
 
-### Story Management for Claude
+### Development Management for Claude
 
-See [README.md#contributing](README.md#contributing) for the story workflow.
+See [README.md#contributing](README.md#contributing) for the development workflow.
 
 Claude-specific notes:
-- Always check for existing work in PLANNING/doing/ before starting
-- Update the "## Current Subtasks" section frequently as you work
+- Check "Current Implementation Status" section above for priorities
 - Use TodoWrite tool to track implementation progress
+- Preserve existing type signatures when adding implementations
 
-### Active Story Development
+### Active Development
 
-- **Subtask Tracking**: Maintain a "## Current Subtasks" section at the bottom of the active story
-- Subtasks are ephemeral implementation details, not requirements
-- Update subtasks frequently as work progresses:
-  - Add new subtasks as discovered
-  - Check off completed subtasks with `[x]`
-  - Remove or modify subtasks as understanding evolves
-  - Reorder subtasks based on implementation approach
-- Subtasks help track progress but can change at any time
-- Keep subtasks focused on current implementation work
+- Focus on one module implementation at a time
+- Use TodoWrite tool for tracking progress within a session
+- Implement functions while preserving their type signatures
+- Add tests for new implementations
 
 ## Development Guidelines
 
@@ -129,14 +160,14 @@ Claude-specific notes:
   techniques to make it _impossible_ for a test you have written to ever fail
   (it should instead fail to compile if it represents an impossible scenario).
 
-## User Story Implementation
+## Feature Implementation
 
-When implementing user stories from PLANNING/:
+When implementing new functionality:
 
-1. Move the story file from TODO/ to DOING/
-2. Create a feature branch named after the story number
+1. Check priorities in "Current Implementation Status" section
+2. Create a feature branch for your work
 3. Implement incrementally, keeping the app buildable
-4. Move to DONE/ when complete and merged
+4. Maintain existing type signatures
 
 ## Build and Release
 
@@ -149,8 +180,8 @@ cargo test
 # Check all targets
 cargo check --all-targets
 
-# Run PrEval
-cargo run -- <evaluator-command>
+# Run Event Modeler
+cargo run
 ```
 
 ### Cross-Compilation
@@ -207,14 +238,14 @@ Additional Claude-specific rules:
 Core principles are in [README.md#architecture](README.md#architecture). When implementing:
 
 ### Parse, Don't Validate
-- Use the types in `src/type_safety.rs` module
+- Use the types in `src/infrastructure/types.rs` module
 - Create parse functions that return `Result<ValidType, ParseError>`
 - Never use `.unwrap()` or `.expect()` on validation
 
 ### Making Illegal States Unrepresentable
 - Always check if a runtime `if` statement could be a compile-time type
-- Use phantom types (see `TypedPath` in type_safety.rs)
-- Use the typestate pattern (see `EntityRegistry` in model/registry.rs)
+- Use phantom types (see `TypedPath` in infrastructure/types.rs)
+- Use the typestate pattern (see `EntityRegistry` in event_model/registry.rs)
 
 ### Test-Driven Type Refinement Process
 1. Write test first (TDD)

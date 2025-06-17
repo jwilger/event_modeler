@@ -3,8 +3,28 @@
 
 //! Event Modeler - A type-safe Event Modeling diagram generator.
 //!
-//! This application converts text-based Event Model descriptions into
-//! visual diagrams suitable for documentation and analysis.
+//! This application converts text-based Event Model descriptions (`.eventmodel` files)
+//! into visual diagrams (SVG/PDF) suitable for documentation and analysis.
+//!
+//! ## Current Status
+//!
+//! **Early Development**: Module structure and type system are complete with comprehensive
+//! domain modeling, but core functionality contains `todo!()` placeholders awaiting
+//! implementation.
+//!
+//! ## Module Overview
+//!
+//! - [`event_model`] - Core Event Modeling concepts (Commands, Events, etc.)
+//! - [`diagram`] - Visual representation and rendering
+//! - [`export`] - Output formats (PDF, Markdown)
+//! - [`infrastructure`] - Type safety and parsing utilities
+//! - [`cli`] - Command-line interface
+//!
+//! ## Architecture
+//!
+//! This codebase follows strict type-driven design with zero runtime validation.
+//! All validation happens once at system boundaries, and the rest of the code
+//! works with types that maintain invariants by construction.
 
 pub mod cli;
 pub mod event_model;
