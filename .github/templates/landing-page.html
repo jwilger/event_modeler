@@ -504,24 +504,26 @@
         <div class="code-example">
             <h2 class="section-title" id="quick-start">See It In Action</h2>
             <p style="text-align: center; margin-bottom: 2rem;">Write simple text, get beautiful diagrams:</p>
-            <div class="code-block"><pre>// Define your commands
-command CreateOrder {
-  OrderDetails details
-  CustomerInfo customer
-}
+            <div class="code-block"><pre>Title: Order Processing System
 
-// Define your events  
-event OrderCreated {
-  OrderId id
-  OrderDetails details
-  Timestamp createdAt
-}
+Swimlane: Customer Interface
+- Command: CreateOrder
+- Projection: OrderSummary
 
-// Define your projections
-projection OrderSummary {
-  from OrderCreated
-  shows OrderStatus
-}</pre></div>
+Swimlane: Order Processing
+- Event: OrderCreated
+- Event: OrderShipped
+- Aggregate: Order
+
+Swimlane: Fulfillment
+- Policy: ShipOrder
+- External System: ShippingProvider
+
+# Define relationships
+CreateOrder -> OrderCreated
+OrderCreated -> Order
+OrderCreated -> ShipOrder
+ShipOrder -> OrderShipped</pre></div>
             <p style="text-align: center; margin-top: 2rem;">Run <code>event_modeler diagram model.eventmodel</code> and get a professional diagram instantly!</p>
         </div>
     </section>
@@ -550,7 +552,7 @@ projection OrderSummary {
     <footer>
         <div class="container">
             <p>Made with ❤️ for the Event Modeling community</p>
-            <p style="margin-top: 0.5rem; font-size: 0.9rem;">Event Modeler v__VERSION__</p>
+            <p style="margin-top: 0.5rem; font-size: 0.9rem;">Event Modeler __VERSION__</p>
         </div>
     </footer>
 </body>
