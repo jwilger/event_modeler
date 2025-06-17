@@ -220,7 +220,26 @@ impl LayoutEngine {
         &self,
         _diagram: &crate::event_model::diagram::EventModelDiagram<W, C, E, P, Q, A>,
     ) -> Result<Layout, LayoutError> {
-        todo!()
+        // For now, return a basic layout structure
+        // This will be expanded to actually compute positions
+        let canvas = Canvas {
+            width: CanvasWidth::new(PositiveInt::parse(1200).unwrap()),
+            height: CanvasHeight::new(PositiveInt::parse(800).unwrap()),
+            padding: Padding {
+                top: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
+                right: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
+                bottom: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
+                left: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
+            },
+        };
+
+        Ok(Layout {
+            canvas,
+            swimlane_layouts: HashMap::new(),
+            entity_positions: HashMap::new(),
+            slice_layouts: HashMap::new(),
+            connections: Vec::new(),
+        })
     }
 
     /// Get the current configuration.
