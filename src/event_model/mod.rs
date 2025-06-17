@@ -14,6 +14,7 @@
 //! - **Automations**: System reactions to events
 //! - **Wireframes**: Visual mockups showing user interactions
 
+pub mod converter;
 pub mod diagram;
 pub mod entities;
 pub mod registry;

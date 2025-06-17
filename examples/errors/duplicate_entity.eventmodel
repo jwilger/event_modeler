@@ -1,0 +1,7 @@
+Title: Duplicate Entity Names
+
+Swimlane: Service A
+- Event: OrderPlaced
+
+Swimlane: Service B
+- Command: OrderPlaced

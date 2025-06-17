@@ -1,0 +1,4 @@
+Title: Minimal System
+
+Swimlane: System
+- Event: SystemStarted

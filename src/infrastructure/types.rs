@@ -118,6 +118,31 @@ impl<T> NonEmpty<T> {
     pub const fn is_empty(&self) -> bool {
         false
     }
+
+    /// Returns a reference to the first element.
+    ///
+    /// This is an alias for `head()` to match standard collection APIs.
+    pub fn first(&self) -> &T {
+        self.head()
+    }
+
+    /// Returns a reference to the last element.
+    ///
+    /// If there are no tail elements, returns the head element.
+    pub fn last(&self) -> &T {
+        self.tail.last().unwrap_or(&self.head)
+    }
+
+    /// Returns a reference to the element at the given index.
+    ///
+    /// Returns `None` if the index is out of bounds.
+    pub fn get(&self, index: usize) -> Option<&T> {
+        if index == 0 {
+            Some(&self.head)
+        } else {
+            self.tail.get(index - 1)
+        }
+    }
 }
 
 // Type-safe path with phantom types
@@ -709,5 +734,39 @@ impl Sanitized<MarkdownContext> {
     /// This escapes Markdown special characters to prevent formatting issues.
     pub fn sanitize(_input: &str) -> Self {
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn non_empty_first_returns_head() {
+        let ne = NonEmpty::singleton(42);
+        assert_eq!(ne.first(), &42);
+
+        let ne = NonEmpty::from_head_and_tail(1, vec![2, 3, 4]);
+        assert_eq!(ne.first(), &1);
+    }
+
+    #[test]
+    fn non_empty_last_returns_last_element() {
+        let ne = NonEmpty::singleton(42);
+        assert_eq!(ne.last(), &42);
+
+        let ne = NonEmpty::from_head_and_tail(1, vec![2, 3, 4]);
+        assert_eq!(ne.last(), &4);
+    }
+
+    #[test]
+    fn non_empty_get_returns_element_at_index() {
+        let ne = NonEmpty::from_head_and_tail(10, vec![20, 30, 40]);
+
+        assert_eq!(ne.get(0), Some(&10));
+        assert_eq!(ne.get(1), Some(&20));
+        assert_eq!(ne.get(2), Some(&30));
+        assert_eq!(ne.get(3), Some(&40));
+        assert_eq!(ne.get(4), None);
     }
 }

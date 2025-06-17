@@ -134,12 +134,13 @@ impl Cli {
         // Basic argument parsing - for now just support: event_modeler input.eventmodel -o output.svg
         if args.len() < 2 {
             return Err(Error::InvalidArguments(
-                "Usage: event_modeler <input.eventmodel> [-o <output.svg>]".to_string(),
+                "Usage: event_modeler <input.eventmodel> [-o <output.svg>] [--dark]".to_string(),
             ));
         }
 
         let input_path = &args[1];
         let mut output_path = None;
+        let mut use_dark_theme = false;
 
         // Parse output flag
         let mut i = 2;
@@ -147,6 +148,9 @@ impl Cli {
             if args[i] == "-o" && i + 1 < args.len() {
                 output_path = Some(args[i + 1].clone());
                 i += 2;
+            } else if args[i] == "--dark" {
+                use_dark_theme = true;
+                i += 1;
             } else {
                 i += 1;
             }
@@ -189,7 +193,11 @@ impl Cli {
             input,
             options: RenderOptions {
                 formats,
-                style: RenderStyle::GithubLight, // Default style
+                style: if use_dark_theme {
+                    RenderStyle::GithubDark
+                } else {
+                    RenderStyle::GithubLight
+                },
                 include_links: IncludeLinks::new(false), // Default to no links
                 output_dir,
             },
@@ -222,37 +230,51 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
         .parse(&input_content)
         .map_err(|e| Error::InvalidArguments(format!("Parse error: {:?}", e)))?;
 
-    // 3. For now, create a minimal test diagram to demonstrate the pipeline
-    // TODO: In Phase 5, properly convert ParsedEventModel to EventModelDiagram
+    // 3. Convert ParsedEventModel to EventModelDiagram
+    let entity_info = crate::event_model::converter::count_entities(&parsed_model);
+    let event_model_diagram = crate::event_model::converter::convert_to_diagram(parsed_model)
+        .map_err(|e| Error::InvalidArguments(format!("Conversion error: {:?}", e)))?;
+
     println!(
-        "Successfully parsed event model: {}",
-        parsed_model.title.as_str()
+        "Successfully converted event model: {}",
+        event_model_diagram
+            .metadata
+            .title
+            .clone()
+            .into_inner()
+            .as_str()
     );
-    println!("Found {} swimlanes", parsed_model.swimlanes.len());
+    println!("Found {} swimlanes", event_model_diagram.swimlanes.len());
+    println!("Found {} entities total", {
+        entity_info.wireframe_count
+            + entity_info.command_count
+            + entity_info.event_count
+            + entity_info.projection_count
+            + entity_info.query_count
+            + entity_info.automation_count
+    });
 
-    // Create a test layout with dummy data for now
-    use crate::diagram::layout::*;
-    use crate::infrastructure::types::{NonNegativeFloat, PositiveInt};
-    use std::collections::HashMap;
+    // 4. Create layout from the diagram
+    use crate::diagram::layout::{LayoutConfig, LayoutEngine};
+    use crate::infrastructure::types::PositiveFloat;
 
-    let test_layout = Layout {
-        canvas: Canvas {
-            width: CanvasWidth::new(PositiveInt::parse(1200).unwrap()),
-            height: CanvasHeight::new(PositiveInt::parse(800).unwrap()),
-            padding: Padding {
-                top: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
-                right: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
-                bottom: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
-                left: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
-            },
-        },
-        swimlane_layouts: HashMap::new(),
-        entity_positions: HashMap::new(),
-        slice_layouts: HashMap::new(),
-        connections: vec![],
+    let layout_config = LayoutConfig {
+        entity_spacing: crate::diagram::layout::EntitySpacing::new(
+            PositiveFloat::parse(30.0).unwrap(),
+        ),
+        swimlane_height: crate::diagram::layout::SwimlaneHeight::new(
+            PositiveFloat::parse(120.0).unwrap(),
+        ),
+        slice_gutter: crate::diagram::layout::SliceGutter::new(PositiveFloat::parse(20.0).unwrap()),
+        connection_routing: crate::diagram::layout::ConnectionRouting::Straight,
     };
 
-    // 4. Render to requested formats
+    let layout_engine = LayoutEngine::new(layout_config);
+    let layout = layout_engine
+        .compute_layout(&event_model_diagram)
+        .map_err(|e| Error::InvalidArguments(format!("Layout error: {:?}", e)))?;
+
+    // 5. Render to requested formats
     for format in cmd.options.formats.iter() {
         match format {
             OutputFormat::Svg => {
@@ -281,7 +303,7 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
 
                 let renderer = crate::diagram::svg::SvgRenderer::new(svg_config, theme);
                 let svg_doc = renderer
-                    .render(&test_layout)
+                    .render(&layout)
                     .map_err(|e| Error::InvalidArguments(format!("SVG render error: {}", e)))?;
 
                 // Generate output filename

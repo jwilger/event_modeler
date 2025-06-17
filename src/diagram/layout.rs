@@ -296,12 +296,12 @@ impl LayoutEngine {
             let position = EntityPosition {
                 swimlane_id: swimlane.id.clone(),
                 position: Position {
-                    x: XCoordinate::new(NonNegativeFloat::parse(x).unwrap()),
-                    y: YCoordinate::new(NonNegativeFloat::parse(y).unwrap()),
+                    x: XCoordinate::new(NonNegativeFloat::parse(x.max(0.0)).unwrap()),
+                    y: YCoordinate::new(NonNegativeFloat::parse(y.max(0.0)).unwrap()),
                 },
                 dimensions: Dimensions {
-                    width: Width::new(PositiveFloat::parse(entity_width).unwrap()),
-                    height: Height::new(PositiveFloat::parse(entity_height).unwrap()),
+                    width: Width::new(PositiveFloat::parse(entity_width.max(1.0)).unwrap()),
+                    height: Height::new(PositiveFloat::parse(entity_height.max(1.0)).unwrap()),
                 },
                 entity_type,
             };
@@ -395,16 +395,39 @@ impl LayoutEngine {
         &self,
         diagram: &crate::event_model::diagram::EventModelDiagram<W, C, E, P, Q, A>,
     ) -> Result<Layout, LayoutError> {
-        // Define canvas with padding
+        // Calculate canvas dimensions based on content
+        let padding = Padding {
+            top: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
+            right: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
+            bottom: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
+            left: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
+        };
+
+        // Calculate needed height based on number of swimlanes
+        let swimlane_height = self.config.swimlane_height.into_inner().value();
+        let spacing = self.config.entity_spacing.into_inner().value();
+        let num_swimlanes = diagram.swimlanes.len() as f32;
+        let content_height =
+            num_swimlanes * swimlane_height + (num_swimlanes - 1.0).max(0.0) * spacing;
+        let total_height =
+            content_height + padding.top.into_inner().value() + padding.bottom.into_inner().value();
+
+        // Calculate needed width based on max entities in any swimlane
+        let max_entities = diagram
+            .swimlanes
+            .iter()
+            .map(|s| s.entities.len())
+            .max()
+            .unwrap_or(1) as f32;
+        let entity_width = 150.0; // Default entity width
+        let content_width = max_entities * (entity_width + spacing) + spacing;
+        let total_width =
+            content_width + padding.left.into_inner().value() + padding.right.into_inner().value();
+
         let canvas = Canvas {
-            width: CanvasWidth::new(PositiveInt::parse(1200).unwrap()),
-            height: CanvasHeight::new(PositiveInt::parse(800).unwrap()),
-            padding: Padding {
-                top: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
-                right: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
-                bottom: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
-                left: PaddingValue::new(NonNegativeFloat::parse(20.0).unwrap()),
-            },
+            width: CanvasWidth::new(PositiveInt::parse(total_width.max(1200.0) as u32).unwrap()),
+            height: CanvasHeight::new(PositiveInt::parse(total_height.max(800.0) as u32).unwrap()),
+            padding,
         };
 
         let canvas_width = canvas.width.into_inner().value() as f64;
@@ -438,12 +461,12 @@ impl LayoutEngine {
         }
 
         // Route connections between entities
-        // TODO: Once connectors are added to EventModelDiagram, we'll use them here
-        // For now, create an empty connections list
-        let connections = Vec::new();
-
-        // Example of how we would use the route_connectors method:
-        // let connections = self.route_connectors(&connector_pairs, &entity_positions);
+        let connector_pairs: Vec<(EntityId, EntityId)> = diagram
+            .connectors
+            .iter()
+            .map(|conn| (conn.from.clone(), conn.to.clone()))
+            .collect();
+        let connections = self.route_connectors(&connector_pairs, &entity_positions);
 
         Ok(Layout {
             canvas,

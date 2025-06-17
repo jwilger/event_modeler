@@ -1,0 +1,17 @@
+Title: System Without Connectors
+
+Swimlane: Service A
+- Event: ServiceAStarted
+- Event: ServiceAReady
+- Command: InitializeA
+
+Swimlane: Service B
+- Event: ServiceBStarted
+- Event: ServiceBReady
+- Command: InitializeB
+- Projection: SystemStatus
+
+Swimlane: Service C
+- Policy: MonitorHealth
+- External System: HealthChecker
+- Command: GetSystemHealth
