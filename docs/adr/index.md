@@ -2,7 +2,7 @@
 
 # Architecture knowledge base
 
-Welcome 👋 to the architecture knowledge base of PrEval.
+Welcome 👋 to the architecture knowledge base of Event Modeler.
 You will find here all the Architecture Decision Records (ADR) of the project.
 
 ## Definition and purpose

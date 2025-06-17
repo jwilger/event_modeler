@@ -591,3 +591,119 @@ impl NonNegativeFloat {
         self.0
     }
 }
+
+// Sanitization types for output safety
+
+/// Marker trait for sanitization contexts.
+///
+/// Each output format (SVG, PDF, etc.) may have different sanitization requirements.
+/// This trait allows us to track which sanitization has been applied at the type level.
+pub trait SanitizationContext {
+    /// Returns the name of this sanitization context for debugging.
+    fn name() -> &'static str;
+}
+
+/// SVG sanitization context.
+///
+/// SVG requires escaping: <, >, &, ", '
+#[derive(Debug, Clone, Copy)]
+pub struct SvgContext;
+
+impl SanitizationContext for SvgContext {
+    fn name() -> &'static str {
+        "SVG"
+    }
+}
+
+/// PDF sanitization context.
+///
+/// PDF may have different escaping requirements than SVG.
+#[derive(Debug, Clone, Copy)]
+pub struct PdfContext;
+
+impl SanitizationContext for PdfContext {
+    fn name() -> &'static str {
+        "PDF"
+    }
+}
+
+/// Markdown sanitization context.
+///
+/// Markdown requires escaping different characters than SVG/PDF.
+#[derive(Debug, Clone, Copy)]
+pub struct MarkdownContext;
+
+impl SanitizationContext for MarkdownContext {
+    fn name() -> &'static str {
+        "Markdown"
+    }
+}
+
+/// A string that has been sanitized for a specific output context.
+///
+/// This type ensures that strings are properly escaped before being
+/// rendered in potentially dangerous contexts (SVG, PDF, etc.).
+///
+/// The phantom type parameter tracks which sanitization has been applied,
+/// preventing accidental use of strings sanitized for one context in another.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Sanitized<T: SanitizationContext> {
+    /// The sanitized string value.
+    value: String,
+    /// Phantom type to track sanitization context.
+    _context: PhantomData<T>,
+}
+
+impl<T: SanitizationContext> Sanitized<T> {
+    /// Returns the sanitized string as a string slice.
+    ///
+    /// This is safe because the string has already been sanitized
+    /// for the specific output context.
+    pub fn as_str(&self) -> &str {
+        &self.value
+    }
+
+    /// Consumes the sanitized string and returns the inner String.
+    ///
+    /// This is safe because the string has already been sanitized
+    /// for the specific output context.
+    pub fn into_string(self) -> String {
+        self.value
+    }
+}
+
+impl Sanitized<SvgContext> {
+    /// Sanitizes a string for safe inclusion in SVG output.
+    ///
+    /// This escapes: <, >, &, ", '
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use event_modeler::infrastructure::types::{Sanitized, SvgContext};
+    /// let input = "Hello <world> & \"friends\"";
+    /// let sanitized = Sanitized::<SvgContext>::sanitize(input);
+    /// assert_eq!(sanitized.as_str(), "Hello &lt;world&gt; &amp; &quot;friends&quot;");
+    /// ```
+    pub fn sanitize(_input: &str) -> Self {
+        todo!()
+    }
+}
+
+impl Sanitized<PdfContext> {
+    /// Sanitizes a string for safe inclusion in PDF output.
+    ///
+    /// PDF sanitization requirements may differ from SVG.
+    pub fn sanitize(_input: &str) -> Self {
+        todo!()
+    }
+}
+
+impl Sanitized<MarkdownContext> {
+    /// Sanitizes a string for safe inclusion in Markdown output.
+    ///
+    /// This escapes Markdown special characters to prevent formatting issues.
+    pub fn sanitize(_input: &str) -> Self {
+        todo!()
+    }
+}
