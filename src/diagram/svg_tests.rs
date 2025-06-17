@@ -50,7 +50,6 @@ mod rendering_tests {
     use super::*;
 
     #[test]
-    #[ignore = "SVG rendering not yet implemented"]
     fn render_empty_layout_produces_svg_with_canvas() {
         let layout = Layout {
             canvas: Canvas {

@@ -430,8 +430,38 @@ impl SvgRenderer {
     }
 
     /// Render a layout to an SVG document.
-    pub fn render(&self, _layout: &Layout) -> Result<SvgDocument, SvgRenderError> {
-        todo!()
+    pub fn render(&self, layout: &Layout) -> Result<SvgDocument, SvgRenderError> {
+        // Create viewbox from canvas dimensions
+        let viewbox = ViewBox {
+            x: XCoordinate::new(NonNegativeFloat::parse(0.0).unwrap()),
+            y: YCoordinate::new(NonNegativeFloat::parse(0.0).unwrap()),
+            width: Width::new(
+                PositiveFloat::parse(layout.canvas.width.into_inner().value() as f32).unwrap(),
+            ),
+            height: Height::new(
+                PositiveFloat::parse(layout.canvas.height.into_inner().value() as f32).unwrap(),
+            ),
+        };
+
+        // Create SVG elements
+        let elements = Vec::new();
+
+        // TODO: Add swimlane rendering
+        // TODO: Add entity rendering
+        // TODO: Add connector rendering
+
+        // Create empty defs for now
+        let defs = SvgDefs {
+            patterns: vec![],
+            gradients: vec![],
+            markers: vec![],
+        };
+
+        Ok(SvgDocument {
+            viewbox,
+            elements,
+            defs,
+        })
     }
 
     /// Get the current configuration.
