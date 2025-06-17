@@ -458,7 +458,11 @@ impl SvgRenderer {
             elements.push(entity_element);
         }
 
-        // TODO: Add connector rendering
+        // Render connectors
+        for connection in &layout.connections {
+            let connector_element = self.render_connector(connection)?;
+            elements.push(connector_element);
+        }
 
         // Create empty defs for now
         let defs = SvgDefs {
@@ -608,6 +612,74 @@ impl SvgRenderer {
         };
 
         Ok(SvgElement::Rectangle(rect))
+    }
+
+    /// Render a connector as an SVG path.
+    fn render_connector(
+        &self,
+        connection: &crate::diagram::layout::Connection,
+    ) -> Result<SvgElement, SvgRenderError> {
+        // Create path data from connection points
+        let mut path_commands = Vec::new();
+
+        // Move to first point
+        if let Some(first_point) = connection.path.points.first() {
+            path_commands.push(format!(
+                "M {} {}",
+                first_point.x.into_inner().value(),
+                first_point.y.into_inner().value()
+            ));
+
+            // Line to subsequent points
+            for point in connection.path.points.iter().skip(1) {
+                path_commands.push(format!(
+                    "L {} {}",
+                    point.x.into_inner().value(),
+                    point.y.into_inner().value()
+                ));
+            }
+        }
+
+        let path_data = path_commands.join(" ");
+
+        let path = SvgPath {
+            id: Some(ElementId::new(
+                NonEmptyString::parse(format!(
+                    "connector-{}-{}",
+                    connection.from.clone().into_inner().as_str(),
+                    connection.to.clone().into_inner().as_str()
+                ))
+                .unwrap(),
+            )),
+            class: Some(CssClass::new(
+                NonEmptyString::parse("connector".to_string()).unwrap(),
+            )),
+            d: PathData::new(NonEmptyString::parse(path_data).unwrap()),
+            style: crate::diagram::style::ConnectionStyle {
+                stroke: crate::diagram::style::StrokeStyle {
+                    color: crate::diagram::style::StyleColor::new(
+                        NonEmptyString::parse("#6b7280".to_string()).unwrap(),
+                    ),
+                    width: crate::diagram::style::StrokeWidth::new(
+                        PositiveFloat::parse(2.0).unwrap(),
+                    ),
+                    dasharray: None,
+                    opacity: None,
+                },
+                marker_end: Some(crate::diagram::style::MarkerStyle {
+                    marker_type: crate::diagram::style::MarkerType::Arrow,
+                    size: crate::diagram::style::MarkerStyleSize::new(
+                        PositiveFloat::parse(10.0).unwrap(),
+                    ),
+                    color: crate::diagram::style::StyleColor::new(
+                        NonEmptyString::parse("#6b7280".to_string()).unwrap(),
+                    ),
+                }),
+                marker_start: None,
+            },
+        };
+
+        Ok(SvgElement::Path(path))
     }
 }
 
