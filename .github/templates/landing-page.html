@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Modeler - Transform Your Event Models into Beautiful Diagrams</title>
+    <style>
+        :root {
+            --primary: #7c3aed;
+            --primary-dark: #6d28d9;
+            --secondary: #06b6d4;
+            --secondary-dark: #0891b2;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-light: #fafafa;
+            --bg-dark: #0f172a;
+            --text-light: #1e293b;
+            --text-dark: #e2e8f0;
+            --card-light: #ffffff;
+            --card-dark: #1e293b;
+            --border-light: #e5e7eb;
+            --border-dark: #334155;
+            --code-bg-light: #f3f4f6;
+            --code-bg-dark: #1e293b;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: var(--text-light);
+            background: linear-gradient(135deg, var(--bg-light) 0%, #f0f4ff 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            body {
+                color: var(--text-dark);
+                background: linear-gradient(135deg, var(--bg-dark) 0%, #1a1f3a 100%);
+            }
+            .card {
+                background: var(--card-dark);
+                border-color: var(--border-dark);
+            }
+            .feature-card {
+                background: rgba(30, 41, 59, 0.8);
+                border-color: var(--border-dark);
+            }
+            code, .code-block {
+                background: var(--code-bg-dark);
+                color: var(--text-dark);
+            }
+            .hero-visual {
+                background: rgba(124, 58, 237, 0.1);
+                border-color: var(--primary);
+            }
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+        
+        /* Header */
+        header {
+            padding: 1rem 0;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid var(--border-light);
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            header {
+                background: rgba(15, 23, 42, 0.8);
+                border-bottom-color: var(--border-dark);
+            }
+        }
+        
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+        
+        .nav-link {
+            color: inherit;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        
+        .nav-link:hover {
+            color: var(--primary);
+        }
+        
+        /* Hero Section */
+        .hero {
+            padding: 6rem 0;
+            text-align: center;
+            position: relative;
+        }
+        
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.5rem;
+            opacity: 0.8;
+            margin-bottom: 3rem;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .hero-visual {
+            max-width: 800px;
+            margin: 3rem auto;
+            padding: 2rem;
+            background: rgba(124, 58, 237, 0.05);
+            border-radius: 1rem;
+            border: 2px dashed var(--primary);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .visual-flow {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+        
+        .flow-item {
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            position: relative;
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        .flow-item:nth-child(2) {
+            animation-delay: 0.5s;
+        }
+        
+        .flow-item:nth-child(3) {
+            animation-delay: 1s;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .command {
+            background: var(--secondary);
+            color: white;
+        }
+        
+        .event {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .projection {
+            background: var(--success);
+            color: white;
+        }
+        
+        .arrow {
+            font-size: 2rem;
+            color: var(--primary);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+        
+        /* CTA Buttons */
+        .cta-container {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin: 3rem 0;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 6px rgba(124, 58, 237, 0.3);
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(124, 58, 237, 0.4);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--primary);
+            color: white;
+        }
+        
+        /* Features Grid */
+        .features {
+            padding: 4rem 0;
+        }
+        
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            font-weight: 700;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        
+        .feature-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 1rem;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+            transform: translateX(-100%);
+            transition: transform 0.3s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .feature-card:hover::before {
+            transform: translateX(0);
+        }
+        
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .feature-title {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        /* Code Examples */
+        .code-example {
+            background: var(--card-light);
+            padding: 3rem;
+            border-radius: 1rem;
+            margin: 2rem 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .code-block {
+            background: var(--code-bg-light);
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            position: relative;
+        }
+        
+        .code-block::before {
+            content: '.eventmodel';
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            font-size: 0.75rem;
+            opacity: 0.5;
+        }
+        
+        code {
+            background: var(--code-bg-light);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+            font-size: 0.9em;
+        }
+        
+        /* Installation */
+        .installation {
+            background: var(--card-light);
+            padding: 3rem;
+            border-radius: 1rem;
+            margin: 4rem 0;
+            text-align: center;
+        }
+        
+        .install-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .install-option {
+            padding: 2rem;
+            border: 2px solid var(--border-light);
+            border-radius: 0.5rem;
+            transition: all 0.3s;
+        }
+        
+        .install-option:hover {
+            border-color: var(--primary);
+            transform: translateY(-3px);
+        }
+        
+        /* Footer */
+        footer {
+            padding: 3rem 0;
+            text-align: center;
+            border-top: 1px solid var(--border-light);
+            margin-top: 6rem;
+            opacity: 0.8;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            footer {
+                border-top-color: var(--border-dark);
+            }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            .hero-subtitle {
+                font-size: 1.25rem;
+            }
+            .nav-links {
+                gap: 1rem;
+            }
+            .flow-item {
+                padding: 0.75rem 1.5rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <div class="logo">⚡ Event Modeler</div>
+            <div class="nav-links">
+                <a href="api/event_modeler/index.html" class="nav-link">API Docs</a>
+                <a href="adr/" class="nav-link">Architecture</a>
+                <a href="https://github.com/jwilger/event_modeler" class="nav-link">GitHub</a>
+            </div>
+        </nav>
+    </header>
+    
+    <section class="hero">
+        <div class="container">
+            <h1>Event Modeling Made Beautiful</h1>
+            <p class="hero-subtitle">Transform your event models from text to stunning visual diagrams in seconds. Design, collaborate, and communicate your system architecture with clarity.</p>
+            
+            <div class="hero-visual">
+                <div class="visual-flow">
+                    <div class="flow-item command">CreateOrder</div>
+                    <div class="arrow">→</div>
+                    <div class="flow-item event">OrderCreated</div>
+                    <div class="arrow">→</div>
+                    <div class="flow-item projection">OrderSummary</div>
+                </div>
+            </div>
+            
+            <div class="cta-container">
+                <a href="https://github.com/jwilger/event_modeler/releases/tag/__VERSION__" class="btn btn-primary">
+                    <span>🚀</span> Download v__VERSION__
+                </a>
+                <a href="#quick-start" class="btn btn-secondary">
+                    <span>📖</span> Quick Start Guide
+                </a>
+            </div>
+        </div>
+    </section>
+    
+    <section class="features">
+        <div class="container">
+            <h2 class="section-title">Why Event Modeler?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3 class="feature-title">Intuitive Syntax</h3>
+                    <p>Write your event models in a simple, human-readable format. No complex diagrams tools or steep learning curves.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🎨</div>
+                    <h3 class="feature-title">Beautiful Diagrams</h3>
+                    <p>Generate professional SVG and PDF diagrams with GitHub-inspired themes that look great in any documentation.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3 class="feature-title">Lightning Fast</h3>
+                    <p>Built with Rust for blazing-fast performance. Generate complex diagrams in milliseconds, not minutes.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🔄</div>
+                    <h3 class="feature-title">Version Control Friendly</h3>
+                    <p>Text-based models mean you can track changes, collaborate through PRs, and maintain a history of your architecture.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🌓</div>
+                    <h3 class="feature-title">Light & Dark Themes</h3>
+                    <p>Beautiful GitHub-inspired themes that adapt to your preferences. Perfect for documentation and presentations.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">📱</div>
+                    <h3 class="feature-title">Cross-Platform</h3>
+                    <p>Works seamlessly on Windows, macOS, and Linux. One tool for your entire team, regardless of their OS.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <section class="container">
+        <div class="code-example">
+            <h2 class="section-title" id="quick-start">See It In Action</h2>
+            <p style="text-align: center; margin-bottom: 2rem;">Write simple text, get beautiful diagrams:</p>
+            <div class="code-block"><pre>// Define your commands
+command CreateOrder {
+  OrderDetails details
+  CustomerInfo customer
+}
+
+// Define your events  
+event OrderCreated {
+  OrderId id
+  OrderDetails details
+  Timestamp createdAt
+}
+
+// Define your projections
+projection OrderSummary {
+  from OrderCreated
+  shows OrderStatus
+}</pre></div>
+            <p style="text-align: center; margin-top: 2rem;">Run <code>event_modeler diagram model.eventmodel</code> and get a professional diagram instantly!</p>
+        </div>
+    </section>
+    
+    <section class="installation">
+        <div class="container">
+            <h2 class="section-title">Get Started in Seconds</h2>
+            <div class="install-options">
+                <div class="install-option">
+                    <h3>📦 Download Binary</h3>
+                    <p>Get pre-built binaries for your platform</p>
+                    <a href="https://github.com/jwilger/event_modeler/releases/tag/__VERSION__" class="btn btn-primary" style="margin-top: 1rem;">
+                        Download Latest
+                    </a>
+                </div>
+                
+                <div class="install-option">
+                    <h3>🦀 Install with Cargo</h3>
+                    <p>For Rust developers</p>
+                    <div class="code-block" style="margin-top: 1rem;">cargo install --git https://github.com/jwilger/event_modeler --tag __VERSION__</div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <footer>
+        <div class="container">
+            <p>Made with ❤️ for the Event Modeling community</p>
+            <p style="margin-top: 0.5rem; font-size: 0.9rem;">Event Modeler v__VERSION__</p>
+        </div>
+    </footer>
+</body>
+</html>
