@@ -167,6 +167,10 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.release.prerelease == false
     
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
     steps:
       - uses: actions/checkout@v4
         with:
@@ -175,15 +179,17 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       
-      - name: Install mdbook
-        run: |
-          curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.36/mdbook-v0.4.36-x86_64-unknown-linux-gnu.tar.gz | tar -xz
-          sudo mv mdbook /usr/local/bin/
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: npm ci
       
       - name: Create docs directory structure
         run: |
           mkdir -p docs/
-          mkdir -p docs/adr/
           mkdir -p docs/api/
       
       - name: Generate landing page
@@ -288,7 +294,7 @@ jobs:
               
               <div class="nav-links">
                   <a href="api/event_modeler/index.html" class="nav-link">📚 API Documentation</a>
-                  <a href="adr/index.html" class="nav-link">📋 Architecture Decisions</a>
+                  <a href="adr/" class="nav-link">📋 Architecture Decisions</a>
                   <a href="https://github.com/jwilger/event_modeler" class="nav-link">💻 GitHub Repository</a>
               </div>
               
@@ -327,138 +333,13 @@ jobs:
           cargo doc --no-deps --workspace
           cp -r target/doc/* docs/api/
       
-      - name: Convert ADRs to HTML
+      - name: Build ADR documentation with log4brains
         run: |
-          # Create ADR index
-          cat > docs/adr/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>Architecture Decision Records - Event Modeler</title>
-              <style>
-                  :root {
-                      --primary-color: #0366d6;
-                      --background-color: #ffffff;
-                      --text-color: #24292e;
-                      --border-color: #e1e4e8;
-                      --code-bg: #f6f8fa;
-                  }
-                  
-                  @media (prefers-color-scheme: dark) {
-                      :root {
-                          --primary-color: #58a6ff;
-                          --background-color: #0d1117;
-                          --text-color: #c9d1d9;
-                          --border-color: #30363d;
-                          --code-bg: #161b22;
-                      }
-                  }
-                  
-                  body {
-                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-                      line-height: 1.6;
-                      color: var(--text-color);
-                      background-color: var(--background-color);
-                      max-width: 1200px;
-                      margin: 0 auto;
-                      padding: 2rem;
-                  }
-                  
-                  h1, h2 {
-                      border-bottom: 1px solid var(--border-color);
-                      padding-bottom: 0.3rem;
-                  }
-                  
-                  a {
-                      color: var(--primary-color);
-                      text-decoration: none;
-                  }
-                  
-                  a:hover {
-                      text-decoration: underline;
-                  }
-                  
-                  .adr-list {
-                      list-style: none;
-                      padding: 0;
-                  }
-                  
-                  .adr-item {
-                      margin: 1rem 0;
-                      padding: 1rem;
-                      border: 1px solid var(--border-color);
-                      border-radius: 6px;
-                  }
-                  
-                  .back-link {
-                      display: inline-block;
-                      margin-bottom: 1rem;
-                  }
-              </style>
-          </head>
-          <body>
-              <a href="../index.html" class="back-link">← Back to Home</a>
-              
-              <h1>Architecture Decision Records</h1>
-              
-              <p>This section contains the architecture decisions made for the Event Modeler project.</p>
-              
-              <ul class="adr-list">
-          EOF
+          # Build log4brains static site with custom base path
+          npx log4brains build --basePath /event_modeler/adr
           
-          # Convert each ADR markdown to HTML
-          for adr in doc/adr/*.md; do
-              if [ -f "$adr" ]; then
-                  filename=$(basename "$adr" .md)
-                  title=$(grep -m 1 "^# " "$adr" | sed 's/^# //')
-                  
-                  # Add to index
-                  echo "                  <li class=\"adr-item\"><a href=\"${filename}.html\">${filename}</a> - ${title}</li>" >> docs/adr/index.html
-                  
-                  # Convert markdown to HTML
-                  cat > docs/adr/${filename}.html << EOF
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>${title} - Event Modeler ADR</title>
-              <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.0/github-markdown-light.min.css">
-              <style>
-                  body {
-                      box-sizing: border-box;
-                      min-width: 200px;
-                      max-width: 980px;
-                      margin: 0 auto;
-                      padding: 45px;
-                  }
-                  @media (prefers-color-scheme: dark) {
-                      body {
-                          background-color: #0d1117;
-                          color: #c9d1d9;
-                      }
-                  }
-              </style>
-          </head>
-          <body class="markdown-body">
-              <a href="index.html">← Back to ADR Index</a>
-              <article>
-          EOF
-                  
-                  # Use GitHub API to render markdown
-                  curl -s -X POST \
-                    -H "Accept: application/vnd.github+json" \
-                    -H "Authorization: Bearer ${{ github.token }}" \
-                    https://api.github.com/markdown \
-                    -d "{\"text\":$(jq -Rs . < "$adr"),\"mode\":\"gfm\"}" >> docs/adr/${filename}.html
-                  
-                  echo "</article></body></html>" >> docs/adr/${filename}.html
-              fi
-          done
-          
-          echo "              </ul></body></html>" >> docs/adr/index.html
+          # Copy the generated ADR site to docs/adr
+          cp -r .log4brains/out/* docs/adr/
       
       - name: Setup Pages
         uses: actions/configure-pages@v4
