@@ -7,32 +7,89 @@ Generate Event Modeling diagrams from text descriptions. Write `.eventmodel` fil
 ## Quick Start
 
 ```bash
-# Install
-cargo install event_modeler
+# Install (from source for now)
+git clone https://github.com/jwilger/event_modeler
+cd event_modeler
+cargo build --release
+# Add target/release to your PATH
 
 # Create an event model
 cat > example.eventmodel << 'EOF'
-title: Order Processing System
+Title: Order Processing System
 
-swimlane Customer:
-  wireframe "Place Order" -> command "Submit Order"
-  
-swimlane Orders:
-  command "Submit Order" -> event "Order Placed"
-  event "Order Placed" -> projection "Order List"
-  query "Get Orders" <- projection "Order List"
+Swimlane: Customer
+- Command: PlaceOrder
+- Command: CancelOrder
+
+Swimlane: Orders
+- Event: OrderPlaced
+- Event: OrderCancelled
+- Projection: OrderList
+- Policy: ProcessPayment
+
+PlaceOrder -> OrderPlaced
+OrderPlaced -> OrderList
+OrderPlaced -> ProcessPayment
+CancelOrder -> OrderCancelled
+OrderCancelled -> OrderList
 EOF
 
-# Generate diagram
-event_modeler render example.eventmodel
+# Generate diagram (light theme by default)
+event_modeler example.eventmodel
+
+# Generate with dark theme
+event_modeler example.eventmodel --dark
+
+# Specify output file
+event_modeler example.eventmodel -o diagram.svg
 ```
 
 ## Project Status
 
-🚧 **Early Development** - Module structure and type system complete, core functionality in progress.
+✅ **MVP Complete** - Full pipeline from .eventmodel files to SVG diagrams is working!
 
-**What's Ready**: Complete type-safe domain model, module organization, documentation
-**What's Next**: CLI parsing, text processing, layout computation, SVG rendering
+**What's Ready**: 
+- Text parsing of .eventmodel files
+- Layout computation with automatic sizing
+- SVG rendering with GitHub light/dark themes
+- Entity types: Command, Event, Projection, Policy, External System, Aggregate
+- Error handling with helpful messages
+- Integration tests
+
+**What's Coming**:
+- Additional entity types (UI/Wireframe, Query, Automation)
+- Connector labels
+- PDF export
+- Markdown documentation export
+- Installation via cargo install
+
+## Event Model Syntax
+
+`.eventmodel` files use a simple, readable syntax:
+
+```
+Title: Your Model Name
+
+Swimlane: Actor or System Name
+- Command: CommandName
+- Event: EventName
+- Projection: ProjectionName
+- Policy: PolicyName
+- External System: SystemName
+- Aggregate: AggregateName
+
+# Connections between entities
+CommandName -> EventName
+EventName -> ProjectionName
+```
+
+### Rules
+- Title must come first
+- Entity names must be unique across the entire model
+- Connectors can only reference existing entities
+- Use "External System" (two words) for external systems
+
+See the `examples/` directory for more examples.
 
 ## Development Setup
 
