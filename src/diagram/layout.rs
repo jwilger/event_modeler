@@ -244,3 +244,7 @@ pub enum LayoutError {
     #[error("Invalid slice boundaries")]
     InvalidSliceBoundaries,
 }
+
+#[cfg(test)]
+#[path = "layout_tests.rs"]
+mod tests;

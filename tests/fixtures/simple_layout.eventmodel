@@ -1,0 +1,15 @@
+Title: Simple Layout Test
+Swimlane: Customer
+- Command: BrowseProducts
+- Event: ProductsViewed
+- Command: PlaceOrder
+- Event: OrderPlaced
+
+Swimlane: System
+- Event: OrderPlaced
+- Policy: ProcessOrder
+- Command: ValidatePayment
+- Event: PaymentValidated
+
+OrderPlaced -> ProcessOrder
+ProcessOrder -> ValidatePayment
