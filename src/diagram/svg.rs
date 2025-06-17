@@ -451,3 +451,7 @@ pub enum SvgRenderError {
     #[error("Resource not found: {0}")]
     ResourceNotFound(String),
 }
+
+#[cfg(test)]
+#[path = "svg_tests.rs"]
+mod tests;
