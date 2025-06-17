@@ -1,0 +1,6 @@
+Title: Unknown Entity Reference
+
+Swimlane: System
+- Event: SystemStarted
+
+SystemStarted -> NonExistentEntity
