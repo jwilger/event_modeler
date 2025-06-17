@@ -215,13 +215,43 @@ impl LayoutEngine {
         Self { config }
     }
 
+    /// Calculate the position for a swimlane based on its index.
+    fn calculate_swimlane_position(&self, index: usize, padding: &Padding) -> Position {
+        // Start position after top padding
+        let base_y = padding.top.into_inner().value();
+
+        // Calculate Y position based on index and swimlane height
+        let swimlane_height = self.config.swimlane_height.into_inner().value();
+        let spacing = self.config.entity_spacing.into_inner().value();
+        let y = base_y + (index as f32) * (swimlane_height + spacing);
+
+        Position {
+            x: XCoordinate::new(
+                NonNegativeFloat::parse(padding.left.into_inner().value()).unwrap(),
+            ),
+            y: YCoordinate::new(NonNegativeFloat::parse(y).unwrap()),
+        }
+    }
+
+    /// Calculate the dimensions for a swimlane.
+    fn calculate_swimlane_dimensions(&self, canvas_width: f64, padding: &Padding) -> Dimensions {
+        let width = canvas_width
+            - (padding.left.into_inner().value() as f64)
+            - (padding.right.into_inner().value() as f64);
+        let height = self.config.swimlane_height.into_inner().value();
+
+        Dimensions {
+            width: Width::new(PositiveFloat::parse(width as f32).unwrap()),
+            height: Height::new(PositiveFloat::parse(height).unwrap()),
+        }
+    }
+
     /// Compute the layout for a diagram.
     pub fn compute_layout<W, C, E, P, Q, A>(
         &self,
-        _diagram: &crate::event_model::diagram::EventModelDiagram<W, C, E, P, Q, A>,
+        diagram: &crate::event_model::diagram::EventModelDiagram<W, C, E, P, Q, A>,
     ) -> Result<Layout, LayoutError> {
-        // For now, return a basic layout structure
-        // This will be expanded to actually compute positions
+        // Define canvas with padding
         let canvas = Canvas {
             width: CanvasWidth::new(PositiveInt::parse(1200).unwrap()),
             height: CanvasHeight::new(PositiveInt::parse(800).unwrap()),
@@ -233,9 +263,26 @@ impl LayoutEngine {
             },
         };
 
+        let canvas_width = canvas.width.into_inner().value() as f64;
+
+        // Position swimlanes
+        let mut swimlane_layouts = HashMap::new();
+        for (index, swimlane) in diagram.swimlanes.iter().enumerate() {
+            let position = self.calculate_swimlane_position(index, &canvas.padding);
+            let dimensions = self.calculate_swimlane_dimensions(canvas_width, &canvas.padding);
+
+            swimlane_layouts.insert(
+                swimlane.id.clone(),
+                SwimlaneLayout {
+                    position,
+                    dimensions,
+                },
+            );
+        }
+
         Ok(Layout {
             canvas,
-            swimlane_layouts: HashMap::new(),
+            swimlane_layouts,
             entity_positions: HashMap::new(),
             slice_layouts: HashMap::new(),
             connections: Vec::new(),
