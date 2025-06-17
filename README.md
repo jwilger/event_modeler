@@ -1,5 +1,7 @@
 # Event Modeler
 
+[![CI](https://github.com/jwilger/event_modeler/workflows/CI/badge.svg)](https://github.com/jwilger/event_modeler/actions/workflows/ci.yml)
+
 Generate Event Modeling diagrams from text descriptions. Write `.eventmodel` files, get SVG/PDF diagrams.
 
 ## Quick Start
