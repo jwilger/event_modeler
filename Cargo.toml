@@ -2,6 +2,13 @@
 name = "event_modeler"
 version = "0.1.0"
 edition = "2024"
+authors = ["John Wilger"]
+description = "A type-safe Event Modeling diagram generator"
+documentation = "https://docs.rs/event_modeler"
+repository = "https://github.com/jwilger/event_modeler"
+license = "MIT"
+keywords = ["event-modeling", "diagram", "visualization", "ddd", "event-sourcing"]
+categories = ["visualization", "development-tools"]
 
 [dependencies]
 thiserror = "1"
@@ -11,3 +18,12 @@ lazy_static = "1"
 
 [lints.rust]
 warnings = "deny"
+
+# Documentation settings
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[[bin]]
+name = "event_modeler"
+path = "src/main.rs"
