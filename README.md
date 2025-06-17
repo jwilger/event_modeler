@@ -86,7 +86,7 @@ Architecture decisions are documented in the code and this README.
 
 We use feature-driven development with strict type safety:
 
-1. Check current development priorities in [CLAUDE.md](CLAUDE.md)
+1. Check current development priorities in [ROADMAP.md](ROADMAP.md)
 2. Create feature branch for your work
 3. Follow TDD: red-green-refactor
 4. Maintain zero runtime validation
