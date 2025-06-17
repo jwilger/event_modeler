@@ -227,7 +227,7 @@ Following our type-driven testing ADR:
    - "Run the build (cargo build) and tests (cargo test --workspace), and if everything passes (except e2e tests), commit changes and push"
    
 2. The **LAST item** on EVERY todo list must always be:
-   - "Review PLANNING.md, update with current status, and determine next tasks"
+   - "Review PLANNING.md, update with current status, determine next tasks, and START implementing them"
 
 ### Example Todo List Structure:
 1. Implement CLI argument parsing in src/cli.rs
@@ -237,7 +237,7 @@ Following our type-driven testing ADR:
 5. Run build and tests; commit and push if passing
 6. Add error handling for invalid arguments
 7. Run build and tests; commit and push if passing
-8. Review PLANNING.md, update with current status, and determine next tasks
+8. Review PLANNING.md, update with current status, determine next tasks, and START implementing them
 
 This ensures:
 1. **Extremely frequent verification** that code compiles and tests pass
@@ -247,8 +247,9 @@ This ensures:
 5. **Early PR creation** for visibility and CI feedback
 6. The plan stays current with actual progress
 7. No steps are missed within or between phases
-8. Continuous forward momentum
+8. **Continuous forward momentum** - work continues seamlessly without stopping
 9. Clear handoff between work sessions
+10. **No pause between phases** - as soon as one phase is complete, the next begins immediately
 
 **Note**: Build and test checks should happen AT LEAST this frequently, if not more often. You may add additional build/test/commit steps between tasks whenever it makes sense.
 
@@ -502,4 +503,5 @@ When implementing each phase:
 **Remember**: 
 - Every other task in your todo list must be "Run build and tests; commit and push if passing"
 - The first push must be immediately followed by creating a draft PR
-- The last todo item in every TodoWrite list must be "Review PLANNING.md, update with current status, and determine next tasks"
+- The last todo item in every TodoWrite list must be "Review PLANNING.md, update with current status, determine next tasks, and START implementing them"
+- Claude should continue working until ALL phases in PLANNING.md are complete - the last todo ensures continuous progress
