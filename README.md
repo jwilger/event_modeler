@@ -73,7 +73,7 @@ This project is optimized for development with [Claude Code](https://claude.ai/c
 - **Make Illegal States Unrepresentable**: Use sum types and newtypes
 - **Typestate Pattern**: Track state transitions in the type system
 
-Architecture decisions are documented in the code and this README.
+Architecture decisions are documented in the code, this README, and the [Architecture Decision Records](docs/adr/).
 
 ## Documentation
 

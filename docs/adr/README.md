@@ -1,10 +1,8 @@
 # Architecture Decision Records
 
-ADRs are automatically published to our Log4brains architecture knowledge base:
+This directory contains Architecture Decision Records (ADRs) for the Event Modeler project.
 
-🔗 **<http://INSERT-YOUR-LOG4BRAINS-URL>**
-
-Please use this link to browse them.
+ADRs document significant architectural decisions made during the development of this project. Each ADR describes a decision, the context in which it was made, and its consequences.
 
 ## Development
 

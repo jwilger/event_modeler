@@ -1,3 +1,6 @@
+// Copyright (c) 2025 John Wilger
+// SPDX-License-Identifier: MIT
+
 //! Lexical analyzer for Event Model DSL.
 //!
 //! The lexer converts raw text input into a stream of tokens that can be

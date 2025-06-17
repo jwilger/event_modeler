@@ -1,3 +1,6 @@
+// Copyright (c) 2025 John Wilger
+// SPDX-License-Identifier: MIT
+
 //! PDF export functionality for Event Model diagrams.
 //!
 //! This module handles the conversion of SVG diagrams to PDF format,

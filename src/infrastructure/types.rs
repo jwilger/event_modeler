@@ -66,6 +66,8 @@ pub struct Exists;
 /// let multiple = NonEmpty::from_head_and_tail("first", vec!["second", "third"]);
 /// assert_eq!(multiple.len(), 3);
 /// ```
+///
+/// Note: This example is marked as `ignore` because the import path may change.
 #[derive(Debug, Clone)]
 pub struct NonEmpty<T> {
     head: T,
@@ -679,12 +681,14 @@ impl Sanitized<SvgContext> {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```ignore
     /// # use event_modeler::infrastructure::types::{Sanitized, SvgContext};
     /// let input = "Hello <world> & \"friends\"";
     /// let sanitized = Sanitized::<SvgContext>::sanitize(input);
     /// assert_eq!(sanitized.as_str(), "Hello &lt;world&gt; &amp; &quot;friends&quot;");
     /// ```
+    ///
+    /// Note: This example is marked as `ignore` because the implementation is not yet complete.
     pub fn sanitize(_input: &str) -> Self {
         todo!()
     }

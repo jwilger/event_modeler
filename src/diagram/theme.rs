@@ -1,3 +1,6 @@
+// Copyright (c) 2025 John Wilger
+// SPDX-License-Identifier: MIT
+
 //! Pre-defined themes for Event Model diagrams.
 //!
 //! This module provides built-in themes optimized for different environments,

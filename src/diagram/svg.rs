@@ -1,3 +1,6 @@
+// Copyright (c) 2025 John Wilger
+// SPDX-License-Identifier: MIT
+
 //! SVG rendering for Event Model diagrams.
 //!
 //! This module handles the generation of SVG documents from layout information,

@@ -222,7 +222,7 @@ Then: [Expected outcomes/events produced]
 Example:
 
 ```
-Given: Customer has items in shopping cart
+Given: Customer has items in their shopping cart
 When: Customer clicks "Place Order" with valid payment
 Then:
   - OrderPlaced event is created

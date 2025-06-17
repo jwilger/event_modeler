@@ -1,3 +1,6 @@
+// Copyright (c) 2025 John Wilger
+// SPDX-License-Identifier: MIT
+
 //! Abstract Syntax Tree (AST) for Event Model DSL.
 //!
 //! This module defines the structure of parsed Event Models. The AST

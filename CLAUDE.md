@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-Event Modeler is a CLI application that converts text-based Event Model descriptions (`.eventmodel` files) into visual diagrams (SVG/PDF format).
+Event Modeler is a CLI application that converts text-based event model descriptions (`.eventmodel` files) into visual diagrams (SVG/PDF format).
 
 For general architecture and contribution guidelines, see [README.md](README.md).
 
@@ -88,16 +88,15 @@ See [README.md#architecture](README.md#architecture) for the core architecture p
 - Always use `nutype` crate for domain-specific types (never raw primitives)
 - When creating new types, consider if compile-time guarantees can replace runtime checks
 - Prefer message passing over `Arc<Mutex<>>`
-- Use `SmallVec` for small collections
+- Performance optimizations are not a priority (see ADR 20250617-performance-non-priority.md)
 
 ### Development Process
 
-- **User Story Driven**: All development follows user stories in `PLANNING/` directory
-- **Single Story WIP**: Never more than one story in `PLANNING/doing/` at a time
-- **Vertical Slices**: Each story represents complete functionality from UI to process management
-- **Production Ready**: Each story must be deployable with full tests before moving to next
-- Strict TDD: red-green-refactor cycle
-- Refactoring includes leveraging type system to prevent test failures
+- **Type-Driven Development**: Leverage Rust's type system to eliminate bugs at compile time (see ADR 20250617-type-driven-testing.md)
+- **Parse, Don't Validate**: All validation happens at system boundaries through parse functions
+- **Make Illegal States Unrepresentable**: Design types so invalid states cannot be constructed
+- **Incremental Implementation**: Implement functionality while preserving type signatures
+- **Testing Strategy**: Test only behaviors that cannot be encoded in types (parsing, rendering output)
 - Always consider if new domain types can eliminate error cases
 
 ### Development Management for Claude

@@ -1,3 +1,6 @@
+// Copyright (c) 2025 John Wilger
+// SPDX-License-Identifier: MIT
+
 //! Visual styling for Event Model diagram elements.
 //!
 //! This module defines styles, themes, and visual properties that can be

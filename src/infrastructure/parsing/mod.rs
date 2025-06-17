@@ -58,6 +58,8 @@ pub mod states {
 /// let complete_parser = parser_with_body.finalize()?;
 /// let event_model = complete_parser.build();
 /// ```
+///
+/// Note: This example is marked as `ignore` because the implementation is not yet complete.
 pub struct EventModelParser<'a, State> {
     /// Accumulated parsing context and results.
     context: ParsingContext<'a>,

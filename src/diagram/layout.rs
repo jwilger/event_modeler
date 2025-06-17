@@ -1,3 +1,6 @@
+// Copyright (c) 2025 John Wilger
+// SPDX-License-Identifier: MIT
+
 //! Layout engine for positioning entities in Event Model diagrams.
 //!
 //! This module handles the computation of positions and dimensions

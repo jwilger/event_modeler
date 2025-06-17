@@ -1,3 +1,6 @@
+// Copyright (c) 2025 John Wilger
+// SPDX-License-Identifier: MIT
+
 //! Domain model entities for Event Modeling.
 //!
 //! This module defines the core entities that make up an Event Model.
