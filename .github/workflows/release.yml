@@ -68,7 +68,6 @@ jobs:
           gh release delete "${{ github.event.release.tag_name }}" --yes
           git push origin :refs/tags/${{ github.event.release.tag_name }}
 
-jobs:
   build-release:
     name: Build Release
     needs: validate-release
