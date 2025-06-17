@@ -293,9 +293,42 @@ impl LayoutEngine {
             let x = start_x + (index as f32) * (entity_width + entity_spacing);
 
             // Look up entity type from registry
-            let entity_type = registry
-                .get_entity_type(entity_id)
-                .unwrap_or(crate::event_model::entities::EntityType::Command); // Default to command if not found
+            // If registry lookup fails, try to infer type from entity name
+            let entity_type = registry.get_entity_type(entity_id).unwrap_or_else(|| {
+                // Infer entity type from naming conventions
+                let entity_name_owned = entity_id.clone().into_inner();
+                let entity_name_str = entity_name_owned.as_str();
+
+                // Events typically use past tense or end with "ed"
+                if entity_name_str.ends_with("ed") || entity_name_str.ends_with("Event") {
+                    crate::event_model::entities::EntityType::Event
+                } else if entity_name_str.ends_with("Service") || entity_name_str.contains("System")
+                {
+                    // External systems and services
+                    crate::event_model::entities::EntityType::Projection
+                } else if entity_name_str.starts_with("Get")
+                    || entity_name_str.starts_with("Find")
+                    || entity_name_str.ends_with("Query")
+                {
+                    // Queries typically start with Get/Find or end with Query
+                    crate::event_model::entities::EntityType::Query
+                } else if entity_name_str.contains("Validate")
+                    || entity_name_str.contains("Process")
+                    || entity_name_str.ends_with("Policy")
+                {
+                    // Policies/automations handle validation or processing
+                    crate::event_model::entities::EntityType::Automation
+                } else if entity_name_str.ends_with("View")
+                    || entity_name_str.ends_with("List")
+                    || entity_name_str.ends_with("Details")
+                {
+                    // Projections are often views or lists
+                    crate::event_model::entities::EntityType::Projection
+                } else {
+                    // Default to command for imperative names
+                    crate::event_model::entities::EntityType::Command
+                }
+            });
 
             // Look up entity name from registry
             // If registry lookup fails (which it will since we don't populate the registry yet),
