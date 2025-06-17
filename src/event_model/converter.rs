@@ -55,6 +55,8 @@ pub fn convert_to_diagram(
 
     // Create entity lookup map and swimlane entities
     let mut entity_lookup: HashMap<String, EntityId> = HashMap::new();
+    let mut entity_type_lookup: HashMap<EntityId, crate::event_model::entities::EntityType> =
+        HashMap::new();
     let mut swimlane_entities: HashMap<usize, Vec<EntityId>> = HashMap::new();
     let mut all_entity_ids = Vec::new();
 
@@ -63,18 +65,37 @@ pub fn convert_to_diagram(
         let mut lane_entities = Vec::new();
 
         for parsed_entity in &parsed_swimlane.entities {
-            let entity_name = match parsed_entity {
-                ParsedEntity::Command(name)
-                | ParsedEntity::Event(name)
-                | ParsedEntity::Projection(name)
-                | ParsedEntity::Policy(name)
-                | ParsedEntity::ExternalSystem(name)
-                | ParsedEntity::Aggregate(name) => name.as_str(),
+            let (entity_name, entity_type) = match parsed_entity {
+                ParsedEntity::Command(name) => (
+                    name.as_str(),
+                    crate::event_model::entities::EntityType::Command,
+                ),
+                ParsedEntity::Event(name) => (
+                    name.as_str(),
+                    crate::event_model::entities::EntityType::Event,
+                ),
+                ParsedEntity::Projection(name) => (
+                    name.as_str(),
+                    crate::event_model::entities::EntityType::Projection,
+                ),
+                ParsedEntity::Policy(name) => (
+                    name.as_str(),
+                    crate::event_model::entities::EntityType::Automation,
+                ),
+                ParsedEntity::ExternalSystem(name) => (
+                    name.as_str(),
+                    crate::event_model::entities::EntityType::Projection,
+                ), // External systems shown as projections
+                ParsedEntity::Aggregate(name) => (
+                    name.as_str(),
+                    crate::event_model::entities::EntityType::Projection,
+                ), // Aggregates shown as projections
             };
 
             // Create a unique entity ID
             let entity_id = EntityId::new(NonEmptyString::parse(entity_name.to_string()).unwrap());
             entity_lookup.insert(entity_name.to_string(), entity_id.clone());
+            entity_type_lookup.insert(entity_id.clone(), entity_type);
             lane_entities.push(entity_id.clone());
             all_entity_ids.push(entity_id);
         }
@@ -91,10 +112,7 @@ pub fn convert_to_diagram(
     let mut swimlanes = Vec::new();
     for (idx, parsed_swimlane) in parsed.swimlanes.into_iter().enumerate() {
         let swimlane = Swimlane {
-            id: SwimlaneId::new(
-                NonEmptyString::parse(format!("swimlane_{}", idx))
-                    .expect("Generated swimlane ID is always non-empty"),
-            ),
+            id: SwimlaneId::new(parsed_swimlane.name.clone()),
             name: SwimlaneName::new(parsed_swimlane.name),
             position: SwimlanePosition::new(NonNegativeInt::new(idx as u32)),
             entities: swimlane_entities.get(&idx).cloned().unwrap_or_default(),

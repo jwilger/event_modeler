@@ -249,6 +249,62 @@ tests/rendering/
 
 ## Next Steps (Post-MVP)
 
+### URGENT BUGS TO FIX ✅ PARTIALLY FIXED
+
+#### Bug 1: CLI displays misleading "phase 5" message ✅ FIXED
+**Problem**: The CLI tool includes a note about diagram generation coming in phase 5, which is:
+- Already completed
+- Meaningless to end users who don't know about development phases
+
+**Impact**: Confusing user experience
+
+**Fix Applied**: Removed the misleading message from src/cli.rs
+
+#### Bug 2: Poor diagram quality ⚠️ PARTIALLY FIXED
+**Problems**:
+1. ✅ Entity text is not displayed in the diagram - **FIXED**: Added entity text rendering
+2. ✅ Swimlane labels are missing - **FIXED**: Now display actual swimlane names
+3. ❌ All entities use the same style (should vary by type: command, event, projection, etc.)
+4. ❌ Entities not laid out in strict timeline order (left-to-right reading)
+5. ✅ Connectors drawn to entity centers and appear in front of boxes - **FIXED**: Connectors now render behind entities
+
+**Impact**: Diagrams are not usable for their intended purpose
+
+### Fixes Applied
+
+#### Fix 1: Remove misleading CLI message ✅
+**Location**: src/cli.rs:326
+**Fix**: Removed the outdated phase 5 message
+
+#### Fix 2: Fix diagram quality issues
+
+**Issue 2.1: Missing entity text** ✅
+- **Fix Applied**: Added text rendering to entities, but entity names show "Unknown" because EntityRegistry is not populated
+
+**Issue 2.2: Wrong swimlane labels** ✅
+- **Fix Applied**: Swimlanes now use actual names instead of generic IDs
+
+**Issue 2.5: Connectors overlap entity boxes** ✅
+- **Fix Applied**: Changed rendering order so connectors appear behind entities
+
+### Remaining Issues
+
+**Issue 2.1b: Entity names show "Unknown"** ✅ FIXED
+- **Fix Applied**: Entity names now display correctly by using entity ID as fallback
+
+**Issue 2.3: All entities use same style** ✅ FIXED
+- **Fix Applied**: Entity types are inferred from naming conventions when registry lookup fails
+
+**Issue 2.4: Entity layout not in timeline order**
+- **Problem**: Entities are positioned without considering their logical order in the event flow
+- **Fix Needed**: Position entities based on their order in connectors (topological sort)
+
+### Additional Features Added
+
+**Comment Support** ✅
+- Lines starting with '#' are now treated as comments and ignored during parsing
+- Allows users to add documentation directly in .eventmodel files
+
 ### Phase 6: Entity Type Expansion
 - Add support for UI/Wireframe entities
 - Add support for Query entities  
