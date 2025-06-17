@@ -251,13 +251,21 @@ This ensures:
      cargo test --workspace
      ```
 
-3. **Commit and Push**
-   - Write descriptive commit messages (no prefixes)
-   - Push branch: `git push -u origin feature/<name>`
+3. **Incremental Commits and Pushes**
+   - **Commit frequently**: Every time you have a small subset of changes that pass the build (not necessarily e2e tests)
+   - Write descriptive commit messages (no prefixes) explaining the "why"
+   - Example commit points:
+     - After implementing a single function that compiles
+     - After adding a new test that passes
+     - After fixing a compiler error
+     - After any refactoring that maintains working code
+   - First push: `git push -u origin feature/<name>`
+   - Subsequent pushes: `git push`
 
-4. **Create Pull Request**
+4. **Create Draft Pull Request (on first push)**
    ```bash
    gh pr create \
+     --draft \
      --title "Implement <feature description>" \
      --body "$(cat <<'EOF'
    ## Summary
@@ -275,12 +283,21 @@ This ensures:
      --base <previous-feature-branch-or-main>
    ```
 
-5. **Enable Auto-Merge**
+5. **Continue Development**
+   - Keep making incremental commits as you implement
+   - Push regularly to update the draft PR
+   - Each push updates the PR with your latest changes
+
+6. **Mark PR Ready and Enable Auto-Merge (when feature complete)**
    ```bash
+   # Mark as ready for review
+   gh pr ready <PR-number>
+   
+   # Enable auto-merge
    gh pr merge <PR-number> --auto --squash
    ```
 
-6. **Start Next Feature**
+7. **Start Next Feature**
    - Immediately branch off current feature branch
    - Continue implementation while previous PR runs CI
 
@@ -422,11 +439,13 @@ Total: ~14-19 hours of implementation
 
 1. **Start**: Branch from main for first feature
 2. **Chain**: Each subsequent feature branches from previous
-3. **Push**: Create PR with auto-merge enabled
-4. **Monitor**: Check PR status regularly
-5. **Fix**: Address any CI failures on their branch
-6. **Rebase**: When base branches merge, rebase downstream PRs
-7. **Continue**: Keep working while PRs process in parallel
+3. **First Push**: Create draft PR immediately
+4. **Develop**: Make frequent commits and pushes as you build
+5. **Complete**: Mark PR ready and enable auto-merge when done
+6. **Monitor**: Check PR status regularly
+7. **Fix**: Address any CI failures on their branch
+8. **Rebase**: When base branches merge, rebase downstream PRs
+9. **Continue**: Keep working while PRs process in parallel
 
 This approach allows continuous progress while maintaining clean history and ensuring each feature builds properly on its dependencies.
 
@@ -435,10 +454,16 @@ This approach allows continuous progress while maintaining clean history and ens
 When implementing each phase:
 - [ ] Create feature branch from correct base
 - [ ] Write acceptance tests first
+- [ ] Make first commit once tests compile (even if failing)
+- [ ] Push branch and create draft PR
 - [ ] Implement functionality preserving type signatures
-- [ ] Run cargo fmt, clippy, and tests
-- [ ] Commit with descriptive message
-- [ ] Push branch and create PR
+- [ ] Commit after each small buildable change:
+  - [ ] After implementing each function
+  - [ ] After fixing compilation errors
+  - [ ] After adding/updating tests
+  - [ ] Push commits regularly to update draft PR
+- [ ] Run cargo fmt, clippy, and tests before marking PR ready
+- [ ] Mark PR as ready for review when feature complete
 - [ ] Enable auto-merge on PR
 - [ ] Update PLANNING.md status table
 - [ ] Start next phase by branching from current
