@@ -40,7 +40,7 @@ The example.eventmodel and example.jpg files represent the TRUE requirements.
 
 **Next Step**: Begin Phase 1 of the implementation roadmap - Type System Overhaul
 
-**Version Planning**: This rewrite will be released as version 0.3.0 (or 1.0.0 if we decide it's stable enough for a 1.0 release). The YAML format will use this version number for its schema version.
+**Version Planning**: This rewrite will be released as version 0.3.0. Since we're pre-1.0, we can make breaking changes without maintaining backward compatibility. The YAML format will use this version number for its schema version.
 
 ### Existing Work to Preserve
 - CLI structure and argument parsing (can be reused)
@@ -118,10 +118,12 @@ The following Architecture Decision Records need to be created to document key d
 - **Minor version change**: Backward-compatible additions (new optional fields, new entity types)
 - **Patch version change**: No schema changes, only implementation fixes
 
-**Compatibility**:
-- Parser should accept schema versions with same major version
-- Warn on minor version differences (newer features might not render)
-- Error on major version differences (incompatible schema)
+**Compatibility** (post-1.0 only):
+- For now (pre-1.0), no backward compatibility guarantees
+- After 1.0 release:
+  - Parser should accept schema versions with same major version
+  - Warn on minor version differences (newer features might not render)
+  - Error on major version differences (incompatible schema)
 
 **Example**:
 ```yaml
@@ -131,10 +133,9 @@ workflow: User Account Signup
 ```
 
 **Version Migration**:
-- Future versions may include migration tools
-- Clear documentation of changes between versions
-- Consider providing a separate migration command
-- Preserve original files, create migrated copies
+- No migration needed for pre-1.0 versions
+- Post-1.0: Will need migration strategy for major version changes
+- For now: Clean break to new format
 
 **Implementation Notes**:
 - Store version in a constant matching Cargo.toml version
@@ -159,9 +160,10 @@ workflow: User Account Signup
 - Any inline code examples in Rust docs
 - CLAUDE.md examples
 
-### Consider Keeping (with deprecation notice)
-- Could maintain old parser in `legacy` module for one major version
-- Provide clear deprecation timeline
+### No Backward Compatibility Needed
+- Pre-1.0 release means we can make breaking changes freely
+- No need to maintain old parser or provide migration tools
+- Clean break to YAML format
 
 ## Implementation Roadmap
 
@@ -305,36 +307,34 @@ workflow: User Account Signup
 7. Update all code examples in documentation
 8. Create video tutorial for new format (optional)
 
-### Phase 7: Cleanup & Migration
-**Goal**: Remove obsolete code and prepare for release
+### Phase 7: Cleanup
+**Goal**: Remove ALL obsolete code and prepare for release
 
 #### Cleanup Tasks:
-1. Remove simple text parser:
+1. Remove simple text parser completely:
    - `src/infrastructure/parsing/simple_parser.rs`
    - `src/infrastructure/parsing/simple_lexer.rs`
-   - Associated test files
-2. Remove or update obsolete example files:
+   - All associated test files
+2. Remove ALL old format files:
    - All `.eventmodel` files using old format
-   - Update or remove example SVGs
+   - All example SVGs (will regenerate with new format)
 3. Clean up obsolete types:
-   - Review entities that are no longer needed
+   - Remove all entities only used by old parser
    - Remove unused parsing AST types
-4. Update or remove obsolete tests:
-   - Parser tests for simple format
-   - Integration tests using old format
+   - Remove any compatibility shims
+4. Remove obsolete tests:
+   - All parser tests for simple format
+   - All integration tests using old format
+   - All e2e tests using old examples
 5. Clean up documentation:
-   - Remove references to old format
-   - Update all code examples
-   - Archive old format specification
+   - Remove ALL references to old format
+   - Update ALL code examples to YAML
+   - No need to archive old format (pre-1.0)
 
-#### Migration Tasks:
-1. Create migration tool (optional, separate binary):
-   - Convert simple format to YAML format
-   - Preserve as much information as possible
-   - Report what cannot be migrated
-2. Document breaking changes clearly
-3. Provide migration examples
-4. Consider keeping old parser in a legacy module (if needed)
+#### Release Preparation:
+1. Clear release notes stating this is a breaking change
+2. New examples showcasing YAML format
+3. No migration path - clean break (pre-1.0)
 
 ## Timeline Estimate
 
@@ -344,9 +344,9 @@ workflow: User Account Signup
 - Phase 4 (Flow Layout): 8-10 hours + 2 hours documentation
 - Phase 5 (Rich Rendering): 10-12 hours + 2 hours documentation
 - Phase 6 (Acceptance Testing): 4-6 hours + 4 hours documentation
-- Phase 7 (Cleanup & Migration): 3-4 hours + 1 hour documentation
+- Phase 7 (Cleanup): 2-3 hours
 
-Total: ~45-58 hours of implementation + ~16 hours of documentation = ~61-74 hours
+Total: ~44-57 hours of implementation + ~15 hours of documentation = ~59-72 hours
 
 **Note**: This is a complete rewrite with significantly more complexity than the original MVP. The rich format requires:
 - Complex type hierarchies
