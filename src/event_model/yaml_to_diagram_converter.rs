@@ -11,6 +11,7 @@ use crate::event_model::{
     entities::{Automation, Command, Event, Projection, Query, Wireframe},
     yaml_types as yaml,
 };
+use std::collections::HashMap;
 
 /// Converts a YAML event model into a diagram representation.
 ///
@@ -44,8 +45,10 @@ pub fn convert_yaml_to_diagram(
     // Convert events
     let events = convert_events(&yaml_model.events, &yaml_model.swimlanes)?;
 
+    // Convert commands
+    let commands = convert_commands(&yaml_model.commands, &yaml_model.swimlanes)?;
+
     // TODO: Convert other entity types when they're ready
-    let _commands: Vec<Command> = vec![];
     let _projections: Vec<Projection> = vec![];
     let _queries: Vec<Query> = vec![];
     let _automations: Vec<Automation> = vec![];
@@ -62,6 +65,9 @@ pub fn convert_yaml_to_diagram(
     // Collect all entity IDs
     for event in &events {
         entity_ids.push(event.id.clone());
+    }
+    for command in &commands {
+        entity_ids.push(command.id.clone());
     }
 
     // Build registry - for now we're returning an empty registry
@@ -247,6 +253,195 @@ fn convert_events(
     Ok(events)
 }
 
+/// Convert YAML commands to diagram commands.
+fn convert_commands(
+    yaml_commands: &std::collections::HashMap<yaml::CommandName, yaml::CommandDefinition>,
+    swimlanes: &crate::infrastructure::types::NonEmpty<yaml::Swimlane>,
+) -> Result<Vec<Command>, ConversionError> {
+    use crate::event_model::entities::{
+        Actor, CommandName, EntityId, FieldDefinition, FieldName, FieldType, PayloadField,
+        PlaceholderValue, TestAction, TestEvent, TestScenario, TestScenarioName,
+    };
+    use crate::infrastructure::types::{NonEmpty, NonEmptyString};
+
+    let mut commands = Vec::new();
+
+    for (yaml_command_name, command_def) in yaml_commands {
+        // Verify swimlane exists
+        if !swimlanes.iter().any(|s| s.id == command_def.swimlane) {
+            return Err(ConversionError::UnknownSwimlane(
+                command_def
+                    .swimlane
+                    .clone()
+                    .into_inner()
+                    .as_str()
+                    .to_string(),
+            ));
+        }
+
+        // Convert YAML command name to entities CommandName
+        let command_name = CommandName::new(yaml_command_name.clone().into_inner());
+
+        // Convert data fields to PayloadField for backward compatibility
+        let payload_fields: Vec<PayloadField> = if command_def.data.is_empty() {
+            vec![PayloadField::new(
+                NonEmptyString::parse("payload".to_string()).unwrap(),
+            )]
+        } else {
+            command_def
+                .data
+                .keys()
+                .map(|field_name| PayloadField::new(field_name.clone().into_inner()))
+                .collect()
+        };
+
+        let payload = if payload_fields.len() == 1 {
+            NonEmpty::singleton(payload_fields.into_iter().next().unwrap())
+        } else {
+            let mut iter = payload_fields.into_iter();
+            let head = iter.next().unwrap();
+            let tail: Vec<_> = iter.collect();
+            NonEmpty::from_head_and_tail(head, tail)
+        };
+
+        // Convert data schema
+        let data_schema = if command_def.data.is_empty() {
+            None
+        } else {
+            let mut schema = HashMap::new();
+            for (yaml_field_name, yaml_field_def) in &command_def.data {
+                let field_name = FieldName::new(yaml_field_name.clone().into_inner());
+                let field_def = FieldDefinition {
+                    field_type: FieldType::new(yaml_field_def.field_type.clone().into_inner()),
+                    stream_id: yaml_field_def.stream_id,
+                    generated: yaml_field_def.generated,
+                };
+                schema.insert(field_name, field_def);
+            }
+            Some(schema)
+        };
+
+        // Convert test scenarios
+        let test_scenarios = if command_def.tests.is_empty() {
+            None
+        } else {
+            let mut scenarios = HashMap::new();
+            for (scenario_name, yaml_scenario) in &command_def.tests {
+                let test_name = TestScenarioName::new(scenario_name.clone().into_inner());
+
+                // Convert given events
+                let given: Vec<TestEvent> = yaml_scenario
+                    .given
+                    .iter()
+                    .map(|yaml_event| {
+                        let mut fields = HashMap::new();
+                        for (field_name, placeholder) in &yaml_event.fields {
+                            fields.insert(
+                                FieldName::new(field_name.clone().into_inner()),
+                                PlaceholderValue::new(placeholder.clone().into_inner()),
+                            );
+                        }
+                        TestEvent {
+                            name: crate::event_model::entities::EventName::new(
+                                crate::infrastructure::types::EventName::parse(
+                                    yaml_event.name.clone().into_inner().as_str().to_string(),
+                                )
+                                .unwrap(),
+                            ),
+                            fields,
+                        }
+                    })
+                    .collect();
+
+                // Convert when actions
+                let when_actions: Vec<TestAction> = yaml_scenario
+                    .when
+                    .iter()
+                    .map(|yaml_action| {
+                        let mut fields = HashMap::new();
+                        for (field_name, placeholder) in &yaml_action.fields {
+                            fields.insert(
+                                FieldName::new(field_name.clone().into_inner()),
+                                PlaceholderValue::new(placeholder.clone().into_inner()),
+                            );
+                        }
+                        TestAction {
+                            name: CommandName::new(yaml_action.name.clone().into_inner()),
+                            fields,
+                        }
+                    })
+                    .collect();
+
+                let when = NonEmpty::from_head_and_tail(
+                    when_actions[0].clone(),
+                    when_actions[1..].to_vec(),
+                );
+
+                // Convert then events
+                let then_events: Vec<TestEvent> = yaml_scenario
+                    .then
+                    .iter()
+                    .map(|yaml_event| {
+                        let mut fields = HashMap::new();
+                        for (field_name, placeholder) in &yaml_event.fields {
+                            fields.insert(
+                                FieldName::new(field_name.clone().into_inner()),
+                                PlaceholderValue::new(placeholder.clone().into_inner()),
+                            );
+                        }
+                        TestEvent {
+                            name: crate::event_model::entities::EventName::new(
+                                crate::infrastructure::types::EventName::parse(
+                                    yaml_event.name.clone().into_inner().as_str().to_string(),
+                                )
+                                .unwrap(),
+                            ),
+                            fields,
+                        }
+                    })
+                    .collect();
+
+                let then =
+                    NonEmpty::from_head_and_tail(then_events[0].clone(), then_events[1..].to_vec());
+
+                let scenario = TestScenario { given, when, then };
+                scenarios.insert(test_name, scenario);
+            }
+            Some(scenarios)
+        };
+
+        // Create unique ID based on command name
+        let command_id = EntityId::new(
+            NonEmptyString::parse(format!(
+                "command_{}",
+                yaml_command_name.clone().into_inner().as_str()
+            ))
+            .unwrap(),
+        );
+
+        // Infer actor from swimlane name
+        let actor_name = swimlanes
+            .iter()
+            .find(|s| s.id == command_def.swimlane)
+            .map(|s| s.name.clone().into_inner())
+            .unwrap_or_else(|| NonEmptyString::parse("User".to_string()).unwrap());
+
+        let command = Command {
+            id: command_id,
+            name: command_name,
+            actor: Actor::new(actor_name),
+            payload,
+            data_schema,
+            test_scenarios,
+            documentation: None,
+        };
+
+        commands.push(command);
+    }
+
+    Ok(commands)
+}
+
 /// Convert YAML slices to diagram connectors.
 fn convert_slices_to_connectors(
     _yaml_slices: &std::collections::HashMap<
@@ -335,8 +530,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Commands not yet implemented"]
-    fn converts_yaml_with_slices_to_connectors() {
+    fn converts_yaml_with_commands() {
         use crate::infrastructure::types::NonEmptyString;
 
         // Create YAML model with entities and slices
@@ -412,5 +606,133 @@ mod tests {
         // Verify basic structure
         assert_eq!(diagram.swimlanes.len(), 1);
         // Can't check entity count directly since registry is empty by design
+    }
+
+    #[test]
+    fn converts_command_with_data_schema_and_tests() {
+        use crate::event_model::yaml_types::*;
+        use crate::infrastructure::types::NonEmptyString;
+
+        // Create a minimal YAML model with a command that has data schema and tests
+        let workflow =
+            WorkflowName::new(NonEmptyString::parse("Command Test".to_string()).unwrap());
+        let swimlane_id = SwimlaneId::new(NonEmptyString::parse("customer".to_string()).unwrap());
+        let swimlane_name =
+            SwimlaneName::new(NonEmptyString::parse("Customer".to_string()).unwrap());
+        let swimlane = Swimlane {
+            id: swimlane_id.clone(),
+            name: swimlane_name,
+        };
+
+        // Create command with data schema
+        let command_name =
+            CommandName::new(NonEmptyString::parse("CreateAccount".to_string()).unwrap());
+        let command_desc =
+            Description::new(NonEmptyString::parse("Create a new account".to_string()).unwrap());
+
+        let mut data_fields = HashMap::new();
+        data_fields.insert(
+            FieldName::new(NonEmptyString::parse("accountId".to_string()).unwrap()),
+            FieldDefinition {
+                field_type: FieldType::new(NonEmptyString::parse("AccountId".to_string()).unwrap()),
+                stream_id: true,
+                generated: true,
+            },
+        );
+        data_fields.insert(
+            FieldName::new(NonEmptyString::parse("email".to_string()).unwrap()),
+            FieldDefinition {
+                field_type: FieldType::new(
+                    NonEmptyString::parse("EmailAddress".to_string()).unwrap(),
+                ),
+                stream_id: false,
+                generated: false,
+            },
+        );
+
+        // Create test scenario
+        let test_name = TestScenarioName::new(
+            NonEmptyString::parse("successful_account_creation".to_string()).unwrap(),
+        );
+
+        let given_event = TestEvent {
+            name: EventName::new(NonEmptyString::parse("SystemInitialized".to_string()).unwrap()),
+            fields: HashMap::new(),
+        };
+
+        let when_action = TestAction {
+            name: command_name.clone(),
+            fields: {
+                let mut fields = HashMap::new();
+                fields.insert(
+                    FieldName::new(NonEmptyString::parse("accountId".to_string()).unwrap()),
+                    PlaceholderValue::new(NonEmptyString::parse("A".to_string()).unwrap()),
+                );
+                fields.insert(
+                    FieldName::new(NonEmptyString::parse("email".to_string()).unwrap()),
+                    PlaceholderValue::new(NonEmptyString::parse("B".to_string()).unwrap()),
+                );
+                fields
+            },
+        };
+
+        let then_event = TestEvent {
+            name: EventName::new(NonEmptyString::parse("AccountCreated".to_string()).unwrap()),
+            fields: {
+                let mut fields = HashMap::new();
+                fields.insert(
+                    FieldName::new(NonEmptyString::parse("accountId".to_string()).unwrap()),
+                    PlaceholderValue::new(NonEmptyString::parse("A".to_string()).unwrap()),
+                );
+                fields.insert(
+                    FieldName::new(NonEmptyString::parse("email".to_string()).unwrap()),
+                    PlaceholderValue::new(NonEmptyString::parse("B".to_string()).unwrap()),
+                );
+                fields
+            },
+        };
+
+        let test_scenario = TestScenario {
+            given: vec![given_event],
+            when: NonEmpty::singleton(when_action),
+            then: NonEmpty::singleton(then_event),
+        };
+
+        let mut tests = HashMap::new();
+        tests.insert(test_name, test_scenario);
+
+        let command = CommandDefinition {
+            description: command_desc,
+            swimlane: swimlane_id,
+            data: data_fields,
+            tests,
+        };
+
+        let mut commands = HashMap::new();
+        commands.insert(command_name, command);
+
+        let yaml_model = YamlEventModel {
+            version: None,
+            workflow,
+            swimlanes: NonEmpty::singleton(swimlane),
+            events: HashMap::new(),
+            commands,
+            views: HashMap::new(),
+            projections: HashMap::new(),
+            queries: HashMap::new(),
+            automations: HashMap::new(),
+            slices: HashMap::new(),
+        };
+
+        // Convert to diagram
+        let result = convert_yaml_to_diagram(yaml_model);
+
+        // Should succeed
+        assert!(result.is_ok());
+        let diagram = result.unwrap();
+
+        // Verify basic structure
+        assert_eq!(diagram.swimlanes.len(), 1);
+        // Can't verify command details directly due to empty registry
     }
 }
