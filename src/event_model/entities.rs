@@ -91,8 +91,8 @@ pub struct Projection {
     pub name: ProjectionName,
     /// Events that feed this projection.
     pub sources: NonEmpty<EventId>,
-    /// Fields available in the projection.
-    pub fields: NonEmpty<ProjectionField>,
+    /// Fields available in the projection with type annotations.
+    pub fields: HashMap<FieldName, FieldType>,
     /// Optional link to detailed documentation.
     pub documentation: Option<TypedPath<MarkdownFile, File, MaybeExists>>,
 }
@@ -104,10 +104,10 @@ pub struct Query {
     pub id: EntityId,
     /// Name of the query.
     pub name: QueryName,
-    /// Projection this query reads from.
-    pub projection: ProjectionId,
-    /// Parameters for the query.
-    pub parameters: NonEmpty<QueryParameter>,
+    /// Input parameters for the query with type annotations.
+    pub inputs: HashMap<FieldName, FieldType>,
+    /// Output specification (can be single or one-of multiple options).
+    pub outputs: OutputSpec,
     /// Optional link to detailed documentation.
     pub documentation: Option<TypedPath<MarkdownFile, File, MaybeExists>>,
 }
@@ -311,3 +311,29 @@ pub struct SimpleComponentType(NonEmptyString);
 /// Action name (e.g., "Submit").
 #[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct ActionName(NonEmptyString);
+
+/// Output specification for queries.
+#[derive(Debug, Clone)]
+pub enum OutputSpec {
+    /// Single output structure.
+    Single(HashMap<FieldName, FieldType>),
+    /// One of multiple possible outputs.
+    OneOf(HashMap<OutputCaseName, OutputCase>),
+}
+
+/// Name of an output case.
+#[nutype(derive(Debug, Clone, PartialEq, Eq, Hash))]
+pub struct OutputCaseName(NonEmptyString);
+
+/// An output case definition.
+#[derive(Debug, Clone)]
+pub enum OutputCase {
+    /// Success case with fields.
+    Fields(HashMap<FieldName, FieldType>),
+    /// Error case with error type.
+    Error(ErrorTypeName),
+}
+
+/// Error type name.
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
+pub struct ErrorTypeName(NonEmptyString);
