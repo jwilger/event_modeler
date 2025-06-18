@@ -15,7 +15,7 @@ use nutype::nutype;
 use std::collections::HashMap;
 
 /// Type of entity in the event model.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EntityType {
     /// UI wireframe entity.
     Wireframe,
