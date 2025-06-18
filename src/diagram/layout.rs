@@ -26,6 +26,8 @@ pub struct Layout {
     pub slice_layouts: HashMap<SliceId, SliceLayout>,
     /// Visual connections between entities.
     pub connections: Vec<Connection>,
+    /// Layout information for test scenarios.
+    pub test_scenario_layouts: Vec<TestScenarioLayout>,
 }
 
 /// Canvas dimensions and settings.
@@ -72,6 +74,19 @@ pub struct SliceLayout {
     pub x_position: XCoordinate,
     /// Width of the slice.
     pub width: Width,
+}
+
+/// Layout information for test scenarios.
+#[derive(Debug, Clone)]
+pub struct TestScenarioLayout {
+    /// Position of the test scenario box.
+    pub position: Position,
+    /// Dimensions of the test scenario box.
+    pub dimensions: Dimensions,
+    /// Name of the test scenario.
+    pub scenario_name: crate::infrastructure::types::NonEmptyString,
+    /// Command this test scenario belongs to.
+    pub parent_command: EntityId,
 }
 
 /// Visual connection between two entities.
@@ -509,12 +524,16 @@ impl LayoutEngine {
             .collect();
         let connections = self.route_connectors(&connector_pairs, &entity_positions);
 
+        // Compute test scenario layouts
+        let test_scenario_layouts = self.compute_test_scenario_layouts(diagram, &entity_positions);
+
         Ok(Layout {
             canvas,
             swimlane_layouts,
             entity_positions,
             slice_layouts: HashMap::new(),
             connections,
+            test_scenario_layouts,
         })
     }
 
@@ -735,6 +754,27 @@ impl LayoutEngine {
         }
 
         positions
+    }
+
+    /// Compute layout positions for test scenarios.
+    ///
+    /// Test scenarios are positioned below their parent commands as sub-diagrams.
+    /// Each test scenario gets its own box with Given/When/Then sections.
+    fn compute_test_scenario_layouts<W, C, E, P, Q, A>(
+        &self,
+        _diagram: &crate::event_model::diagram::EventModelDiagram<W, C, E, P, Q, A>,
+        _entity_positions: &HashMap<EntityId, EntityPosition>,
+    ) -> Vec<TestScenarioLayout> {
+        // First, we need to collect commands with test scenarios from the entities registry
+        // This is a placeholder implementation that would need access to command test data
+        // For now, return empty vector since we don't have direct access to YAML test scenarios
+        // in the current diagram structure
+
+        // TODO: Implement test scenario access from YAML domain model
+        // The EventModelDiagram would need to include test scenario information
+        // or we'd need to pass the YAML domain model separately
+
+        Vec::new()
     }
 
     /// Get the current configuration.
