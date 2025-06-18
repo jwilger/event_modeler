@@ -23,6 +23,8 @@ pub enum EntityType {
     Command,
     /// Event entity.
     Event,
+    /// View entity (UI screen with components).
+    View,
     /// Projection entity.
     Projection,
     /// Query entity.
@@ -110,6 +112,19 @@ pub struct Query {
     pub documentation: Option<TypedPath<MarkdownFile, File, MaybeExists>>,
 }
 
+/// A view representing a UI screen with component hierarchy.
+#[derive(Debug, Clone)]
+pub struct View {
+    /// Unique identifier for this view.
+    pub id: EntityId,
+    /// Name of the view.
+    pub name: ViewName,
+    /// UI components in this view.
+    pub components: NonEmpty<Component>,
+    /// Optional link to detailed documentation.
+    pub documentation: Option<TypedPath<MarkdownFile, File, MaybeExists>>,
+}
+
 /// An automation that triggers actions based on events.
 #[derive(Debug, Clone)]
 pub struct Automation {
@@ -151,6 +166,10 @@ pub struct ProjectionName(NonEmptyString);
 /// Name of a query.
 #[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct QueryName(NonEmptyString);
+
+/// Name of a view.
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
+pub struct ViewName(NonEmptyString);
 
 /// Name of an automation.
 #[nutype(derive(Debug, Clone, PartialEq, Eq))]
@@ -257,3 +276,38 @@ pub struct TestAction {
 /// Placeholder value in test scenarios (e.g., "A", "B", "C").
 #[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct PlaceholderValue(NonEmptyString);
+
+/// UI component definition.
+#[derive(Debug, Clone)]
+pub struct Component {
+    /// Name of the component.
+    pub name: ComponentName,
+    /// Type of component or nested structure.
+    pub component_type: ComponentType,
+}
+
+/// Component name.
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
+pub struct ComponentName(NonEmptyString);
+
+/// Type of UI component.
+#[derive(Debug, Clone)]
+pub enum ComponentType {
+    /// Simple component type (e.g., "Link", "TextInput").
+    Simple(SimpleComponentType),
+    /// Form component with fields and actions.
+    Form {
+        /// Form fields.
+        fields: HashMap<FieldName, SimpleComponentType>,
+        /// Form actions (e.g., Submit).
+        actions: NonEmpty<ActionName>,
+    },
+}
+
+/// Simple component type name.
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
+pub struct SimpleComponentType(NonEmptyString);
+
+/// Action name (e.g., "Submit").
+#[nutype(derive(Debug, Clone, PartialEq, Eq))]
+pub struct ActionName(NonEmptyString);

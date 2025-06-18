@@ -868,6 +868,9 @@ impl SvgRenderer {
                     self.theme.command_style.clone()
                 }
                 crate::event_model::entities::EntityType::Event => self.theme.event_style.clone(),
+                crate::event_model::entities::EntityType::View => {
+                    self.theme.command_style.clone() // Views use command styling (blue)
+                }
                 crate::event_model::entities::EntityType::Projection => {
                     self.theme.projection_style.clone()
                 }
