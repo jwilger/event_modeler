@@ -509,10 +509,11 @@ impl LayoutEngine {
             }
         }
 
-        // Route connections between entities
+        // Route connections between entities from all slices
         let connector_pairs: Vec<(EntityId, EntityId)> = diagram
-            .connectors
+            .slices
             .iter()
+            .flat_map(|slice| slice.connections.iter())
             .map(|conn| (conn.from.clone(), conn.to.clone()))
             .collect();
         let connections = self.route_connectors(&connector_pairs, &entity_positions);

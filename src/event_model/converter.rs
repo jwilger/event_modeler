@@ -4,8 +4,8 @@
 //! to the strongly-typed domain model that can be used for layout and rendering.
 
 use crate::event_model::diagram::{
-    DiagramMetadata, DiagramTitle, EventModelDiagram, HorizontalPosition, Slice, SliceBoundaries,
-    SliceId, SliceName, Swimlane, SwimlaneId, SwimlaneName, SwimlanePosition,
+    Connector, DiagramMetadata, DiagramTitle, EventModelDiagram, HorizontalPosition, Slice,
+    SliceBoundaries, SliceId, SliceName, Swimlane, SwimlaneId, SwimlaneName, SwimlanePosition,
 };
 use crate::event_model::entities::EntityId;
 use crate::event_model::registry::{Empty, EntityRegistry};
@@ -108,6 +108,27 @@ pub fn convert_to_diagram(
         return Err(ConversionError::NoEntities);
     }
 
+    // Process connectors with validation
+    let mut connectors = Vec::new();
+    for conn in parsed.connectors {
+        // Validate connector references
+        let from_name = conn.from.as_str();
+        let to_name = conn.to.as_str();
+
+        let from_id = entity_lookup
+            .get(from_name)
+            .ok_or_else(|| ConversionError::UnknownEntityInConnector(from_name.to_string()))?;
+        let to_id = entity_lookup
+            .get(to_name)
+            .ok_or_else(|| ConversionError::UnknownEntityInConnector(to_name.to_string()))?;
+
+        connectors.push(Connector {
+            from: from_id.clone(),
+            to: to_id.clone(),
+            label: None, // Simple parser doesn't support connector labels
+        });
+    }
+
     // Create swimlanes
     let mut swimlanes = Vec::new();
     for (idx, parsed_swimlane) in parsed.swimlanes.into_iter().enumerate() {
@@ -126,7 +147,7 @@ pub fn convert_to_diagram(
         .ok_or_else(|| ConversionError::NonEmptyCreationFailed("swimlanes".to_string()))?;
     let swimlanes = NonEmpty::from_head_and_tail(first_swimlane.clone(), rest_swimlanes.to_vec());
 
-    // Create a default slice containing all entities
+    // Create a default slice containing all entities and connections
     let default_slice = Slice {
         id: SliceId::new(
             NonEmptyString::parse("default_slice".to_string())
@@ -146,6 +167,7 @@ pub fn convert_to_diagram(
             })?;
             NonEmpty::from_head_and_tail(first_entity.clone(), rest_entities.to_vec())
         },
+        connections: connectors,
         acceptance_criteria: None,
     };
 
@@ -156,30 +178,11 @@ pub fn convert_to_diagram(
     // entities with all required fields and use the typestate pattern
     let entities = EntityRegistry::new();
 
-    // Process connectors
-    let mut connectors = Vec::new();
-    for connector in parsed.connectors {
-        // Get entity IDs
-        let from_id = entity_lookup.get(connector.from.as_str()).ok_or_else(|| {
-            ConversionError::UnknownEntityInConnector(connector.from.as_str().to_string())
-        })?;
-        let to_id = entity_lookup.get(connector.to.as_str()).ok_or_else(|| {
-            ConversionError::UnknownEntityInConnector(connector.to.as_str().to_string())
-        })?;
-
-        connectors.push(crate::event_model::diagram::Connector {
-            from: from_id.clone(),
-            to: to_id.clone(),
-            label: None, // Simple parser doesn't support connector labels yet
-        });
-    }
-
     Ok(EventModelDiagram {
         metadata,
         swimlanes,
         entities,
         slices,
-        connectors,
     })
 }
 
