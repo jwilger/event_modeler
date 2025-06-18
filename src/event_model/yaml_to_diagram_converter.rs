@@ -55,7 +55,7 @@ pub fn convert_yaml_to_diagram(
     let _wireframes: Vec<Wireframe> = vec![]; // Views will map to wireframes
 
     // Step 3: Convert slices to connectors
-    let connectors = convert_slices_to_connectors(&yaml_model.slices)?;
+    let _connectors = convert_slices_to_connectors(&yaml_model.slices)?;
 
     // Step 4: Build the EntityRegistry and collect entity IDs
     use crate::event_model::entities::EntityId;
@@ -104,6 +104,7 @@ pub fn convert_yaml_to_diagram(
                 )),
             },
             entities: NonEmpty::singleton(dummy_id),
+            connections: Vec::new(),
             acceptance_criteria: None,
         };
         NonEmpty::singleton(slice)
@@ -121,6 +122,7 @@ pub fn convert_yaml_to_diagram(
                 )),
             },
             entities: NonEmpty::from_head_and_tail(entity_ids[0].clone(), entity_ids[1..].to_vec()),
+            connections: Vec::new(),
             acceptance_criteria: None,
         };
         NonEmpty::singleton(slice)
@@ -132,7 +134,6 @@ pub fn convert_yaml_to_diagram(
         swimlanes,
         entities: registry,
         slices,
-        connectors,
     })
 }
 
