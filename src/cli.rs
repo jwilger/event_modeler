@@ -224,16 +224,19 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
     // 1. Read the input file
     let input_content = fs::read_to_string(cmd.input.as_path_buf())?;
 
-    // 2. Parse the event model text
-    let parser = crate::infrastructure::parsing::simple_parser::EventModelParser::new();
-    let parsed_model = parser
-        .parse(&input_content)
-        .map_err(|e| Error::InvalidArguments(format!("Parse error: {:?}", e)))?;
+    // 2. Parse the YAML event model
+    let yaml_model = crate::infrastructure::parsing::yaml_parser::parse_yaml(&input_content)
+        .map_err(|e| Error::InvalidArguments(format!("YAML parse error: {}", e)))?;
 
-    // 3. Convert ParsedEventModel to EventModelDiagram
-    let entity_info = crate::event_model::converter::count_entities(&parsed_model);
-    let event_model_diagram = crate::event_model::converter::convert_to_diagram(parsed_model)
-        .map_err(|e| Error::InvalidArguments(format!("Conversion error: {:?}", e)))?;
+    // 3. Convert YAML to domain types
+    let domain_model =
+        crate::infrastructure::parsing::yaml_converter::convert_yaml_to_domain(yaml_model)
+            .map_err(|e| Error::InvalidArguments(format!("YAML conversion error: {}", e)))?;
+
+    // 4. Convert domain model to EventModelDiagram
+    let event_model_diagram =
+        crate::event_model::yaml_to_diagram_converter::convert_yaml_to_diagram(domain_model)
+            .map_err(|e| Error::InvalidArguments(format!("Diagram conversion error: {:?}", e)))?;
 
     println!(
         "Successfully converted event model: {}",
@@ -245,16 +248,15 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
             .as_str()
     );
     println!("Found {} swimlanes", event_model_diagram.swimlanes.len());
-    println!("Found {} entities total", {
-        entity_info.wireframe_count
-            + entity_info.command_count
-            + entity_info.event_count
-            + entity_info.projection_count
-            + entity_info.query_count
-            + entity_info.automation_count
-    });
+    // Count entities from the diagram
+    let total_entities: usize = event_model_diagram
+        .swimlanes
+        .iter()
+        .map(|swimlane| swimlane.entities.len())
+        .sum();
+    println!("Found {} entities total", total_entities);
 
-    // 4. Create layout from the diagram
+    // 5. Create layout from the diagram
     use crate::diagram::layout::{LayoutConfig, LayoutEngine};
     use crate::infrastructure::types::PositiveFloat;
 
@@ -280,7 +282,7 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
         .compute_layout(&event_model_diagram)
         .map_err(|e| Error::InvalidArguments(format!("Layout error: {:?}", e)))?;
 
-    // 5. Render to requested formats
+    // 6. Render to requested formats
     for format in cmd.options.formats.iter() {
         match format {
             OutputFormat::Svg => {

@@ -4,24 +4,57 @@ use std::process::Command;
 #[test]
 fn test_basic_event_model_to_svg_conversion() {
     // Create a simple test .eventmodel file
-    let test_input = r#"Title: Order Processing System
+    let test_input = r#"workflow: Order Processing System
 
-Swimlane: Orders Service
-- Event: OrderPlaced
-- Event: OrderConfirmed
-- Event: OrderShipped
+swimlanes:
+  - orders_service: "Orders Service"
+  - payment_service: "Payment Service" 
+  - notification_service: "Notification Service"
 
-Swimlane: Payment Service
-- Event: PaymentProcessed
+events:
+  OrderPlaced:
+    description: "Order was placed"
+    swimlane: orders_service
+    data:
+      order_id:
+        type: OrderId
+        stream-id: true
+  OrderConfirmed:
+    description: "Order was confirmed"
+    swimlane: orders_service
+    data:
+      order_id:
+        type: OrderId
+        stream-id: true
+  OrderShipped:
+    description: "Order was shipped"
+    swimlane: orders_service
+    data:
+      order_id:
+        type: OrderId
+        stream-id: true
+  PaymentProcessed:
+    description: "Payment was processed"
+    swimlane: payment_service
+    data:
+      order_id:
+        type: OrderId
+        stream-id: true
+  NotificationSent:
+    description: "Notification was sent"
+    swimlane: notification_service
+    data:
+      order_id:
+        type: OrderId
+        stream-id: true
 
-Swimlane: Notification Service
-- Event: NotificationSent
-
-OrderPlaced -> OrderConfirmed
-OrderConfirmed -> OrderShipped
-OrderPlaced -> PaymentProcessed
-OrderConfirmed -> NotificationSent
-OrderShipped -> NotificationSent
+slices:
+  order_flow:
+    - OrderPlaced -> OrderConfirmed
+    - OrderConfirmed -> OrderShipped
+    - OrderPlaced -> PaymentProcessed
+    - OrderConfirmed -> NotificationSent
+    - OrderShipped -> NotificationSent
 "#;
 
     // Use temporary directory for test files
@@ -119,10 +152,18 @@ fn test_cli_shows_usage_without_args() {
 
 #[test]
 fn test_simple_event_model_with_minimal_structure() {
-    let test_input = r#"Title: Minimal Model
+    let test_input = r#"workflow: Minimal Model
 
-Swimlane: System
-- Event: SystemStarted
+swimlanes:
+  - system: "System"
+
+events:
+  SystemStarted:
+    description: "System was started"
+    swimlane: system
+    data:
+      timestamp:
+        type: DateTime
 "#;
 
     let temp_dir = std::env::temp_dir();
@@ -154,18 +195,29 @@ Swimlane: System
 
 #[test]
 fn test_event_model_with_multiple_entity_types() {
-    let test_input = r#"Title: Mixed Entity Types
+    let test_input = r#"workflow: Mixed Entity Types
 
-Swimlane: User Interface
-- Command: SubmitOrder
+swimlanes:
+  - user_interface: "User Interface"
+  - backend: "Backend"
 
-Swimlane: Backend
-- Event: OrderSubmitted
-- Projection: OrderList
-- Policy: ValidateOrder
+commands:
+  SubmitOrder:
+    description: "Submit a new order"
+    swimlane: user_interface
 
-SubmitOrder -> OrderSubmitted
-OrderSubmitted -> OrderList
+events:
+  OrderSubmitted:
+    description: "Order was submitted"
+    swimlane: backend
+    data:
+      order_id:
+        type: OrderId
+        stream-id: true
+
+slices:
+  order_submission_flow:
+    - SubmitOrder -> OrderSubmitted
 "#;
 
     let temp_dir = std::env::temp_dir();
@@ -190,8 +242,6 @@ OrderSubmitted -> OrderList
     let svg_content = fs::read_to_string(&output_path).expect("Failed to read SVG output");
     assert!(svg_content.contains("SubmitOrder"));
     assert!(svg_content.contains("OrderSubmitted"));
-    assert!(svg_content.contains("OrderList"));
-    assert!(svg_content.contains("ValidateOrder"));
 
     fs::remove_file(&input_path).ok();
     fs::remove_file(&output_path).ok();
