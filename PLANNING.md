@@ -142,6 +142,27 @@ workflow: User Account Signup
 - Provide clear error messages for version mismatches
 - Consider future extensibility for format converters
 
+## Files to be Removed/Updated
+
+### Obsolete Parser Files
+- `src/infrastructure/parsing/simple_parser.rs` - Simple text parser
+- `src/infrastructure/parsing/simple_lexer.rs` - Simple text lexer
+- Related test files in `tests/parsing/`
+
+### Example Files to Update
+- All `.eventmodel` files in `examples/` directory
+- All generated `.svg` files (will be regenerated)
+- Test fixtures using old format
+
+### Documentation to Update
+- README.md examples (currently shows old format)
+- Any inline code examples in Rust docs
+- CLAUDE.md examples
+
+### Consider Keeping (with deprecation notice)
+- Could maintain old parser in `legacy` module for one major version
+- Provide clear deprecation timeline
+
 ## Implementation Roadmap
 
 ### Phase 1: Type System Overhaul
@@ -284,6 +305,37 @@ workflow: User Account Signup
 7. Update all code examples in documentation
 8. Create video tutorial for new format (optional)
 
+### Phase 7: Cleanup & Migration
+**Goal**: Remove obsolete code and prepare for release
+
+#### Cleanup Tasks:
+1. Remove simple text parser:
+   - `src/infrastructure/parsing/simple_parser.rs`
+   - `src/infrastructure/parsing/simple_lexer.rs`
+   - Associated test files
+2. Remove or update obsolete example files:
+   - All `.eventmodel` files using old format
+   - Update or remove example SVGs
+3. Clean up obsolete types:
+   - Review entities that are no longer needed
+   - Remove unused parsing AST types
+4. Update or remove obsolete tests:
+   - Parser tests for simple format
+   - Integration tests using old format
+5. Clean up documentation:
+   - Remove references to old format
+   - Update all code examples
+   - Archive old format specification
+
+#### Migration Tasks:
+1. Create migration tool (optional, separate binary):
+   - Convert simple format to YAML format
+   - Preserve as much information as possible
+   - Report what cannot be migrated
+2. Document breaking changes clearly
+3. Provide migration examples
+4. Consider keeping old parser in a legacy module (if needed)
+
 ## Timeline Estimate
 
 - Phase 1 (Type System): 6-8 hours + 2 hours documentation
@@ -292,8 +344,9 @@ workflow: User Account Signup
 - Phase 4 (Flow Layout): 8-10 hours + 2 hours documentation
 - Phase 5 (Rich Rendering): 10-12 hours + 2 hours documentation
 - Phase 6 (Acceptance Testing): 4-6 hours + 4 hours documentation
+- Phase 7 (Cleanup & Migration): 3-4 hours + 1 hour documentation
 
-Total: ~42-54 hours of implementation + ~15 hours of documentation = ~57-69 hours
+Total: ~45-58 hours of implementation + ~16 hours of documentation = ~61-74 hours
 
 **Note**: This is a complete rewrite with significantly more complexity than the original MVP. The rich format requires:
 - Complex type hierarchies
