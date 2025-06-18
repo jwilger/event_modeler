@@ -884,34 +884,84 @@ impl SvgRenderer {
         // Create a group to hold both the rectangle and text
         let mut group_elements = vec![SvgElement::Rectangle(rect)];
 
-        // Add text element for entity name
-        let text_x = position.position.x.into_inner().value()
-            + position.dimensions.width.into_inner().value() / 2.0;
-        let text_y = position.position.y.into_inner().value()
-            + position.dimensions.height.into_inner().value() / 2.0;
+        // Add entity type label at the top
+        let type_label = match position.entity_type {
+            crate::event_model::entities::EntityType::Wireframe => "Wireframe",
+            crate::event_model::entities::EntityType::Command => "Command",
+            crate::event_model::entities::EntityType::Event => "Event",
+            crate::event_model::entities::EntityType::View => "View",
+            crate::event_model::entities::EntityType::Projection => "Projection",
+            crate::event_model::entities::EntityType::Query => "Query",
+            crate::event_model::entities::EntityType::Automation => "Automation",
+        };
 
-        let text = SvgText {
+        let type_text_x = position.position.x.into_inner().value()
+            + position.dimensions.width.into_inner().value() / 2.0;
+        let type_text_y = position.position.y.into_inner().value() + 16.0;
+
+        let type_text = SvgText {
             id: None,
             class: Some(CssClass::new(
-                NonEmptyString::parse("entity-text".to_string()).unwrap(),
+                NonEmptyString::parse("entity-type-label".to_string()).unwrap(),
             )),
-            x: XCoordinate::new(NonNegativeFloat::parse(text_x).unwrap()),
-            y: YCoordinate::new(NonNegativeFloat::parse(text_y).unwrap()),
+            x: XCoordinate::new(NonNegativeFloat::parse(type_text_x).unwrap()),
+            y: YCoordinate::new(NonNegativeFloat::parse(type_text_y).unwrap()),
+            content: TextContent::new(NonEmptyString::parse(type_label.to_string()).unwrap()),
+            style: TextStyle {
+                font_family: FontFamily::new(
+                    self.theme
+                        .text_style
+                        .entity_name
+                        .family
+                        .clone()
+                        .into_inner(),
+                ),
+                font_size: FontSize::new(
+                    crate::infrastructure::types::PositiveFloat::parse(10.0).unwrap(),
+                ),
+                font_weight: Some(FontWeight::Normal),
+                fill: Color::new(NonEmptyString::parse("#666666".to_string()).unwrap()),
+                anchor: Some(TextAnchor::Middle),
+            },
+        };
+
+        group_elements.push(SvgElement::Text(type_text));
+
+        // Add entity name in the center with enhanced typography
+        let name_text_x = position.position.x.into_inner().value()
+            + position.dimensions.width.into_inner().value() / 2.0;
+        let name_text_y = position.position.y.into_inner().value()
+            + position.dimensions.height.into_inner().value() / 2.0
+            + 2.0; // Slight offset for better centering
+
+        let name_text = SvgText {
+            id: None,
+            class: Some(CssClass::new(
+                NonEmptyString::parse("entity-name".to_string()).unwrap(),
+            )),
+            x: XCoordinate::new(NonNegativeFloat::parse(name_text_x).unwrap()),
+            y: YCoordinate::new(NonNegativeFloat::parse(name_text_y).unwrap()),
             content: TextContent::new(position.entity_name.clone()),
             style: TextStyle {
                 font_family: FontFamily::new(
-                    NonEmptyString::parse("Arial, sans-serif".to_string()).unwrap(),
+                    self.theme
+                        .text_style
+                        .entity_name
+                        .family
+                        .clone()
+                        .into_inner(),
                 ),
-                font_size: FontSize::new(
-                    crate::infrastructure::types::PositiveFloat::parse(14.0).unwrap(),
-                ),
-                font_weight: Some(FontWeight::Normal),
+                font_size: FontSize::new(self.theme.text_style.entity_name.size.into_inner()),
+                font_weight: match self.theme.text_style.entity_name.weight {
+                    crate::diagram::style::StyleFontWeight::Bold => Some(FontWeight::Bold),
+                    crate::diagram::style::StyleFontWeight::Normal => Some(FontWeight::Normal),
+                },
                 fill: Color::new(NonEmptyString::parse("#000000".to_string()).unwrap()),
                 anchor: Some(TextAnchor::Middle),
             },
         };
 
-        group_elements.push(SvgElement::Text(text));
+        group_elements.push(SvgElement::Text(name_text));
 
         // Return a group containing both elements
         let group = SvgGroup {
