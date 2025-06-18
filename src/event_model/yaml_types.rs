@@ -399,3 +399,35 @@ pub enum EntityReference {
 /// Path to a view or view component (e.g., "LoginScreen.CreateAccountLink").
 #[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct ViewPath(NonEmptyString);
+
+impl EntityReference {
+    /// Parses an entity reference from a string.
+    ///
+    /// Handles formats like:
+    /// - "EventName" - interpreted based on context
+    /// - "ViewName.ComponentPath" - view with component path
+    ///
+    /// Returns None if the string is empty or invalid.
+    pub fn parse(s: &str) -> Option<Self> {
+        if s.is_empty() {
+            return None;
+        }
+
+        // For now, we'll use a simple heuristic:
+        // - If it contains a dot, it's a view path
+        // - Otherwise, we'll need context to determine the type
+        // In practice, the converter should know the expected type from context
+
+        if s.contains('.') {
+            // View path like "LoginScreen.CreateAccountLink"
+            // TODO: Implement proper parsing with NonEmptyString
+            None
+        } else {
+            // For other entities, we need more context
+            // This is a limitation - in real usage, the parser should
+            // know what type of entity is expected based on the slice context
+            // For now, we'll return None and let the converter handle it
+            None
+        }
+    }
+}

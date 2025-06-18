@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/jwilger/event_modeler/workflows/CI/badge.svg)](https://github.com/jwilger/event_modeler/actions/workflows/ci.yml)
 
-Generate Event Modeling diagrams from text descriptions. Write `.eventmodel` files, get SVG/PDF diagrams.
+Generate Event Modeling diagrams from YAML-based event model descriptions. Write `.eventmodel` files, get professional SVG/PDF diagrams.
 
 ## Quick Start
 
@@ -15,23 +15,47 @@ cargo build --release
 
 # Create an event model
 cat > example.eventmodel << 'EOF'
-Title: Order Processing System
+workflow: Order Processing System
 
-Swimlane: Customer
-- Command: PlaceOrder
-- Command: CancelOrder
+swimlanes:
+  - customer: "Customer"
+  - orders: "Orders & Inventory"
 
-Swimlane: Orders
-- Event: OrderPlaced
-- Event: OrderCancelled
-- Projection: OrderList
-- Policy: ProcessPayment
+events:
+  OrderPlaced:
+    description: "Customer placed an order"
+    swimlane: orders
+    data:
+      order_id: OrderId
+      customer_id: CustomerId
+      items: List<OrderItem>
+      total: Money
 
-PlaceOrder -> OrderPlaced
-OrderPlaced -> OrderList
-OrderPlaced -> ProcessPayment
-CancelOrder -> OrderCancelled
-OrderCancelled -> OrderList
+commands:
+  PlaceOrder:
+    description: "Customer places a new order"
+    swimlane: customer
+    data:
+      customer_id: CustomerId
+      items: List<OrderItem>
+
+projections:
+  OrderList:
+    description: "List of all orders"
+    swimlane: orders
+    fields:
+      orders: List<OrderSummary>
+
+automations:
+  ProcessPayment:
+    description: "Process payment when order is placed"
+    swimlane: orders
+
+slices:
+  OrderFlow:
+    - PlaceOrder -> OrderPlaced
+    - OrderPlaced -> OrderList
+    - OrderPlaced -> ProcessPayment
 EOF
 
 # Generate diagram (light theme by default)
@@ -46,50 +70,152 @@ event_modeler example.eventmodel -o diagram.svg
 
 ## Project Status
 
-✅ **MVP Complete** - Full pipeline from .eventmodel files to SVG diagrams is working!
+🚧 **Major Rewrite In Progress** - Transitioning from simple text format to rich YAML-based event modeling language.
 
 **What's Ready**: 
-- Text parsing of .eventmodel files
-- Layout computation with automatic sizing
-- SVG rendering with GitHub light/dark themes
-- Entity types: Command, Event, Projection, Policy, External System, Aggregate
-- Error handling with helpful messages
-- Integration tests
+- YAML parsing with schema versioning
+- Type-safe domain model with all entity types
+- Strongly-typed parsing with comprehensive validation
+- Error handling with line/column information
+- SVG rendering infrastructure (being extended)
 
-**What's Coming**:
-- Additional entity types (UI/Wireframe, Query, Automation)
-- Connector labels
+**What's Coming** (Phase 3-6):
+- Full entity rendering (events, commands, views, projections, queries, automations)
+- Flow-based layout algorithm using slice definitions
+- Test scenario sub-diagrams
+- Professional visual styling with color coding
 - PDF export
-- Markdown documentation export
-- Installation via cargo install
+- Complete documentation
 
-## Event Model Syntax
+## Event Model YAML Format
 
-`.eventmodel` files use a simple, readable syntax:
+`.eventmodel` files use a structured YAML format that captures rich event modeling concepts:
 
+### Basic Structure
+
+```yaml
+version: 0.3.0  # Optional, defaults to current Event Modeler version
+workflow: Your Workflow Name
+
+swimlanes:
+  - identifier: "Display Name"
+  - another_lane: "Another Display Name"
+
+events:
+  EventName:
+    description: "What happened"
+    swimlane: identifier
+    data:
+      field_name: TypeName
+      another_field: TypeName<State>
+
+commands:
+  CommandName:
+    description: "What the user wants to do"
+    swimlane: identifier
+    data:
+      field_name:
+        type: TypeName
+        generated: true  # Optional, for system-generated values
+    tests:  # Optional test scenarios
+      "Test Name":
+        Given:
+          - PreviousEvent:
+              field: value
+        When:
+          - CommandName:
+              field: value
+        Then:
+          - ExpectedEvent:
+              field: value
+
+views:
+  ViewName:
+    description: "UI screen or component"
+    swimlane: identifier
+    components:
+      - SimpleComponent: ComponentType
+      - FormComponent:
+          type: Form
+          fields:
+            field_name: InputType
+          actions:
+            - ActionName
+
+projections:
+  ProjectionName:
+    description: "Read model projection"
+    swimlane: identifier
+    fields:
+      field_name: TypeName
+      union_field: TypeA | TypeB
+
+queries:
+  QueryName:
+    swimlane: identifier
+    inputs:
+      param_name: TypeName
+    outputs:
+      field_name: TypeName
+      # OR for conditional outputs:
+      one_of:
+        case_name:
+          field: Type
+        other_case: ErrorType
+
+automations:
+  AutomationName:
+    description: "Automated process"
+    swimlane: identifier
+
+slices:
+  SliceName:
+    - Source -> Target
+    - Source.Component -> Target
+    - Source.Component.Action -> Target
 ```
-Title: Your Model Name
 
-Swimlane: Actor or System Name
-- Command: CommandName
-- Event: EventName
-- Projection: ProjectionName
-- Policy: PolicyName
-- External System: SystemName
-- Aggregate: AggregateName
+### Entity Types
 
-# Connections between entities
-CommandName -> EventName
-EventName -> ProjectionName
-```
+1. **Events** - Things that happened (past tense)
+   - Contain data schema with typed fields
+   - Must reference a valid swimlane
+
+2. **Commands** - User intentions (imperative mood)
+   - Contain data schema with optional generated fields
+   - Can include test scenarios (Given/When/Then)
+
+3. **Views** - UI screens or components
+   - Define component hierarchies
+   - Support forms with fields and actions
+
+4. **Projections** - Read models built from events
+   - Define field schemas
+   - Support union types (TypeA | TypeB)
+
+5. **Queries** - Data retrieval operations
+   - Define input parameters
+   - Support conditional outputs (one_of)
+
+6. **Automations** - System processes
+   - Triggered by events or other entities
+
+### Slices (Flows)
+
+Slices define the connections between entities:
+- Simple: `EntityA -> EntityB`
+- Component-specific: `View.Component -> Command`
+- Action-specific: `View.Form.Submit -> Command`
 
 ### Rules
-- Title must come first
-- Entity names must be unique across the entire model
-- Connectors can only reference existing entities
-- Use "External System" (two words) for external systems
 
-See the `examples/` directory for more examples.
+- All entity names must be unique across the model
+- Swimlanes must be defined before being referenced
+- Collections cannot be empty
+- All string values must be non-empty
+- Version defaults to current Event Modeler version if not specified
+
+See the `examples/` directory for complete examples.
 
 ## Development Setup
 
