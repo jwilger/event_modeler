@@ -21,6 +21,9 @@ serde_yaml = "0.9"
 [dev-dependencies]
 insta = { version = "1.34", features = ["yaml", "glob"] }
 
+[dev-dependencies]
+insta = { version = "1.34", features = ["yaml", "glob"] }
+
 [lints.rust]
 warnings = "deny"
 
