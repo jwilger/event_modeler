@@ -7,7 +7,6 @@
 //! of `.eventmodel` files. These types are used as an intermediate representation
 //! before conversion to domain types.
 
-use crate::VERSION;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -231,74 +230,6 @@ pub struct YamlComplexComponent {
     pub actions: Vec<String>,
 }
 
-/// Errors that can occur during YAML parsing.
-#[derive(Debug, thiserror::Error)]
-pub enum YamlParseError {
-    /// YAML syntax error without location information.
-    #[error("YAML syntax error: {0}")]
-    YamlError(#[from] serde_yaml::Error),
-
-    /// Version incompatibility error.
-    #[error(
-        "Schema version mismatch: file version {file_version} is not compatible with application version {app_version}"
-    )]
-    VersionMismatch {
-        file_version: String,
-        app_version: String,
-    },
-
-    /// YAML parsing error with location information.
-    #[error("YAML error at line {line}, column {column}: {message}")]
-    ParseError {
-        line: usize,
-        column: usize,
-        message: String,
-    },
-}
-
-/// Parses a YAML event model from a string.
-///
-/// This function:
-/// 1. Parses the YAML into intermediate types
-/// 2. Validates the schema version (if present)
-/// 3. Returns the parsed model or an error
-pub fn parse_yaml(input: &str) -> Result<YamlEventModel, YamlParseError> {
-    // Parse the YAML
-    let mut model: YamlEventModel = serde_yaml::from_str(input).map_err(|e| {
-        // Extract location information if available
-        if let Some(location) = e.location() {
-            YamlParseError::ParseError {
-                line: location.line(),
-                column: location.column(),
-                message: e.to_string(),
-            }
-        } else {
-            YamlParseError::YamlError(e)
-        }
-    })?;
-
-    // If no version specified, use current version
-    if model.version.is_none() {
-        model.version = Some(VERSION.to_string());
-    }
-
-    // For now, we accept any version since we're pre-1.0
-    // Post-1.0, we'll add version compatibility checks here
-
-    Ok(model)
-}
-
-/// Checks if a file version is compatible with the current application version.
-///
-/// Currently always returns true as we're pre-1.0 and have no compatibility guarantees.
-/// Post-1.0, this will implement semantic versioning checks.
-#[allow(dead_code)] // Will be used post-1.0 for version compatibility checks
-fn is_version_compatible(file_version: &str, app_version: &str) -> bool {
-    // Pre-1.0: Accept any version
-    let _ = (file_version, app_version); // Silence unused warnings
-    true
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -357,100 +288,5 @@ generated: true
             }
             _ => panic!("Expected complex field"),
         }
-    }
-
-    #[test]
-    fn parse_yaml_adds_default_version() {
-        let yaml = r#"
-workflow: Test Workflow
-swimlanes:
-  - test: "Test Lane"
-"#;
-        let model = parse_yaml(yaml).unwrap();
-        assert_eq!(model.version, Some(VERSION.to_string()));
-    }
-
-    #[test]
-    fn parse_yaml_preserves_explicit_version() {
-        let yaml = r#"
-version: "0.2.0"
-workflow: Test Workflow
-swimlanes:
-  - test: "Test Lane"
-"#;
-        let model = parse_yaml(yaml).unwrap();
-        assert_eq!(model.version, Some("0.2.0".to_string()));
-    }
-
-    #[test]
-    fn parse_yaml_handles_syntax_errors() {
-        let yaml = r#"
-workflow: Test Workflow
-swimlanes
-  - test: "Test Lane"  # Missing colon
-"#;
-        let result = parse_yaml(yaml);
-        assert!(matches!(result, Err(YamlParseError::ParseError { .. })));
-    }
-
-    #[test]
-    fn parse_yaml_extracts_error_location() {
-        // Use actual invalid YAML syntax - unclosed quote
-        let yaml = r#"workflow: Test Workflow
-swimlanes:
-  - test: "Test Lane
-  - backend: "Backend"
-"#;
-        let result = parse_yaml(yaml);
-        match result {
-            Err(YamlParseError::ParseError {
-                line,
-                column,
-                message,
-            }) => {
-                // serde_yaml reports 1-indexed line numbers
-                println!("Error at line {}, column {}: {}", line, column, message);
-                assert!(line > 0); // Line should be greater than 0
-                assert!(column > 0); // Column should be greater than 0
-                assert!(!message.is_empty());
-            }
-            Err(e) => panic!("Expected ParseError but got: {:?}", e),
-            Ok(_) => panic!("Expected an error but parsing succeeded"),
-        }
-    }
-
-    #[test]
-    fn parse_yaml_location_with_duplicate_key() {
-        // Duplicate keys should cause an error
-        let yaml = r#"workflow: Test Workflow
-swimlanes:
-  - test: "Test Lane"
-workflow: Another Workflow  # Duplicate key
-"#;
-        let result = parse_yaml(yaml);
-        match result {
-            Err(YamlParseError::ParseError {
-                line,
-                column,
-                message,
-            }) => {
-                println!("Error at line {}, column {}: {}", line, column, message);
-                // Note: serde_yaml reports duplicate key errors at the start of the document
-                assert!(line > 0);
-                assert!(column > 0);
-                assert!(message.contains("duplicate"));
-            }
-            Err(e) => panic!("Expected ParseError but got: {:?}", e),
-            Ok(_) => panic!("Expected an error but parsing succeeded"),
-        }
-    }
-
-    #[test]
-    fn is_version_compatible_accepts_any_version_pre_1_0() {
-        // Pre-1.0, we accept any version
-        assert!(is_version_compatible("0.1.0", "0.3.0"));
-        assert!(is_version_compatible("0.3.0", "0.1.0"));
-        assert!(is_version_compatible("1.0.0", "0.3.0"));
-        assert!(is_version_compatible("0.3.0", "1.0.0"));
     }
 }
