@@ -18,6 +18,7 @@ pub mod converter;
 pub mod diagram;
 pub mod entities;
 pub mod registry;
+pub mod yaml_types;
 
 pub use diagram::{DiagramMetadata, EventModelDiagram};
 pub use entities::{Automation, Command, Event, Projection, Query, Wireframe};
