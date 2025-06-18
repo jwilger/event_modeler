@@ -1,0 +1,280 @@
+workflow: User Account Signup
+
+swimlanes:
+  - ux: "UX, Automations"
+  - commands: "Commands, Projections, Queries"
+  - account_stream: "User Account Event Stream"
+
+events:
+  UserAccountCredentialsCreated:
+    description: "A user account is created with credentials."
+    swimlane: account_stream
+    data:
+      account_id:
+        type: UserAccountId
+        stream-id: true
+      email_address: UserEmailAddress<Unverified>
+      password: Password<Encrypted>
+
+
+  EmailVerificationMessageSent:
+    description: "A verification email was sent to the user."
+    swimlane: account_stream
+    data:
+      account_id:
+        type: UserAccountId
+        stream-id: true
+      email_address: UserEmailAddress<Unverified>
+      verification_token: VerificationToken<Valid>
+
+  EmailAddressVerified:
+    description: "The user has verified their email address."
+    swimlane: account_stream
+    data:
+      account_id:
+        type: UserAccountId
+        stream-id: true
+      email_address: UserEmailAddress<Verified>
+      verification_token: VerificationToken<Used>
+
+commands:
+  CreateUserAccountCredentials:
+    description: "Create a new user account with credentials."
+    swimlane: commands
+    data:
+      account_id:
+        type: UserAccountId
+        stream-id: true
+        generated: true
+      email_address: UserEmailAddress<Unverified>
+      password: Password<Encrypted>
+
+    tests:
+      "Main Success":
+        Given:
+        When:
+          - CreateUserAccountCredentials:
+              account_id: A
+              email_address: B
+              password: C
+        Then:
+          - UserAccountCredentialsCreated:
+              account_id: A
+              email_address: B
+              password: C
+
+      "Account Already Exists":
+        Given:
+          - UserAccountCredentialsCreated:
+              account_id: A
+              email_address: B
+              password: C
+        When:
+          - CreateUserAccountCredentials:
+              account_id: A
+              email_address: B
+              password: C
+        Then:
+          - DuplicateUserAccountError:
+              account_id: A
+
+  SendEmailVerification:
+    description: "Sends an email verification message to the user."
+    swimlane: commands
+    data:
+      account_id:
+        type: UserAccountId
+        stream-id: true
+      email_address: UserEmailAddress<Unverified>
+      verification_token: VerificationToken<Valid>
+
+    tests:
+      "Main Success":
+        Given:
+          - UserAccountCredentialsCreated:
+              account_id: A
+              email_address: B
+        When:
+          - SendEmailVerification:
+              account_id: A
+              email_address: B
+              verification_token: C
+        Then:
+          - EmailVerificationMessageSent:
+              account_id: A
+              email_address: B
+              verification_token: C'
+              
+      "No Such User":
+          Given:
+          When:
+            - SendEmailVerification:
+                account_id: A
+                email_address: B
+                verification_token: C
+          Then:
+            - UnknownUserAccountError:
+                account_id: A
+
+  VerifyUserEmailAddress:
+    description: "Verifies the user's email address."
+    swimlane: commands
+    data:
+      account_id:
+        type: UserAccountId
+        stream-id: true
+      email_address: UserEmailAddress<Unverified>
+      verification_token: VerificationToken<Valid>
+
+    tests:
+      "Main Success":
+        Given:
+          - UserAccountCredentialsCreated:
+              account_id: A
+              email_address: B
+          - EmailVerificationMessageSent:
+              account_id: A
+              email_address: B
+              verification_token: C
+        When:
+          - VerifyUserEmailAddress:
+              account_id: A
+              email_address: B
+              verification_token: C
+        Then:
+          - EmailAddressVerified:
+              account_id: A
+              email_address: B
+              verification_token: C
+
+      "No Such User":
+        Given:
+        When:
+          - VerifyUserEmailAddress:
+              account_id: A
+              email_address: B
+              verification_token: C
+        Then:
+          - UnknownUserAccountError:
+              account_id: A
+
+      "Invalid Verification Token":
+        Given:
+          - UserAccountCredentialsCreated:
+              account_id: A
+              email_address: B
+          - EmailVerificationMessageSent:
+              account_id: A
+              email_address: B
+              verification_token: C
+        When:
+          - VerifyUserEmailAddress:
+              account_id: A
+              email_address: B
+              verification_token: E
+        Then:
+          - InvalidVerificationTokenError:
+              account_id: A
+              email_address: B
+              verification_token: E
+
+views:
+  LoginScreen:
+    description: "View for user login."
+    swimlane: ux
+    components:
+      - CreateAccountLink: Link
+
+  NewAccountScreen:
+    description: "View for creating a new user account."
+    swimlane: ux
+    components:
+      - AccountCredentials:
+          type: Form
+          fields:
+            email_address: TextInput
+            password: PasswordInput
+          actions:
+            - Submit
+
+  VerifyEmailAddressScreen:
+    description: "Users see this page when they have not verified their email address. If linking to this view with a verification_token parameter, immediately executes the VerifyUserEmailAddress command with the email address and token."
+    swimlane: ux
+    components:
+      - VerificationForm:
+          type: Form
+          fields:
+            verification_token: TextInput
+          actions:
+            - Submit
+
+  UserProfileScreen:
+    description: "View for the user's profile."
+    swimlane: ux
+    components:
+      - EmailAddress: TextOutput
+
+projections:
+  UserCredentialsProjection:
+    description: "Projection of user credentials with email verification status"
+    swimlane: commands
+    fields:
+      account_id: UserAccountId
+      email_address: UserEmailAddress<Verified> | UserEmailAddress<Unverified>
+      password: Password<Encrypted>
+
+  UserEmailVerificationTokenProjection:
+    description: "Projection of user email verification tokens"
+    swimlane: commands
+    fields:
+      account_id: UserAccountId
+      verification_token: VerificationToken<Valid>
+
+queries:
+  GetAccountIdForEmailVerificationToken:
+    swimlane: commands
+    inputs:
+      verification_token: VerificationToken<Valid>
+    outputs:
+      one_of:
+        found:
+          account_id: UserAccountId
+          verification_token: VerificationToken<Used>
+        not_found: InvalidVerificationTokenError
+
+  GetUserProfile:
+    swimlane: commands
+    inputs:
+      account_id: UserAccountId
+    outputs:
+      one_of:
+        found:
+          account_id: UserAccountId
+          email_address: UserEmailAddress<Verified>
+        not_found: UnknownUserAccountError
+
+automations:
+  UserEmailVerifier:
+    swimlane: ux
+
+slices:
+  CreateAccount:
+    - LoginScreen.CreateAccountLink -> NewAccountScreen
+    - NewAccountScreen.AccountCredentials.Submit -> CreateUserAccountCredentials
+    - CreateUserAccountCredentials -> UserAccountCredentialsCreated
+    - UserAccountCredentialsCreated -> UserCredentialsProjection
+    - UserAccountCredentialsCreated -> NewAccountScreen
+    - NewAccountScreen -> VerifyEmailAddressScreen
+
+  VerifyEmailAddress:
+    - UserAccountCredentialsCreated -> UserEmailVerifier
+    - UserEmailVerifier -> SendEmailVerification
+    - SendEmailVerification -> EmailVerificationMessageSent
+    - EmailVerificationMessageSent -> UserEmailVerificationTokenProjection
+    - VerifyEmailAddressScreen.VerificationForm.Submit -> VerifyUserEmailAddress
+    - VerifyUserEmailAddress -> UserEmailAddressVerified
+    - UserEmailAddressVerified -> UserCredentialsProjection
+    - UserEmailAddressVerified -> UserEmailVerificationTokenProjection
+    - UserEmailAddressVerified -> VerifyEmailAddressScreen
+    - VerifyEmailAddressScreen -> UserProfileScreen
+    - UserProfileScreen.EmailAddress -> GetUserProfile

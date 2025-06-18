@@ -1,6 +1,6 @@
 # Event Modeler Implementation Plan
 
-This document outlines the detailed plan for implementing the remaining functionality in Event Modeler while adhering to our type-driven development principles and architectural decisions.
+This document outlines the complete rewrite plan for Event Modeler to support the rich YAML-based event modeling language discovered in example.eventmodel.
 
 ## 🚨 MANDATORY FIRST STEP 🚨
 
@@ -26,17 +26,47 @@ This ensures no work is forgotten or lost in the codebase.
 
 ## Current Status
 
-**Last Updated**: 2025-06-17
+**Last Updated**: 2025-06-18 (Phase 1 COMPLETE, Phase 2 COMPLETE)
 
-| Phase | Branch | Status | PR # | Notes |
-|-------|--------|--------|------|-------|
-| CLI Foundation | `feature/cli-foundation` | Complete | #4 (merged) | CLI args parsing, main entry point, e2e test framework |
-| Text Parsing | `feature/text-parsing` | Complete | #6 (merged) | Lexer and parser implementation with comprehensive tests |
-| Layout Engine | `feature/layout-engine` | Complete | #7 (merged) | Swimlane/entity positioning, connector routing foundation |
-| SVG Rendering | `feature/svg-rendering` | In Progress | #8 (draft) | SVG rendering with theme support |
-| Integration | `feature/integration-polish` | Not Started | - | - |
+**Critical Discovery**: The existing implementation was based on incorrect requirements. The actual requirements call for a rich YAML-based event modeling language with:
+- Multiple entity types (events, commands, views, projections, queries, automations)
+- Data schemas with type annotations
+- Test scenarios (Given/When/Then)
+- UI component hierarchies  
+- Slice-based flow definitions
+- Professional visual output with color coding and sub-diagrams
 
-**Current Focus**: SVG Rendering implementation in progress. Basic SVG structure, swimlanes, entities, connectors, and theme support implemented. Continue with Phase 4 completion.
+The example.eventmodel and example.jpg files represent the TRUE requirements.
+
+**Phase 1 COMPLETE**: Type System Overhaul completed with PR #15
+- ✅ All entity types defined with type safety guarantees
+- ✅ YAML registry for managing entities and connections
+- ✅ ADRs created for YAML format and gold master testing
+- ✅ Comprehensive documentation of type safety
+
+**Phase 2 COMPLETE**: YAML Parser Implementation
+- ✅ Added serde and serde_yaml dependencies
+- ✅ Created ADR for schema versioning strategy
+- ✅ Implemented VERSION constant for schema versioning
+- ✅ Created YAML parsing types matching the format structure
+- ✅ Implemented parse_yaml function with version checking
+- ✅ Added EntityReference::parse method skeleton
+- ✅ Created yaml_converter module with error types
+- ✅ Completed conversion from parsing types to domain types
+- ✅ Added comprehensive error handling with line/column numbers
+- ✅ Updated README.md with YAML format specification
+- ✅ Created comprehensive YAML syntax guide
+- ✅ Updated CLAUDE.md with YAML-specific guidance
+
+**Next Step**: Phase 3 - Domain Model Extensions
+
+**Version Planning**: This rewrite will be released as version 0.3.0. Since we're pre-1.0, we can make breaking changes without maintaining backward compatibility. The YAML format will use this version number for its schema version.
+
+### Existing Work to Preserve
+- CLI structure and argument parsing (can be reused)
+- Type-safety infrastructure (NonEmptyString, TypedPath, etc.)
+- Some SVG rendering primitives (will need significant extension)
+- Project structure and build configuration
 
 ## Overview
 
@@ -50,285 +80,333 @@ The implementation will follow a PR-driven workflow with feature branch chaining
 5. Monitor PR status and fix any CI failures
 6. Handle rebasing when base branches are merged
 
-## Implementation Phases
+## ADRs to Create
 
-### Branch Structure Plan
+The following Architecture Decision Records need to be created to document key decisions:
 
-The implementation will create these feature branches in sequence:
-1. `feature/cli-foundation` - CLI argument parsing and basic structure
-2. `feature/text-parsing` - Lexer and parser implementation  
-3. `feature/layout-engine` - Layout computation algorithm
-4. `feature/svg-rendering` - SVG generation from layout
-5. `feature/integration-polish` - Final integration and polish
+1. **ADR: Adopting YAML Format** (Phase 1) ✅ CREATED
+   - Why we're moving from simple text to YAML
+   - Benefits of structured format
+   - Schema versioning strategy
+   - Trade-offs considered
 
-Each branch builds on the previous one, creating a chain of PRs.
+2. **ADR: Gold Master Testing Strategy** (Phase 1) ✅ CREATED
+   - Why we chose insta for snapshot testing
+   - Visual comparison approach
+   - Benefits for iterative development
 
-### Phase 1: CLI Foundation & Basic E2E Test
+3. **ADR: Slice-Based Architecture** (Phase 3)
+   - Moving from simple connectors to slices
+   - Benefits for complex event flows
+   - How slices drive layout
 
-**Branch**: `feature/cli-foundation`  
-**Base**: `main`
+4. **ADR: Flow-Based Layout Algorithm** (Phase 4)
+   - Topological sort for timeline ordering
+   - Sub-diagram approach for test scenarios
+   - Handling parallel flows
 
-**Goal**: Create a minimal working CLI that can process a simple .eventmodel file and produce SVG output.
+5. **ADR: Schema Versioning Strategy** (Phase 2)
+   - Version tied to application version
+   - Semantic versioning for schema changes
+   - Forward/backward compatibility rules
+   - Migration path planning
 
-#### 1.1 Create End-to-End Acceptance Test
-```bash
-tests/e2e/basic_conversion.rs
-```
-- Create a simple test .eventmodel file
-- Run the CLI with this file
-- Verify SVG output is created
-- This test will initially fail but guide our implementation
+6. **ADR: Complete Rewrite Decision** (Phase 6)
+   - Why incremental change wasn't feasible
+   - Lessons learned from initial implementation
+   - Future-proofing considerations
 
-#### 1.2 Implement CLI Argument Parsing
-- Implement `src/cli.rs` functions:
-  - `Cli::from_args()` - Parse command line arguments
-  - `Cli::execute()` - Orchestrate the conversion process
-- Preserve existing type signatures using `TypedPath<F,P,E>`
-- No runtime validation - all validation through type parsing
+## Acceptance Test Strategy
 
-#### 1.3 Implement Main Entry Point
-- Replace `todo!()` in `src/main.rs`
-- Wire up CLI to parse args and execute
-- Handle errors gracefully with proper exit codes
+**Primary Acceptance Test**: The implementation MUST be able to:
+1. Parse `example.eventmodel` without errors
+2. Produce an SVG that matches the structure of `example.jpg`
+3. Include all visual elements shown in the example
 
-**Acceptance Criteria**: 
-- CLI can be invoked with `cargo run -- input.eventmodel -o output.svg`
-- Proper error messages for invalid arguments
-- Help text displays correctly
-- PLANNING.md updated with completion status
+**CRITICAL**: Before starting the new implementation:
+1. Copy `example.eventmodel` to `tests/fixtures/acceptance/` ✅
+2. Copy `example.jpg` to `tests/fixtures/acceptance/` for reference ✅
+3. Create acceptance test that will drive the entire implementation ✅
+4. This test will fail until the implementation is complete
 
-### Phase 2: Text Parsing Implementation
+## Schema Versioning Strategy
 
-**Branch**: `feature/text-parsing`  
-**Base**: `feature/cli-foundation`
+**Principle**: The .eventmodel schema version matches the Event Modeler application version.
 
-**Goal**: Parse .eventmodel files into our strongly-typed domain model.
+**Semantic Versioning Rules**:
+- **Major version change**: Breaking changes to schema (removing fields, changing types)
+- **Minor version change**: Backward-compatible additions (new optional fields, new entity types)
+- **Patch version change**: No schema changes, only implementation fixes
 
-#### 2.1 Create Parser Test Suite
-```bash
-tests/parsing/
-├── lexer_tests.rs      # Token generation tests
-├── parser_tests.rs     # AST construction tests
-└── fixtures/           # Test .eventmodel files
-```
+**Compatibility** (post-1.0 only):
+- For now (pre-1.0), no backward compatibility guarantees
+- After 1.0 release:
+  - Parser should accept schema versions with same major version
+  - Warn on minor version differences (newer features might not render)
+  - Error on major version differences (incompatible schema)
 
-#### 2.2 Implement Lexer
-- Implement in `src/infrastructure/parsing/lexer.rs`:
-  - `Lexer::new()` - Initialize lexer with input
-  - `Lexer::next_token()` - Generate tokens from input
-- Use the existing `Token` enum without modification
-- Ensure position tracking for error messages
-
-#### 2.3 Implement Parser with Typestate Pattern
-- Implement in `src/infrastructure/parsing/mod.rs`:
-  - `EventModelParser::parse_header()` - Parse title section
-  - `EventModelParser::parse_body()` - Parse swimlanes
-  - `EventModelParser::build()` - Construct final AST
-- Follow the typestate pattern: `Empty -> HasHeader -> HasBody -> Complete`
-- Use existing domain types from `src/event_model/entities.rs`
-
-**Acceptance Criteria**:
-- Can parse valid .eventmodel files without panics
-- Invalid files produce clear error messages with line numbers
-- Parser enforces correct section ordering at compile time
-- PLANNING.md updated with completion status
-
-### Phase 3: Layout Engine Implementation
-
-**Branch**: `feature/layout-engine`  
-**Base**: `feature/text-parsing`
-
-**Goal**: Compute positions for all diagram elements.
-
-#### 3.1 Create Layout Test Suite
-```bash
-tests/layout/
-├── positioning_tests.rs  # Element positioning
-├── sizing_tests.rs      # Size calculations
-└── constraints_tests.rs # Layout constraints
+**Example**:
+```yaml
+version: 0.3.0  # Optional, defaults to current app version
+workflow: User Account Signup
+# ... rest of the file
 ```
 
-#### 3.2 Implement Layout Algorithm
-- Implement in `src/diagram/layout.rs`:
-  - `LayoutEngine::compute_layout()` - Main layout computation
-  - Calculate swimlane positions
-  - Position entities within swimlanes
-  - Route connectors between entities
-- Use existing `LayoutConfig` and dimension types
-- Ensure all positions use validated numeric types
+**Version Migration**:
+- No migration needed for pre-1.0 versions
+- Post-1.0: Will need migration strategy for major version changes
+- For now: Clean break to new format
 
-**Acceptance Criteria**:
-- Elements positioned without overlaps
-- Connectors route cleanly between entities
-- Layout respects configured spacing and margins
-- PLANNING.md updated with completion status
+**Implementation Notes**:
+- Store version in a constant matching Cargo.toml version
+- Parse version first to determine parsing strategy
+- Provide clear error messages for version mismatches
+- Consider future extensibility for format converters
 
-### Phase 4: SVG Rendering Implementation ✅ COMPLETED
+## Files to be Removed/Updated
 
-**Branch**: `feature/svg-rendering`  
-**Base**: `feature/layout-engine`
+### Obsolete Parser Files
+- `src/infrastructure/parsing/simple_parser.rs` - Simple text parser
+- `src/infrastructure/parsing/simple_lexer.rs` - Simple text lexer
+- Related test files in `tests/parsing/`
 
-**Goal**: Generate valid SVG output from layout data.
+### Example Files to Update
+- All `.eventmodel` files in `examples/` directory
+- All generated `.svg` files (will be regenerated)
+- Test fixtures using old format
 
-#### 4.1 Create Rendering Test Suite
-```bash
-tests/rendering/
-├── svg_output_tests.rs   # SVG structure tests
-├── theme_tests.rs        # Theme application tests
-└── expected/             # Expected SVG outputs
-```
+### Documentation to Update
+- README.md examples (currently shows old format)
+- Any inline code examples in Rust docs
+- CLAUDE.md examples
 
-#### 4.2 Implement SVG Generation
-- Implement in `src/diagram/svg.rs`:
-  - `SvgRenderer::render()` - Generate complete SVG
-  - Render swimlanes with labels
-  - Render entities with appropriate shapes and styles based on their type (wireframe, command, event, projection, query, automation)
-    - **TODO from code**: Determine entity type and use appropriate style (currently all entities use command style)
-  - Render connectors with arrows
-  - Serialize SVG document to valid XML output
-- Use the strongly-typed SVG element builders
-- Apply theme styles from `src/diagram/theme.rs` with correct style per entity type
+### No Backward Compatibility Needed
+- Pre-1.0 release means we can make breaking changes freely
+- No need to maintain old parser or provide migration tools
+- Clean break to YAML format
 
-#### 4.3 Outstanding Implementation
-**TODO items found in codebase that need completion in this phase:**
-- `src/infrastructure/parsing/lexer.rs`: Implement `Lexer::new()` and `next_token()` methods (should have been Phase 2)
-- `src/infrastructure/parsing/mod.rs`: Implement parser methods (should have been Phase 2)
+## Implementation Roadmap
 
-**Acceptance Criteria**:
-- Generated SVG is valid XML ✅
-- All elements properly styled according to theme ✅
-- SVG renders correctly in browsers ✅
-- PLANNING.md updated with completion status ✅
+### Phase 1: Type System Overhaul
+**Goal**: Create a type-safe foundation for the rich event modeling format
 
-**Completion Summary**:
-- Implemented entity type detection via EntityType enum and registry lookup
-- Implemented SVG serialization (SvgDocument::to_xml() method)
-- Added comprehensive SVG serialization tests
-- Wired up full pipeline from .eventmodel input to SVG output
-- Verified pipeline with test.eventmodel file
-- Note: Full layout computation and ParsedEventModel to EventModelDiagram conversion deferred to Phase 5
+#### Tasks:
+1. Define types for all entity kinds:
+   - Event (with data schema)
+   - Command (with data schema and test scenarios)
+   - View (with UI component hierarchy)
+   - Projection (with field definitions)
+   - Query (with input/output contracts)
+   - Automation
+2. Create types for:
+   - Data fields with type annotations (e.g., `FieldType<State>`)
+   - Test scenarios (Given/When/Then structures)
+   - UI components (forms, inputs, buttons, etc.)
+   - Slice definitions (connection specifications)
+3. Update EntityRegistry to handle all new entity types
+4. Ensure all types follow "parse, don't validate" principle
 
-### Phase 5: Integration & Polish ✅
+#### Documentation Tasks:
+1. Create ADR for YAML format decision
+2. Create ADR for gold master testing approach
+3. Update all code comments to reflect new type system
+4. Document type safety guarantees for each new type
 
-**Branch**: `feature/integration-polish`  
-**Base**: `feature/svg-rendering`
+### Phase 2: YAML Parser Implementation
+**Goal**: Parse the rich YAML format into our type-safe domain model
 
-**Goal**: Ensure all components work together seamlessly.
+#### Tasks:
+1. Add serde and serde_yaml dependencies
+2. Implement schema versioning:
+   - Add `version` field to YAML format (matches app version)
+   - Default to current version if not specified
+   - Validate version compatibility on parse
+   - Plan for future migration paths
+3. Create parsing types that map to YAML structure
+4. Implement conversion from parsing types to domain types
+5. Comprehensive error handling with line/column numbers
+6. Support for:
+   - Nested data structures
+   - Type annotations in strings
+   - Component hierarchies
+   - Test scenario parsing
+   - Slice definition parsing
 
-#### 5.1 Integration Testing ✅
-- Create comprehensive integration tests ✅
-- Test various .eventmodel file formats ✅
-- Verify error handling across the pipeline ✅
-- Test both light and dark themes ✅
+#### Documentation Tasks:
+1. Update README.md with YAML format specification
+2. Create comprehensive YAML syntax guide
+3. Document schema versioning strategy
+4. Document all parsing error types and messages
+5. Update CLAUDE.md with YAML-specific guidance
 
-#### 5.2 Documentation Generation ✅
-- Ensure all public items have rustdoc comments ✅
-- Run `cargo doc` to verify documentation builds ✅
-- Update README with usage examples ✅
+### Phase 3: Domain Model Extensions
+**Goal**: Extend the domain model to represent all aspects of the rich format
 
-#### 5.3 Outstanding Implementation
-**TODO items found in codebase that need completion:**
-- `src/diagram/layout.rs`: Add connectors to EventModelDiagram and use them in layout computation ✅
-- `src/infrastructure/types.rs`: Implement `NonEmpty::first()`, `last()`, and `get()` methods ✅
-- `src/export/pdf.rs`: Implement PDF export functionality (PdfExporter methods) - DEFERRED (not critical for MVP)
-- `src/export/markdown.rs`: Implement Markdown export functionality (MarkdownExporter methods) - DEFERRED (not critical for MVP)
-- `src/main.rs`: Complete CLI integration with all export formats - PARTIALLY COMPLETE (SVG working)
+#### Tasks:
+1. Extend Event to include data schema
+2. Extend Command to include:
+   - Data schema
+   - Test scenarios
+   - Generated field markers
+3. Implement View with component hierarchies
+4. Implement Projection with field schemas
+5. Implement Query with input/output contracts
+6. Implement Automation
+7. Implement Slice as first-class concept
+8. Update EventModelDiagram to use slices for connections
 
-**Completion Summary**:
-- Implemented conversion from ParsedEventModel to EventModelDiagram (simplified due to typestate constraints)
-- Implemented full layout computation with dynamic canvas sizing
-- Added connector support throughout the pipeline
-- Implemented NonEmpty helper methods (first, last, get)
-- Created comprehensive integration tests covering various scenarios
-- Tested multiple .eventmodel formats including complex systems
-- Tested all error cases (missing title, duplicate entities, unknown connectors)
-- Added dark theme support via --dark CLI flag
-- Verified all public items have documentation
-- Updated README with working examples and syntax reference
-- MVP is complete and functional!
+#### Documentation Tasks:
+1. Create ADR for slice-based architecture
+2. Document all new entity types with examples
+3. Update module documentation for event_model
+4. Create entity type reference guide
 
-## Next Steps (Post-MVP)
+### Phase 4: Flow-Based Layout Engine
+**Goal**: Layout entities based on slice-defined flows, not grid positions
 
-### URGENT BUGS TO FIX ✅ PARTIALLY FIXED
+#### Tasks:
+1. Implement topological sort for entity positioning
+2. Use slice definitions to determine flow order
+3. Layout test scenarios as sub-diagrams below main flow
+4. Implement smart connector routing
+5. Handle multiple parallel flows
+6. Ensure readable left-to-right timeline layout
 
-#### Bug 1: CLI displays misleading "phase 5" message ✅ FIXED
-**Problem**: The CLI tool includes a note about diagram generation coming in phase 5, which is:
-- Already completed
-- Meaningless to end users who don't know about development phases
+#### Documentation Tasks:
+1. Create ADR for flow-based layout algorithm
+2. Document layout constraints and rules
+3. Update diagram module documentation
+4. Create layout troubleshooting guide
 
-**Impact**: Confusing user experience
+### Phase 5: Rich Visual Rendering
+**Goal**: Produce professional diagrams matching the example output
 
-**Fix Applied**: Removed the misleading message from src/cli.rs
+#### Tasks:
+1. Implement entity-type-specific styling:
+   - Blue: Commands, Views, Queries
+   - Purple: Events
+   - Yellow: Projections
+   - Green: Automations
+   - Red: Error states
+2. Render entity content:
+   - Names and descriptions
+   - Data schemas
+   - UI component hierarchies
+3. Render test scenarios:
+   - Separate boxes below main flow
+   - Given/When/Then sections
+   - Connected to parent command
+4. Professional typography:
+   - Proper text sizing
+   - Clear hierarchy
+   - Readable spacing
 
-#### Bug 2: Poor diagram quality ⚠️ PARTIALLY FIXED
-**Problems**:
-1. ✅ Entity text is not displayed in the diagram - **FIXED**: Added entity text rendering
-2. ✅ Swimlane labels are missing - **FIXED**: Now display actual swimlane names
-3. ❌ All entities use the same style (should vary by type: command, event, projection, etc.)
-4. ❌ Entities not laid out in strict timeline order (left-to-right reading)
-5. ✅ Connectors drawn to entity centers and appear in front of boxes - **FIXED**: Connectors now render behind entities
+#### Documentation Tasks:
+1. Create visual style guide document
+2. Document color scheme and rationale
+3. Update theme documentation
+4. Create accessibility considerations guide
 
-**Impact**: Diagrams are not usable for their intended purpose
+### Phase 6: Acceptance Testing & Documentation
+**Goal**: Ensure the implementation meets requirements and documentation is complete
 
-### Fixes Applied
+#### Tasks:
+1. Create test that uses example.eventmodel as input
+2. Compare output structure to example.jpg
+3. Add tests for all entity types
+4. Add tests for error cases
+5. Performance testing with large models
 
-#### Fix 1: Remove misleading CLI message ✅
-**Location**: src/cli.rs:326
-**Fix**: Removed the outdated phase 5 message
+#### Documentation Tasks:
+1. Update GitHub Pages landing page with YAML examples
+2. Create migration guide from old format to YAML
+3. Update all example files to use YAML format
+4. Create comprehensive user guide
+5. Update CONTRIBUTING.md with new development workflow
+6. Create ADR summarizing the complete rewrite
+7. Update all code examples in documentation
+8. Create video tutorial for new format (optional)
 
-#### Fix 2: Fix diagram quality issues
+### Phase 7: Cleanup
+**Goal**: Remove ALL obsolete code and prepare for release
 
-**Issue 2.1: Missing entity text** ✅
-- **Fix Applied**: Added text rendering to entities, but entity names show "Unknown" because EntityRegistry is not populated
+#### Cleanup Tasks:
+1. Remove simple text parser completely:
+   - `src/infrastructure/parsing/simple_parser.rs`
+   - `src/infrastructure/parsing/simple_lexer.rs`
+   - All associated test files
+2. Remove ALL old format files:
+   - All `.eventmodel` files using old format
+   - All example SVGs (will regenerate with new format)
+3. Clean up obsolete types:
+   - Remove all entities only used by old parser
+   - Remove unused parsing AST types
+   - Remove any compatibility shims
+4. Remove obsolete tests:
+   - All parser tests for simple format
+   - All integration tests using old format
+   - All e2e tests using old examples
+5. Clean up documentation:
+   - Remove ALL references to old format
+   - Update ALL code examples to YAML
+   - No need to archive old format (pre-1.0)
 
-**Issue 2.2: Wrong swimlane labels** ✅
-- **Fix Applied**: Swimlanes now use actual names instead of generic IDs
+#### Release Preparation:
+1. Clear release notes stating this is a breaking change
+2. New examples showcasing YAML format
+3. No migration path - clean break (pre-1.0)
 
-**Issue 2.5: Connectors overlap entity boxes** ✅
-- **Fix Applied**: Changed rendering order so connectors appear behind entities
+## Timeline Estimate
 
-### Remaining Issues
+- Phase 1 (Type System): 6-8 hours + 2 hours documentation
+- Phase 2 (YAML Parser): 8-10 hours + 3 hours documentation
+- Phase 3 (Domain Extensions): 6-8 hours + 2 hours documentation
+- Phase 4 (Flow Layout): 8-10 hours + 2 hours documentation
+- Phase 5 (Rich Rendering): 10-12 hours + 2 hours documentation
+- Phase 6 (Acceptance Testing): 4-6 hours + 4 hours documentation
+- Phase 7 (Cleanup): 2-3 hours
 
-**Issue 2.1b: Entity names show "Unknown"** ✅ FIXED
-- **Fix Applied**: Entity names now display correctly by using entity ID as fallback
+Total: ~44-57 hours of implementation + ~15 hours of documentation = ~59-72 hours
 
-**Issue 2.3: All entities use same style** ✅ FIXED
-- **Fix Applied**: Entity types are inferred from naming conventions when registry lookup fails
+**Note**: This is a complete rewrite with significantly more complexity than the original MVP. The rich format requires:
+- Complex type hierarchies
+- YAML parsing with nested structures
+- Sophisticated layout algorithms
+- Multi-layered rendering (main diagram + test scenarios)
+- Professional visual design
+- Comprehensive documentation updates
+- GitHub Pages updates with new examples
 
-**Issue 2.4: Entity layout not in timeline order**
-- **Problem**: Entities are positioned without considering their logical order in the event flow
-- **Fix Needed**: Position entities based on their order in connectors (topological sort)
+## Future Enhancements (Post-Implementation)
 
-### Additional Features Added
+### Extended Features
+- Add support for edge case annotations
+- Add support for external system integrations  
+- Add support for saga/process manager entities
+- Add support for read model projections
+- Enhanced error message formatting
 
-**Comment Support** ✅
-- Lines starting with '#' are now treated as comments and ignored during parsing
-- Allows users to add documentation directly in .eventmodel files
+### Developer Experience
+- VSCode extension with syntax highlighting
+- Language server for auto-completion
+- Live preview mode
+- Integration with documentation tools
+- Export to other event modeling tools
 
-### Phase 6: Entity Type Expansion
-- Add support for UI/Wireframe entities
-- Add support for Query entities  
-- Add support for Automation entities
-- Update parser to recognize new entity types
-- Add theme styles for new entity types
-
-### Phase 7: Enhanced Features
-- Add connector labels (parse "Connection -> Target: Label")
-- Add slice support for vertical feature boundaries
-- Add timeline markers for temporal relationships
-- Add entity grouping within swimlanes
-
-### Phase 8: Export Formats
+### Export Formats
 - Complete PDF export implementation
 - Complete Markdown documentation export
 - Add PNG/JPEG export via SVG rasterization
 - Add Mermaid diagram export
+- Add PlantUML export
+- Add draw.io export
 
-### Phase 9: Developer Experience
+### Distribution
 - Package for cargo install
-- Add watch mode for live preview
-- Add VSCode extension for .eventmodel files
-- Add language server protocol support
+- Homebrew formula
+- Docker image
+- GitHub Action
+- Pre-built binaries for all platforms
 
 ## Testing Strategy
 
@@ -387,9 +465,9 @@ This ensures:
 ### For Each Feature Implementation:
 
 1. **Create Feature Branch**
-   - First feature: `git checkout -b feature/cli-foundation`
+   - First feature: `git checkout -b feature/yaml-type-system`
    - Subsequent features: `git checkout -b feature/<name> feature/<previous-feature>`
-   - This creates a chain: main → cli-foundation → parsing → layout → svg-rendering
+   - This creates a chain: main → yaml-type-system → yaml-parser → domain-extensions → flow-layout → rich-rendering
 
 2. **Implement Feature**
    - Write acceptance test first
@@ -506,10 +584,11 @@ This ensures:
 
 ```
 main
- └── feature/cli-foundation (PR #1)
-      └── feature/text-parsing (PR #2)
-           └── feature/layout-engine (PR #3)
-                └── feature/svg-rendering (PR #4)
+ └── feature/yaml-type-system (PR #1)
+      └── feature/yaml-parser (PR #2)
+           └── feature/domain-extensions (PR #3)
+                └── feature/flow-layout (PR #4)
+                     └── feature/rich-rendering (PR #5)
 ```
 
 As PRs merge:
@@ -541,7 +620,7 @@ Throughout implementation:
 The implementation is complete when:
 
 1. All `todo!()` placeholders are replaced
-2. Can convert .eventmodel files to SVG/PDF
+2. Can convert example.eventmodel to SVG matching example.jpg structure
 3. All tests pass (minimal but comprehensive)
 4. No clippy warnings
 5. All public items documented
@@ -569,21 +648,6 @@ Throughout the implementation, regularly check:
    - Review all open PRs
    - Check for any failed CI runs
    - Handle any necessary rebases
-
-## Timeline Estimate
-
-- Phase 1 (CLI): 2-3 hours
-- Phase 2 (Parsing): 4-6 hours  
-- Phase 3 (Layout): 3-4 hours
-- Phase 4 (SVG): 3-4 hours
-- Phase 5 (Integration): 2 hours
-
-Total: ~14-19 hours of implementation
-
-**Note**: Additional time may be needed for:
-- Fixing CI failures
-- Rebasing branches as PRs merge
-- Addressing any review feedback (though with auto-merge, this should be minimal)
 
 ## Notes
 
