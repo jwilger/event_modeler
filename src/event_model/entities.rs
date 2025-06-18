@@ -23,8 +23,6 @@ pub enum EntityType {
     Command,
     /// Event entity.
     Event,
-    /// View entity (UI screen with components).
-    View,
     /// Projection entity.
     Projection,
     /// Query entity.
@@ -91,8 +89,8 @@ pub struct Projection {
     pub name: ProjectionName,
     /// Events that feed this projection.
     pub sources: NonEmpty<EventId>,
-    /// Fields available in the projection with type annotations.
-    pub fields: HashMap<FieldName, FieldType>,
+    /// Fields available in the projection.
+    pub fields: NonEmpty<ProjectionField>,
     /// Optional link to detailed documentation.
     pub documentation: Option<TypedPath<MarkdownFile, File, MaybeExists>>,
 }
@@ -104,23 +102,10 @@ pub struct Query {
     pub id: EntityId,
     /// Name of the query.
     pub name: QueryName,
-    /// Input parameters for the query with type annotations.
-    pub inputs: HashMap<FieldName, FieldType>,
-    /// Output specification (can be single or one-of multiple options).
-    pub outputs: OutputSpec,
-    /// Optional link to detailed documentation.
-    pub documentation: Option<TypedPath<MarkdownFile, File, MaybeExists>>,
-}
-
-/// A view representing a UI screen with component hierarchy.
-#[derive(Debug, Clone)]
-pub struct View {
-    /// Unique identifier for this view.
-    pub id: EntityId,
-    /// Name of the view.
-    pub name: ViewName,
-    /// UI components in this view.
-    pub components: NonEmpty<Component>,
+    /// Projection this query reads from.
+    pub projection: ProjectionId,
+    /// Parameters for the query.
+    pub parameters: NonEmpty<QueryParameter>,
     /// Optional link to detailed documentation.
     pub documentation: Option<TypedPath<MarkdownFile, File, MaybeExists>>,
 }
@@ -166,10 +151,6 @@ pub struct ProjectionName(NonEmptyString);
 /// Name of a query.
 #[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct QueryName(NonEmptyString);
-
-/// Name of a view.
-#[nutype(derive(Debug, Clone, PartialEq, Eq))]
-pub struct ViewName(NonEmptyString);
 
 /// Name of an automation.
 #[nutype(derive(Debug, Clone, PartialEq, Eq))]
@@ -276,64 +257,3 @@ pub struct TestAction {
 /// Placeholder value in test scenarios (e.g., "A", "B", "C").
 #[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct PlaceholderValue(NonEmptyString);
-
-/// UI component definition.
-#[derive(Debug, Clone)]
-pub struct Component {
-    /// Name of the component.
-    pub name: ComponentName,
-    /// Type of component or nested structure.
-    pub component_type: ComponentType,
-}
-
-/// Component name.
-#[nutype(derive(Debug, Clone, PartialEq, Eq))]
-pub struct ComponentName(NonEmptyString);
-
-/// Type of UI component.
-#[derive(Debug, Clone)]
-pub enum ComponentType {
-    /// Simple component type (e.g., "Link", "TextInput").
-    Simple(SimpleComponentType),
-    /// Form component with fields and actions.
-    Form {
-        /// Form fields.
-        fields: HashMap<FieldName, SimpleComponentType>,
-        /// Form actions (e.g., Submit).
-        actions: NonEmpty<ActionName>,
-    },
-}
-
-/// Simple component type name.
-#[nutype(derive(Debug, Clone, PartialEq, Eq))]
-pub struct SimpleComponentType(NonEmptyString);
-
-/// Action name (e.g., "Submit").
-#[nutype(derive(Debug, Clone, PartialEq, Eq))]
-pub struct ActionName(NonEmptyString);
-
-/// Output specification for queries.
-#[derive(Debug, Clone)]
-pub enum OutputSpec {
-    /// Single output structure.
-    Single(HashMap<FieldName, FieldType>),
-    /// One of multiple possible outputs.
-    OneOf(HashMap<OutputCaseName, OutputCase>),
-}
-
-/// Name of an output case.
-#[nutype(derive(Debug, Clone, PartialEq, Eq, Hash))]
-pub struct OutputCaseName(NonEmptyString);
-
-/// An output case definition.
-#[derive(Debug, Clone)]
-pub enum OutputCase {
-    /// Success case with fields.
-    Fields(HashMap<FieldName, FieldType>),
-    /// Error case with error type.
-    Error(ErrorTypeName),
-}
-
-/// Error type name.
-#[nutype(derive(Debug, Clone, PartialEq, Eq))]
-pub struct ErrorTypeName(NonEmptyString);
