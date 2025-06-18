@@ -26,8 +26,6 @@ pub struct Layout {
     pub slice_layouts: HashMap<SliceId, SliceLayout>,
     /// Visual connections between entities.
     pub connections: Vec<Connection>,
-    /// Layout information for test scenarios.
-    pub test_scenario_layouts: Vec<TestScenarioLayout>,
 }
 
 /// Canvas dimensions and settings.
@@ -74,19 +72,6 @@ pub struct SliceLayout {
     pub x_position: XCoordinate,
     /// Width of the slice.
     pub width: Width,
-}
-
-/// Layout information for test scenarios.
-#[derive(Debug, Clone)]
-pub struct TestScenarioLayout {
-    /// Position of the test scenario box.
-    pub position: Position,
-    /// Dimensions of the test scenario box.
-    pub dimensions: Dimensions,
-    /// Name of the test scenario.
-    pub scenario_name: crate::infrastructure::types::NonEmptyString,
-    /// Command this test scenario belongs to.
-    pub parent_command: EntityId,
 }
 
 /// Visual connection between two entities.
@@ -524,16 +509,12 @@ impl LayoutEngine {
             .collect();
         let connections = self.route_connectors(&connector_pairs, &entity_positions);
 
-        // Compute test scenario layouts
-        let test_scenario_layouts = self.compute_test_scenario_layouts(diagram, &entity_positions);
-
         Ok(Layout {
             canvas,
             swimlane_layouts,
             entity_positions,
             slice_layouts: HashMap::new(),
             connections,
-            test_scenario_layouts,
         })
     }
 
@@ -660,7 +641,7 @@ impl LayoutEngine {
         timeline_order: &[EntityId],
         entity_to_swimlane: &HashMap<EntityId, SwimlaneId>,
         swimlane_layouts: &HashMap<SwimlaneId, SwimlaneLayout>,
-        entities: &crate::event_model::registry::EntityRegistry<W, C, E, P, Q, A>,
+        _entities: &crate::event_model::registry::EntityRegistry<W, C, E, P, Q, A>,
     ) -> HashMap<EntityId, EntityPosition> {
         let mut positions = HashMap::new();
         let mut swimlane_x_positions: HashMap<SwimlaneId, f32> = HashMap::new();
@@ -679,46 +660,6 @@ impl LayoutEngine {
             if let Some(swimlane_id) = entity_to_swimlane.get(entity_id) {
                 if let Some(swimlane_layout) = swimlane_layouts.get(swimlane_id) {
                     let current_x = swimlane_x_positions.get(swimlane_id).unwrap_or(&spacing);
-
-                    // Look up entity type and name from registry
-                    let entity_type = entities.get_entity_type(entity_id).unwrap_or_else(|| {
-                        // Fallback to inferring type from entity name if not in registry
-                        let entity_name_owned = entity_id.clone().into_inner();
-                        let entity_name_str = entity_name_owned.as_str();
-
-                        if entity_name_str.ends_with("ed") || entity_name_str.ends_with("Event") {
-                            crate::event_model::entities::EntityType::Event
-                        } else if entity_name_str.ends_with("Service")
-                            || entity_name_str.contains("System")
-                        {
-                            crate::event_model::entities::EntityType::Projection
-                        } else if entity_name_str.starts_with("Get")
-                            || entity_name_str.starts_with("Find")
-                            || entity_name_str.ends_with("Query")
-                        {
-                            crate::event_model::entities::EntityType::Query
-                        } else if entity_name_str.contains("Validate")
-                            || entity_name_str.contains("Process")
-                            || entity_name_str.ends_with("Policy")
-                        {
-                            crate::event_model::entities::EntityType::Automation
-                        } else if entity_name_str.ends_with("View")
-                            || entity_name_str.ends_with("List")
-                            || entity_name_str.ends_with("Details")
-                        {
-                            crate::event_model::entities::EntityType::Wireframe
-                        } else {
-                            crate::event_model::entities::EntityType::Command
-                        }
-                    });
-
-                    let entity_name = entities.get_entity_name(entity_id).unwrap_or_else(|| {
-                        // Fallback to using the entity ID as the name
-                        crate::infrastructure::types::NonEmptyString::parse(
-                            entity_id.clone().into_inner().as_str().to_string(),
-                        )
-                        .unwrap()
-                    });
 
                     let position = EntityPosition {
                         position: Position {
@@ -739,8 +680,11 @@ impl LayoutEngine {
                             width: Width::new(PositiveFloat::parse(entity_width).unwrap()),
                             height: Height::new(PositiveFloat::parse(entity_height).unwrap()),
                         },
-                        entity_type,
-                        entity_name,
+                        entity_type: crate::event_model::entities::EntityType::Command, // Default for now
+                        entity_name: crate::infrastructure::types::NonEmptyString::parse(
+                            "Entity".to_string(),
+                        )
+                        .unwrap(),
                         swimlane_id: swimlane_id.clone(),
                     };
 
@@ -754,27 +698,6 @@ impl LayoutEngine {
         }
 
         positions
-    }
-
-    /// Compute layout positions for test scenarios.
-    ///
-    /// Test scenarios are positioned below their parent commands as sub-diagrams.
-    /// Each test scenario gets its own box with Given/When/Then sections.
-    fn compute_test_scenario_layouts<W, C, E, P, Q, A>(
-        &self,
-        _diagram: &crate::event_model::diagram::EventModelDiagram<W, C, E, P, Q, A>,
-        _entity_positions: &HashMap<EntityId, EntityPosition>,
-    ) -> Vec<TestScenarioLayout> {
-        // First, we need to collect commands with test scenarios from the entities registry
-        // This is a placeholder implementation that would need access to command test data
-        // For now, return empty vector since we don't have direct access to YAML test scenarios
-        // in the current diagram structure
-
-        // TODO: Implement test scenario access from YAML domain model
-        // The EventModelDiagram would need to include test scenario information
-        // or we'd need to pass the YAML domain model separately
-
-        Vec::new()
     }
 
     /// Get the current configuration.
