@@ -728,8 +728,8 @@ fn parse_entity_reference(ref_str: &str) -> Result<domain::EntityReference, Conv
     // Try to guess based on common naming patterns
     let lower = ref_str.to_lowercase();
 
-    if lower.ends_with("event") || lower.ends_with("ed") {
-        // Likely an event (past tense)
+    if lower.ends_with("event") || lower.ends_with("ed") || lower.ends_with("sent") {
+        // Likely an event (past tense or event-like ending)
         let name = domain::EventName::new(
             NonEmptyString::parse(ref_str.to_string())
                 .map_err(|_| ConversionError::EmptyField("event name".to_string()))?,
@@ -746,13 +746,20 @@ fn parse_entity_reference(ref_str: &str) -> Result<domain::EntityReference, Conv
                 .map_err(|_| ConversionError::EmptyField("command name".to_string()))?,
         );
         Ok(domain::EntityReference::Command(name))
-    } else if lower.ends_with("projection") || lower.ends_with("view") {
+    } else if lower.ends_with("projection") {
         // Likely a projection
         let name = domain::ProjectionName::new(
             NonEmptyString::parse(ref_str.to_string())
                 .map_err(|_| ConversionError::EmptyField("projection name".to_string()))?,
         );
         Ok(domain::EntityReference::Projection(name))
+    } else if lower.ends_with("screen") || lower.ends_with("view") || lower.ends_with("page") {
+        // Likely a view
+        let path = domain::ViewPath::new(
+            NonEmptyString::parse(ref_str.to_string())
+                .map_err(|_| ConversionError::EmptyField("view path".to_string()))?,
+        );
+        Ok(domain::EntityReference::View(path))
     } else if lower.ends_with("query") || lower.starts_with("get") || lower.starts_with("find") {
         // Likely a query
         let name = domain::QueryName::new(

@@ -598,11 +598,17 @@ impl LayoutEngine {
         }
 
         // Add dependencies from slice connections
+        // Only consider temporal dependencies for layout, not notification/update flows
         for slice in diagram.slices.iter() {
             for connection in &slice.connections {
-                // 'to' entity depends on 'from' entity (from happens before to)
-                if let Some(dependencies) = graph.get_mut(&connection.to) {
-                    dependencies.push(connection.from.clone());
+                // Determine if this connection represents temporal flow (for layout)
+                let is_temporal = Self::is_temporal_connection(&connection.from, &connection.to);
+
+                if is_temporal {
+                    // 'to' entity depends on 'from' entity (from happens before to in timeline)
+                    if let Some(dependencies) = graph.get_mut(&connection.to) {
+                        dependencies.push(connection.from.clone());
+                    }
                 }
             }
         }
@@ -610,11 +616,73 @@ impl LayoutEngine {
         (graph, entity_to_swimlane)
     }
 
+    /// Determines if a connection represents temporal flow (for layout) vs notification flow.
+    ///
+    /// Temporal connections (used for layout):
+    /// - View -> Command (user action triggers command)  
+    /// - Command -> Event (command produces event)
+    /// - Event -> Projection (event builds projection over time)
+    /// - Query -> View (query provides data to view)
+    ///
+    /// Non-temporal connections (notifications, not used for layout):
+    /// - Event -> View (event notifies view to update)
+    /// - Projection -> View (projection provides current state to view)
+    /// - Automation -> Command (automation triggers command - but this could be temporal)
+    fn is_temporal_connection(from: &EntityId, to: &EntityId) -> bool {
+        // Extract entity types from prefixed IDs (e.g., "command_CreateUser" -> "command")
+        let from_type = Self::extract_entity_type(from);
+        let to_type = Self::extract_entity_type(to);
+
+        match (from_type.as_str(), to_type.as_str()) {
+            // Temporal flows (used for layout) - only the core event modeling flow
+            ("command", "event") => true,    // Command produces event
+            ("event", "projection") => true, // Event builds projection
+
+            // Non-temporal flows (not used for layout)
+            ("view", "command") => false, // View triggers command (creates cycles with event->view)
+            ("view", "view") => false,    // View navigation (not temporal)
+            ("event", "view") => false,   // Event notifies view (not temporal)
+            ("projection", "view") => false, // Projection shows current state (not temporal)
+            ("query", "view") => false,   // Query provides data to view (not temporal)
+            ("automation", "command") => false, // Automation triggers command (could create cycles)
+
+            // Be conservative: default to non-temporal to avoid cycles
+            _ => false,
+        }
+    }
+
+    /// Extracts the entity type from a prefixed EntityId (e.g., "command_CreateUser" -> "command")
+    fn extract_entity_type(entity_id: &EntityId) -> String {
+        let id_string = entity_id.clone().into_inner().into_inner();
+        if let Some(underscore_pos) = id_string.find('_') {
+            id_string[..underscore_pos].to_string()
+        } else {
+            // Fallback if no prefix
+            "unknown".to_string()
+        }
+    }
+
     /// Perform topological sort on the dependency graph.
     ///
     /// Returns entities in temporal order (entities with no dependencies first).
     fn topological_sort(
         &self,
+        graph: &HashMap<EntityId, Vec<EntityId>>,
+    ) -> Result<Vec<EntityId>, LayoutError> {
+        // Handle circular dependencies by breaking cycles
+        let result = Self::topological_sort_impl(graph);
+        if let Err(LayoutError::CircularDependency) = result {
+            // Break cycles and retry
+            let mut cycle_broken_graph = graph.clone();
+            Self::break_cycles(&mut cycle_broken_graph);
+            Self::topological_sort_impl(&cycle_broken_graph)
+        } else {
+            result
+        }
+    }
+
+    /// Internal implementation of topological sort.
+    fn topological_sort_impl(
         graph: &HashMap<EntityId, Vec<EntityId>>,
     ) -> Result<Vec<EntityId>, LayoutError> {
         let mut in_degree: HashMap<EntityId, usize> = HashMap::new();
@@ -664,6 +732,68 @@ impl LayoutEngine {
         }
 
         Ok(result)
+    }
+
+    /// Breaks cycles in the dependency graph by removing edges.
+    /// Uses DFS to detect cycles and removes one edge from each cycle.
+    fn break_cycles(graph: &mut HashMap<EntityId, Vec<EntityId>>) {
+        use std::collections::HashSet;
+
+        // Track visited nodes and nodes in current path (for cycle detection)
+        let mut visited = HashSet::new();
+        let mut path = HashSet::new();
+        let mut edges_to_remove = Vec::new();
+
+        // Helper function for DFS cycle detection
+        fn dfs_find_cycles(
+            node: &EntityId,
+            graph: &HashMap<EntityId, Vec<EntityId>>,
+            visited: &mut HashSet<EntityId>,
+            path: &mut HashSet<EntityId>,
+            edges_to_remove: &mut Vec<(EntityId, EntityId)>,
+        ) {
+            if path.contains(node) {
+                // Found a cycle - don't traverse further to avoid infinite recursion
+                return;
+            }
+
+            if visited.contains(node) {
+                return; // Already processed this subtree
+            }
+
+            visited.insert(node.clone());
+            path.insert(node.clone());
+
+            if let Some(dependencies) = graph.get(node) {
+                for dep in dependencies {
+                    if path.contains(dep) {
+                        // Found a back edge (cycle) - mark it for removal
+                        edges_to_remove.push((node.clone(), dep.clone()));
+                    } else {
+                        dfs_find_cycles(dep, graph, visited, path, edges_to_remove);
+                    }
+                }
+            }
+
+            path.remove(node);
+        }
+
+        // Find all nodes to start DFS from
+        let all_nodes: Vec<EntityId> = graph.keys().cloned().collect();
+
+        // Run DFS from each node to find cycles
+        for node in &all_nodes {
+            if !visited.contains(node) {
+                dfs_find_cycles(node, graph, &mut visited, &mut path, &mut edges_to_remove);
+            }
+        }
+
+        // Remove the problematic edges
+        for (from, to) in edges_to_remove {
+            if let Some(deps) = graph.get_mut(&from) {
+                deps.retain(|dep| dep != &to);
+            }
+        }
     }
 
     /// Position entities in timeline order within their respective swimlanes.
