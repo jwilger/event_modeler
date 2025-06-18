@@ -216,6 +216,76 @@ cross build --release --target x86_64-pc-windows-gnu
 - Keep commits focused and atomic
 - Use the commit message format shown in README.md
 
+### CRITICAL: PR Chain Management
+
+When working with chained PRs (where PR B is based on PR A), **ALWAYS** rebase downstream PRs after a base PR is merged:
+
+#### The Problem
+When we squash-merge a PR, GitHub combines all commits into a single commit. This breaks the chain for downstream PRs because:
+1. PR A has commits C1, C2, C3
+2. PR B is based on PR A, so it includes C1, C2, C3 + new commits C4, C5
+3. When PR A is squash-merged, GitHub creates a new commit C123 on main
+4. PR B still references the old commits C1, C2, C3 which no longer exist on main
+5. PR B becomes impossible to merge cleanly
+
+#### The Solution
+**IMMEDIATELY** after any base PR is merged:
+
+1. **Check for downstream PRs**:
+   ```bash
+   gh pr list --author @me
+   ```
+
+2. **For each downstream PR, rebase onto main**:
+   ```bash
+   # Check out the downstream PR branch
+   git checkout feature/downstream-branch
+   
+   # Fetch latest changes
+   git fetch origin
+   
+   # Rebase onto main (not the old base branch)
+   git rebase origin/main
+   
+   # Resolve conflicts by keeping the downstream PR changes (use --theirs)
+   git checkout --theirs <conflicted-file>
+   git add <conflicted-file>
+   git rebase --continue
+   
+   # Force push the rebased branch
+   git push --force-with-lease
+   
+   # Update the PR base reference
+   gh pr edit <PR-number> --base main
+   ```
+
+3. **Common Conflict Resolution**:
+   - Always use `git checkout --theirs` to keep the downstream PR's changes
+   - The conflicts occur because git sees the same changes in different commits
+   - The downstream PR's version is always the one we want to keep
+
+#### Example Workflow
+```bash
+# PR #15 just got merged, now rebase PR #17 and PR #18
+git checkout feature/domain-extensions
+git fetch origin
+git rebase origin/main
+# Resolve conflicts with --theirs
+git push --force-with-lease
+gh pr edit 17 --base main
+
+git checkout feature/flow-layout  
+git rebase origin/main
+# Resolve conflicts with --theirs
+git push --force-with-lease
+gh pr edit 18 --base main
+```
+
+#### Prevention
+- **Monitor PR status**: Check `gh pr list` regularly during development
+- **Immediate action**: Rebase downstream PRs as soon as base PRs merge
+- **Never ignore**: This issue will only get worse if not addressed immediately
+
 ## Code Quality Guidelines for Claude
 
 See [README.md#development-standards](README.md#development-standards) for standards.
