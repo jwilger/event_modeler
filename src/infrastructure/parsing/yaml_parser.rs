@@ -234,7 +234,7 @@ pub struct YamlComplexComponent {
 /// Errors that can occur during YAML parsing.
 #[derive(Debug, thiserror::Error)]
 pub enum YamlParseError {
-    /// YAML syntax error.
+    /// YAML syntax error without location information.
     #[error("YAML syntax error: {0}")]
     YamlError(#[from] serde_yaml::Error),
 
@@ -247,8 +247,8 @@ pub enum YamlParseError {
         app_version: String,
     },
 
-    /// Generic parsing error with location information.
-    #[error("Parse error at line {line}, column {column}: {message}")]
+    /// YAML parsing error with location information.
+    #[error("YAML error at line {line}, column {column}: {message}")]
     ParseError {
         line: usize,
         column: usize,
@@ -264,7 +264,18 @@ pub enum YamlParseError {
 /// 3. Returns the parsed model or an error
 pub fn parse_yaml(input: &str) -> Result<YamlEventModel, YamlParseError> {
     // Parse the YAML
-    let mut model: YamlEventModel = serde_yaml::from_str(input)?;
+    let mut model: YamlEventModel = serde_yaml::from_str(input).map_err(|e| {
+        // Extract location information if available
+        if let Some(location) = e.location() {
+            YamlParseError::ParseError {
+                line: location.line(),
+                column: location.column(),
+                message: e.to_string(),
+            }
+        } else {
+            YamlParseError::YamlError(e)
+        }
+    })?;
 
     // If no version specified, use current version
     if model.version.is_none() {
@@ -379,7 +390,59 @@ swimlanes
   - test: "Test Lane"  # Missing colon
 "#;
         let result = parse_yaml(yaml);
-        assert!(matches!(result, Err(YamlParseError::YamlError(_))));
+        assert!(matches!(result, Err(YamlParseError::ParseError { .. })));
+    }
+
+    #[test]
+    fn parse_yaml_extracts_error_location() {
+        // Use actual invalid YAML syntax - unclosed quote
+        let yaml = r#"workflow: Test Workflow
+swimlanes:
+  - test: "Test Lane
+  - backend: "Backend"
+"#;
+        let result = parse_yaml(yaml);
+        match result {
+            Err(YamlParseError::ParseError {
+                line,
+                column,
+                message,
+            }) => {
+                // serde_yaml reports 1-indexed line numbers
+                println!("Error at line {}, column {}: {}", line, column, message);
+                assert!(line > 0); // Line should be greater than 0
+                assert!(column > 0); // Column should be greater than 0
+                assert!(!message.is_empty());
+            }
+            Err(e) => panic!("Expected ParseError but got: {:?}", e),
+            Ok(_) => panic!("Expected an error but parsing succeeded"),
+        }
+    }
+
+    #[test]
+    fn parse_yaml_location_with_duplicate_key() {
+        // Duplicate keys should cause an error
+        let yaml = r#"workflow: Test Workflow
+swimlanes:
+  - test: "Test Lane"
+workflow: Another Workflow  # Duplicate key
+"#;
+        let result = parse_yaml(yaml);
+        match result {
+            Err(YamlParseError::ParseError {
+                line,
+                column,
+                message,
+            }) => {
+                println!("Error at line {}, column {}: {}", line, column, message);
+                // Note: serde_yaml reports duplicate key errors at the start of the document
+                assert!(line > 0);
+                assert!(column > 0);
+                assert!(message.contains("duplicate"));
+            }
+            Err(e) => panic!("Expected ParseError but got: {:?}", e),
+            Ok(_) => panic!("Expected an error but parsing succeeded"),
+        }
     }
 
     #[test]
