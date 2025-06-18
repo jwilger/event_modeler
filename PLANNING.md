@@ -40,6 +40,8 @@ The example.eventmodel and example.jpg files represent the TRUE requirements.
 
 **Next Step**: Begin Phase 1 of the implementation roadmap - Type System Overhaul
 
+**Version Planning**: This rewrite will be released as version 0.3.0 (or 1.0.0 if we decide it's stable enough for a 1.0 release). The YAML format will use this version number for its schema version.
+
 ### Existing Work to Preserve
 - CLI structure and argument parsing (can be reused)
 - Type-safety infrastructure (NonEmptyString, TypedPath, etc.)
@@ -58,6 +60,42 @@ The implementation will follow a PR-driven workflow with feature branch chaining
 5. Monitor PR status and fix any CI failures
 6. Handle rebasing when base branches are merged
 
+## ADRs to Create
+
+The following Architecture Decision Records need to be created to document key decisions:
+
+1. **ADR: Adopting YAML Format** (Phase 1)
+   - Why we're moving from simple text to YAML
+   - Benefits of structured format
+   - Schema versioning strategy
+   - Trade-offs considered
+
+2. **ADR: Gold Master Testing Strategy** (Phase 1)
+   - Why we chose insta for snapshot testing
+   - Visual comparison approach
+   - Benefits for iterative development
+
+3. **ADR: Slice-Based Architecture** (Phase 3)
+   - Moving from simple connectors to slices
+   - Benefits for complex event flows
+   - How slices drive layout
+
+4. **ADR: Flow-Based Layout Algorithm** (Phase 4)
+   - Topological sort for timeline ordering
+   - Sub-diagram approach for test scenarios
+   - Handling parallel flows
+
+5. **ADR: Schema Versioning Strategy** (Phase 2)
+   - Version tied to application version
+   - Semantic versioning for schema changes
+   - Forward/backward compatibility rules
+   - Migration path planning
+
+6. **ADR: Complete Rewrite Decision** (Phase 6)
+   - Why incremental change wasn't feasible
+   - Lessons learned from initial implementation
+   - Future-proofing considerations
+
 ## Acceptance Test Strategy
 
 **Primary Acceptance Test**: The implementation MUST be able to:
@@ -66,10 +104,43 @@ The implementation will follow a PR-driven workflow with feature branch chaining
 3. Include all visual elements shown in the example
 
 **CRITICAL**: Before starting the new implementation:
-1. Copy `example.eventmodel` to `tests/fixtures/acceptance/`
-2. Copy `example.jpg` to `tests/fixtures/acceptance/` for reference
-3. Create acceptance test that will drive the entire implementation
+1. Copy `example.eventmodel` to `tests/fixtures/acceptance/` ✅
+2. Copy `example.jpg` to `tests/fixtures/acceptance/` for reference ✅
+3. Create acceptance test that will drive the entire implementation ✅
 4. This test will fail until the implementation is complete
+
+## Schema Versioning Strategy
+
+**Principle**: The .eventmodel schema version matches the Event Modeler application version.
+
+**Semantic Versioning Rules**:
+- **Major version change**: Breaking changes to schema (removing fields, changing types)
+- **Minor version change**: Backward-compatible additions (new optional fields, new entity types)
+- **Patch version change**: No schema changes, only implementation fixes
+
+**Compatibility**:
+- Parser should accept schema versions with same major version
+- Warn on minor version differences (newer features might not render)
+- Error on major version differences (incompatible schema)
+
+**Example**:
+```yaml
+version: 0.3.0  # Optional, defaults to current app version
+workflow: User Account Signup
+# ... rest of the file
+```
+
+**Version Migration**:
+- Future versions may include migration tools
+- Clear documentation of changes between versions
+- Consider providing a separate migration command
+- Preserve original files, create migrated copies
+
+**Implementation Notes**:
+- Store version in a constant matching Cargo.toml version
+- Parse version first to determine parsing strategy
+- Provide clear error messages for version mismatches
+- Consider future extensibility for format converters
 
 ## Implementation Roadmap
 
@@ -92,20 +163,38 @@ The implementation will follow a PR-driven workflow with feature branch chaining
 3. Update EntityRegistry to handle all new entity types
 4. Ensure all types follow "parse, don't validate" principle
 
+#### Documentation Tasks:
+1. Create ADR for YAML format decision
+2. Create ADR for gold master testing approach
+3. Update all code comments to reflect new type system
+4. Document type safety guarantees for each new type
+
 ### Phase 2: YAML Parser Implementation
 **Goal**: Parse the rich YAML format into our type-safe domain model
 
 #### Tasks:
 1. Add serde and serde_yaml dependencies
-2. Create parsing types that map to YAML structure
-3. Implement conversion from parsing types to domain types
-4. Comprehensive error handling with line/column numbers
-5. Support for:
+2. Implement schema versioning:
+   - Add `version` field to YAML format (matches app version)
+   - Default to current version if not specified
+   - Validate version compatibility on parse
+   - Plan for future migration paths
+3. Create parsing types that map to YAML structure
+4. Implement conversion from parsing types to domain types
+5. Comprehensive error handling with line/column numbers
+6. Support for:
    - Nested data structures
    - Type annotations in strings
    - Component hierarchies
    - Test scenario parsing
    - Slice definition parsing
+
+#### Documentation Tasks:
+1. Update README.md with YAML format specification
+2. Create comprehensive YAML syntax guide
+3. Document schema versioning strategy
+4. Document all parsing error types and messages
+5. Update CLAUDE.md with YAML-specific guidance
 
 ### Phase 3: Domain Model Extensions
 **Goal**: Extend the domain model to represent all aspects of the rich format
@@ -123,6 +212,12 @@ The implementation will follow a PR-driven workflow with feature branch chaining
 7. Implement Slice as first-class concept
 8. Update EventModelDiagram to use slices for connections
 
+#### Documentation Tasks:
+1. Create ADR for slice-based architecture
+2. Document all new entity types with examples
+3. Update module documentation for event_model
+4. Create entity type reference guide
+
 ### Phase 4: Flow-Based Layout Engine
 **Goal**: Layout entities based on slice-defined flows, not grid positions
 
@@ -133,6 +228,12 @@ The implementation will follow a PR-driven workflow with feature branch chaining
 4. Implement smart connector routing
 5. Handle multiple parallel flows
 6. Ensure readable left-to-right timeline layout
+
+#### Documentation Tasks:
+1. Create ADR for flow-based layout algorithm
+2. Document layout constraints and rules
+3. Update diagram module documentation
+4. Create layout troubleshooting guide
 
 ### Phase 5: Rich Visual Rendering
 **Goal**: Produce professional diagrams matching the example output
@@ -157,8 +258,14 @@ The implementation will follow a PR-driven workflow with feature branch chaining
    - Clear hierarchy
    - Readable spacing
 
-### Phase 6: Acceptance Testing
-**Goal**: Ensure the implementation meets the actual requirements
+#### Documentation Tasks:
+1. Create visual style guide document
+2. Document color scheme and rationale
+3. Update theme documentation
+4. Create accessibility considerations guide
+
+### Phase 6: Acceptance Testing & Documentation
+**Goal**: Ensure the implementation meets requirements and documentation is complete
 
 #### Tasks:
 1. Create test that uses example.eventmodel as input
@@ -167,16 +274,26 @@ The implementation will follow a PR-driven workflow with feature branch chaining
 4. Add tests for error cases
 5. Performance testing with large models
 
+#### Documentation Tasks:
+1. Update GitHub Pages landing page with YAML examples
+2. Create migration guide from old format to YAML
+3. Update all example files to use YAML format
+4. Create comprehensive user guide
+5. Update CONTRIBUTING.md with new development workflow
+6. Create ADR summarizing the complete rewrite
+7. Update all code examples in documentation
+8. Create video tutorial for new format (optional)
+
 ## Timeline Estimate
 
-- Phase 1 (Type System): 6-8 hours
-- Phase 2 (YAML Parser): 8-10 hours
-- Phase 3 (Domain Extensions): 6-8 hours
-- Phase 4 (Flow Layout): 8-10 hours
-- Phase 5 (Rich Rendering): 10-12 hours
-- Phase 6 (Acceptance Testing): 4-6 hours
+- Phase 1 (Type System): 6-8 hours + 2 hours documentation
+- Phase 2 (YAML Parser): 8-10 hours + 3 hours documentation
+- Phase 3 (Domain Extensions): 6-8 hours + 2 hours documentation
+- Phase 4 (Flow Layout): 8-10 hours + 2 hours documentation
+- Phase 5 (Rich Rendering): 10-12 hours + 2 hours documentation
+- Phase 6 (Acceptance Testing): 4-6 hours + 4 hours documentation
 
-Total: ~42-54 hours of implementation
+Total: ~42-54 hours of implementation + ~15 hours of documentation = ~57-69 hours
 
 **Note**: This is a complete rewrite with significantly more complexity than the original MVP. The rich format requires:
 - Complex type hierarchies
@@ -184,6 +301,8 @@ Total: ~42-54 hours of implementation
 - Sophisticated layout algorithms
 - Multi-layered rendering (main diagram + test scenarios)
 - Professional visual design
+- Comprehensive documentation updates
+- GitHub Pages updates with new examples
 
 ## Future Enhancements (Post-Implementation)
 
