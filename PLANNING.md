@@ -26,7 +26,7 @@ This ensures no work is forgotten or lost in the codebase.
 
 ## Current Status
 
-**Last Updated**: 2025-06-18 (Phase 1 COMPLETE, Phase 2 COMPLETE, Phase 3 COMPLETE)
+**Last Updated**: 2025-06-18 (Phase 1 COMPLETE, Phase 2 COMPLETE, Phase 3 COMPLETE, Phase 4 COMPLETE)
 
 **Critical Discovery**: The existing implementation was based on incorrect requirements. The actual requirements call for a rich YAML-based event modeling language with:
 - Multiple entity types (events, commands, views, projections, queries, automations)
@@ -68,7 +68,16 @@ The example.eventmodel and example.jpg files represent the TRUE requirements.
 - ✅ Implemented Slice as first-class concept
 - ✅ Updated EventModelDiagram to use slices for connections
 
-**Next Step**: Phase 4 - Flow-Based Layout Engine
+**Phase 4 COMPLETE**: Flow-Based Layout Engine completed with PR #19
+- ✅ Implemented topological sort for entity positioning based on slice connections
+- ✅ Added flow-based layout algorithm that positions entities in timeline order
+- ✅ Updated layout to use EntityRegistry for proper entity type and name lookup
+- ✅ Maintains left-to-right timeline layout within swimlanes
+- ✅ Added foundation for test scenario sub-diagram layout
+- ✅ Handles circular dependency detection in entity flows
+- ✅ Uses slice definitions to determine flow order
+
+**Next Step**: Phase 5 - Rich Visual Rendering
 
 **Version Planning**: This rewrite will be released as version 0.3.0. Since we're pre-1.0, we can make breaking changes without maintaining backward compatibility. The YAML format will use this version number for its schema version.
 

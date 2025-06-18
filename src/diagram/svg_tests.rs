@@ -68,6 +68,7 @@ mod rendering_tests {
             entity_positions: HashMap::new(),
             slice_layouts: HashMap::new(),
             connections: vec![],
+            test_scenario_layouts: Vec::new(),
         };
 
         let config = SvgRenderConfig {
