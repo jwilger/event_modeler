@@ -19,6 +19,7 @@ pub mod diagram;
 pub mod entities;
 pub mod registry;
 pub mod yaml_registry;
+pub mod yaml_to_diagram_converter;
 pub mod yaml_types;
 
 pub use diagram::{DiagramMetadata, EventModelDiagram};
