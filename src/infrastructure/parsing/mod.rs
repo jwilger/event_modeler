@@ -26,6 +26,7 @@ pub mod ast;
 pub mod lexer;
 pub mod simple_lexer;
 pub mod simple_parser;
+pub mod yaml_converter;
 pub mod yaml_parser;
 
 use ast::EventModel;
