@@ -28,6 +28,9 @@ This ensures no work is forgotten or lost in the codebase.
 
 **Last Updated**: 2025-06-18 (Phase 1 COMPLETE, Phase 2 COMPLETE, Phase 3 COMPLETE, Phase 4 COMPLETE, Phase 5 IN PROGRESS - PR #20)
 
+**🚨 CRITICAL DISCOVERY - Node-Based Layout (2025-06-18)**: 
+The example.jpg shows that entities can appear multiple times in the diagram as separate visual nodes. Each appearance is a distinct node with its own position and connections, even though they reference the same logical entity. This is essential for avoiding visual clutter and showing different relationships clearly. **This requires a fundamental shift from entity-based to node-based layout architecture.**
+
 **Critical Discovery**: The existing implementation was based on incorrect requirements. The actual requirements call for a rich YAML-based event modeling language with:
 - Multiple entity types (events, commands, views, projections, queries, automations)
 - Data schemas with type annotations
@@ -82,8 +85,12 @@ The example.eventmodel and example.jpg files represent the TRUE requirements.
 - ✅ Enhanced entity text rendering with typography hierarchy (type labels + entity names)
 - ✅ Added configurable entity sizing for better visual space (160x80 vs 120x60)
 - ✅ Professional typography using theme font configuration
-- ⚠️ Rich entity content rendering (data schemas) - **Blocked: Requires full YAML integration**
-- ⚠️ Test scenario sub-diagrams - **Blocked: Requires full YAML integration**
+- ✅ Fixed circular dependency issue with conservative temporal filtering (temporary fix)
+- ✅ Basic YAML integration working - can parse and render example.eventmodel
+- ⚠️ **CRITICAL DISCOVERY**: Layout must support multiple visual nodes per entity (see example.jpg)
+- ⚠️ Node-based layout architecture - **Required for proper rendering**
+- ⚠️ Rich entity content rendering (data schemas) - **Requires node-based layout**
+- ⚠️ Test scenario sub-diagrams - **Requires node-based layout**
 - ✅ Professional spacing and layout improvements
 
 **Next Step**: Complete Phase 5, then Phase 6 - Acceptance Testing & Documentation
@@ -143,6 +150,12 @@ The following Architecture Decision Records need to be created to document key d
    - Why incremental change wasn't feasible
    - Lessons learned from initial implementation
    - Future-proofing considerations
+
+7. **ADR: Node-Based Layout Architecture** (Phase 5)
+   - Why entities need multiple visual representations
+   - Benefits for complex event flows without visual clutter
+   - Node vs Entity separation
+   - How this solves circular dependency issues
 
 ## Acceptance Test Strategy
 
@@ -292,48 +305,72 @@ workflow: User Account Signup
 ### Phase 4: Flow-Based Layout Engine
 **Goal**: Layout entities based on slice-defined flows, not grid positions
 
+**⚠️ CRITICAL UPDATE**: Phase 4 implementation must be revised to support node-based layout where entities can appear multiple times as distinct visual nodes.
+
 #### Tasks:
-1. Implement topological sort for entity positioning
-2. Use slice definitions to determine flow order
-3. Layout test scenarios as sub-diagrams below main flow
-4. Implement smart connector routing
-5. Handle multiple parallel flows
-6. Ensure readable left-to-right timeline layout
+1. ~~Implement topological sort for entity positioning~~ ✅ DONE (but needs revision)
+2. ~~Use slice definitions to determine flow order~~ ✅ DONE (but needs revision)
+3. ~~Layout test scenarios as sub-diagrams below main flow~~ ✅ Foundation added
+4. ~~Implement smart connector routing~~ ✅ Basic routing done
+5. ~~Handle multiple parallel flows~~ ✅ DONE
+6. ~~Ensure readable left-to-right timeline layout~~ ✅ DONE
+
+#### Required Revisions for Node-Based Layout:
+1. Create distinct visual nodes for each entity reference in connections
+2. Position nodes (not entities) using topological sort
+3. Support multiple node instances per entity
+4. Route connections between specific node instances
+5. Maintain entity identity while having multiple visual representations
 
 #### Documentation Tasks:
 1. Create ADR for flow-based layout algorithm
-2. Document layout constraints and rules
-3. Update diagram module documentation
-4. Create layout troubleshooting guide
+2. **Create ADR for node-based layout architecture** 
+3. Document layout constraints and rules
+4. Update diagram module documentation
+5. Create layout troubleshooting guide
 
 ### Phase 5: Rich Visual Rendering
 **Goal**: Produce professional diagrams matching the example output
 
-#### Tasks:
-1. Implement entity-type-specific styling:
+#### Completed Tasks:
+1. ✅ Implement entity-type-specific styling:
    - Blue: Commands, Views, Queries
    - Purple: Events
    - Yellow: Projections
    - Green: Automations
    - Red: Error states
-2. Render entity content:
-   - Names and descriptions
-   - Data schemas
-   - UI component hierarchies
-3. Render test scenarios:
-   - Separate boxes below main flow
-   - Given/When/Then sections
-   - Connected to parent command
-4. Professional typography:
+2. ✅ Basic entity rendering with names and type labels
+3. ✅ Professional typography:
    - Proper text sizing
    - Clear hierarchy
    - Readable spacing
+4. ✅ Fixed circular dependency with conservative temporal filtering
+
+#### Remaining Tasks (Blocked on Node-Based Layout):
+1. **Implement node-based layout architecture**:
+   - Create `DiagramNode` type that references an entity
+   - Generate nodes from slice connections (each endpoint = node)
+   - Update layout engine to position nodes instead of entities
+   - Support multiple visual nodes per logical entity
+   - Maintain node-to-entity mapping for styling
+2. Render entity content:
+   - Names and descriptions ✅ DONE
+   - Data schemas (requires node space allocation)
+   - UI component hierarchies (requires node space allocation)
+3. Render test scenarios:
+   - Separate boxes below main flow
+   - Given/When/Then sections
+   - Connected to parent command node
+4. Restore all entity types to layout:
+   - Currently filtering out non-temporal connections
+   - Node-based layout eliminates cycles, allowing all connections
 
 #### Documentation Tasks:
 1. Create visual style guide document
-2. Document color scheme and rationale
+2. Document color scheme and rationale ✅ Partially done
 3. Update theme documentation
 4. Create accessibility considerations guide
+5. Document node-based layout architecture
 
 ### Phase 6: Acceptance Testing & Documentation
 **Goal**: Ensure the implementation meets requirements and documentation is complete
