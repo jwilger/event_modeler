@@ -452,18 +452,25 @@ Following our type-driven testing ADR:
 1. **EVERY OTHER TASK** in your todo list must be:
    - "Run the build (cargo build) and tests (cargo test --workspace), and if everything passes (except e2e tests), commit changes and push"
    
-2. The **LAST item** on EVERY todo list must always be:
+2. **AFTER EVERY PUSH**, the next task must be:
+   - "Check PR status and CI checks after push"
+   
+3. The **LAST item** on EVERY todo list must always be:
    - "Review PLANNING.md, update with current status, determine next tasks, and START implementing them"
 
 ### Example Todo List Structure:
 1. Implement CLI argument parsing in src/cli.rs
 2. Run build and tests; commit and push if passing (first push creates upstream branch)
-3. Create draft PR immediately after first push
-4. Implement main entry point in src/main.rs  
-5. Run build and tests; commit and push if passing
-6. Add error handling for invalid arguments
+3. Check PR status and CI checks after push
+4. Create draft PR immediately after first push
+5. Check PR status after creating draft PR
+6. Implement main entry point in src/main.rs  
 7. Run build and tests; commit and push if passing
-8. Review PLANNING.md, update with current status, determine next tasks, and START implementing them
+8. Check PR status and CI checks after push
+9. Add error handling for invalid arguments
+10. Run build and tests; commit and push if passing
+11. Check PR status and CI checks after push
+12. Review PLANNING.md, update with current status, determine next tasks, and START implementing them
 
 This ensures:
 1. **Extremely frequent verification** that code compiles and tests pass
@@ -678,9 +685,9 @@ The implementation is complete when:
 
 ## PR Monitoring Checklist
 
-Throughout the implementation, regularly check:
+**MANDATORY**: PR monitoring must be built into every TodoWrite list:
 
-1. **Every 30 minutes during active development:**
+1. **After every push** (mandatory todo item):
    ```bash
    # Check all open PRs
    gh pr list --author @me
@@ -689,7 +696,12 @@ Throughout the implementation, regularly check:
    gh pr checks <PR-number>
    ```
 
-2. **When switching between features:**
+2. **Additional checks every 30 minutes during active development:**
+   - Run the same commands above
+   - Look for any failed CI runs
+   - Check if any base branches have been merged
+
+3. **When switching between features:**
    - Ensure previous PR is green and auto-merge is enabled
    - Check if any base branches have been merged
    - Rebase if necessary
