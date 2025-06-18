@@ -263,10 +263,16 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
             PositiveFloat::parse(30.0).unwrap(),
         ),
         swimlane_height: crate::diagram::layout::SwimlaneHeight::new(
-            PositiveFloat::parse(120.0).unwrap(),
+            PositiveFloat::parse(140.0).unwrap(), // Increased for better visual hierarchy
         ),
         slice_gutter: crate::diagram::layout::SliceGutter::new(PositiveFloat::parse(20.0).unwrap()),
         connection_routing: crate::diagram::layout::ConnectionRouting::Straight,
+        entity_width: crate::diagram::layout::EntityWidth::new(
+            PositiveFloat::parse(160.0).unwrap(), // Increased from 120 for better text fit
+        ),
+        entity_height: crate::diagram::layout::EntityHeight::new(
+            PositiveFloat::parse(80.0).unwrap(), // Increased from 60 for type label + name
+        ),
     };
 
     let layout_engine = LayoutEngine::new(layout_config);

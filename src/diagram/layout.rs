@@ -205,6 +205,10 @@ pub struct LayoutConfig {
     pub slice_gutter: SliceGutter,
     /// Algorithm for routing connections.
     pub connection_routing: ConnectionRouting,
+    /// Width of entity boxes.
+    pub entity_width: EntityWidth,
+    /// Height of entity boxes.
+    pub entity_height: EntityHeight,
 }
 
 /// Algorithm for routing connections between entities.
@@ -229,6 +233,14 @@ pub struct SwimlaneHeight(PositiveFloat);
 /// Space between slices.
 #[nutype(derive(Debug, Clone, Copy))]
 pub struct SliceGutter(PositiveFloat);
+
+/// Width of entity boxes.
+#[nutype(derive(Debug, Clone, Copy))]
+pub struct EntityWidth(PositiveFloat);
+
+/// Height of entity boxes.
+#[nutype(derive(Debug, Clone, Copy))]
+pub struct EntityHeight(PositiveFloat);
 
 impl LayoutEngine {
     /// Create a new layout engine with the given configuration.
@@ -286,9 +298,9 @@ impl LayoutEngine {
         let swimlane_width = swimlane_layout.dimensions.width.into_inner().value();
         let entity_spacing = self.config.entity_spacing.into_inner().value();
 
-        // Simple entity dimensions (will be made configurable later)
-        let entity_width = 120.0_f32;
-        let entity_height = 60.0_f32;
+        // Get entity dimensions from configuration
+        let entity_width = self.config.entity_width.into_inner().value();
+        let entity_height = self.config.entity_height.into_inner().value();
 
         // Calculate horizontal spacing between entities
         let total_entity_width = entity_count as f32 * entity_width;
@@ -483,7 +495,7 @@ impl LayoutEngine {
             .map(|s| s.entities.len())
             .max()
             .unwrap_or(1) as f32;
-        let entity_width = 150.0; // Default entity width
+        let entity_width = self.config.entity_width.into_inner().value();
         let content_width = max_entities * (entity_width + spacing) + spacing;
         let total_width =
             content_width + padding.left.into_inner().value() + padding.right.into_inner().value();
@@ -665,8 +677,8 @@ impl LayoutEngine {
         let mut positions = HashMap::new();
         let mut swimlane_x_positions: HashMap<SwimlaneId, f32> = HashMap::new();
 
-        let entity_width = 150.0;
-        let entity_height = 60.0;
+        let entity_width = self.config.entity_width.into_inner().value();
+        let entity_height = self.config.entity_height.into_inner().value();
         let spacing = self.config.entity_spacing.into_inner().value();
 
         // Initialize starting X positions for each swimlane
