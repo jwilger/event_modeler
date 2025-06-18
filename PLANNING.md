@@ -26,13 +26,15 @@ This ensures no work is forgotten or lost in the codebase.
 
 ## Current Status
 
-**Last Updated**: 2025-06-18 (Phase 1 COMPLETE, Phase 2 COMPLETE, Phase 3 COMPLETE, Phase 4 COMPLETE, Phase 5 IN PROGRESS - PR #20)
+**Last Updated**: 2025-06-18 (Phase 1 COMPLETE, Phase 2 COMPLETE, Phase 3 COMPLETE, Phase 4 COMPLETE, Phase 5 IN PROGRESS - PR #20 merged, Node-Based Layout IN PROGRESS - PR #21)
 
 **Latest Progress**: 
-- Fixed circular dependency issue with conservative temporal filtering (temporary solution)
-- Discovered that proper implementation requires node-based layout architecture
-- Basic YAML integration is working - can parse and render example.eventmodel to SVG
-- Created ADR for node-based layout architecture
+- Phase 5 (Rich Visual Rendering) completed with limitations - PR #20 merged
+- Started implementing node-based layout architecture - PR #21 created
+- Created ADR documenting node-based layout decision
+- Implemented DiagramNode type system and NodeLayoutEngine foundation
+- Node generation from slice connections is working
+- Layout positioning algorithm still needs implementation
 
 **🚨 CRITICAL DISCOVERY - Node-Based Layout (2025-06-18)**: 
 The example.jpg shows that entities can appear multiple times in the diagram as separate visual nodes. Each appearance is a distinct node with its own position and connections, even though they reference the same logical entity. This is essential for avoiding visual clutter and showing different relationships clearly. **This requires a fundamental shift from entity-based to node-based layout architecture.**
@@ -99,14 +101,16 @@ The example.eventmodel and example.jpg files represent the TRUE requirements.
 - ⚠️ Rich entity content rendering (data schemas) - **Deferred: Requires node-based layout**
 - ⚠️ Test scenario sub-diagrams - **Deferred: Requires node-based layout**
 
-**Next Step**: Implement node-based layout architecture (new PR), then Phase 6 - Acceptance Testing & Documentation
+**Next Steps**: Continue node-based layout implementation in PR #21:
+- ✅ DiagramNode type system implemented
+- ✅ NodeLayoutEngine foundation created
+- ✅ Node generation from slices working
+- TODO: Implement topological sort for node positioning
+- TODO: Update SVG renderer to work with nodes
+- TODO: Remove conservative temporal filtering
+- TODO: Enable all connection types in the diagram
 
-**Proposed Next PR**: Node-Based Layout Implementation
-- Implement DiagramNode type system
-- Update layout engine to work with nodes instead of entities
-- Support multiple visual nodes per logical entity
-- Remove conservative temporal filtering (no longer needed)
-- Enable all connection types in the diagram
+After PR #21 is complete, proceed to Phase 6 - Acceptance Testing & Documentation
 
 **Version Planning**: This rewrite will be released as version 0.3.0. Since we're pre-1.0, we can make breaking changes without maintaining backward compatibility. The YAML format will use this version number for its schema version.
 
