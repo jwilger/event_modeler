@@ -641,7 +641,7 @@ impl LayoutEngine {
         timeline_order: &[EntityId],
         entity_to_swimlane: &HashMap<EntityId, SwimlaneId>,
         swimlane_layouts: &HashMap<SwimlaneId, SwimlaneLayout>,
-        _entities: &crate::event_model::registry::EntityRegistry<W, C, E, P, Q, A>,
+        entities: &crate::event_model::registry::EntityRegistry<W, C, E, P, Q, A>,
     ) -> HashMap<EntityId, EntityPosition> {
         let mut positions = HashMap::new();
         let mut swimlane_x_positions: HashMap<SwimlaneId, f32> = HashMap::new();
@@ -660,6 +660,46 @@ impl LayoutEngine {
             if let Some(swimlane_id) = entity_to_swimlane.get(entity_id) {
                 if let Some(swimlane_layout) = swimlane_layouts.get(swimlane_id) {
                     let current_x = swimlane_x_positions.get(swimlane_id).unwrap_or(&spacing);
+
+                    // Look up entity type and name from registry
+                    let entity_type = entities.get_entity_type(entity_id).unwrap_or_else(|| {
+                        // Fallback to inferring type from entity name if not in registry
+                        let entity_name_owned = entity_id.clone().into_inner();
+                        let entity_name_str = entity_name_owned.as_str();
+
+                        if entity_name_str.ends_with("ed") || entity_name_str.ends_with("Event") {
+                            crate::event_model::entities::EntityType::Event
+                        } else if entity_name_str.ends_with("Service")
+                            || entity_name_str.contains("System")
+                        {
+                            crate::event_model::entities::EntityType::Projection
+                        } else if entity_name_str.starts_with("Get")
+                            || entity_name_str.starts_with("Find")
+                            || entity_name_str.ends_with("Query")
+                        {
+                            crate::event_model::entities::EntityType::Query
+                        } else if entity_name_str.contains("Validate")
+                            || entity_name_str.contains("Process")
+                            || entity_name_str.ends_with("Policy")
+                        {
+                            crate::event_model::entities::EntityType::Automation
+                        } else if entity_name_str.ends_with("View")
+                            || entity_name_str.ends_with("List")
+                            || entity_name_str.ends_with("Details")
+                        {
+                            crate::event_model::entities::EntityType::Wireframe
+                        } else {
+                            crate::event_model::entities::EntityType::Command
+                        }
+                    });
+
+                    let entity_name = entities.get_entity_name(entity_id).unwrap_or_else(|| {
+                        // Fallback to using the entity ID as the name
+                        crate::infrastructure::types::NonEmptyString::parse(
+                            entity_id.clone().into_inner().as_str().to_string(),
+                        )
+                        .unwrap()
+                    });
 
                     let position = EntityPosition {
                         position: Position {
@@ -680,11 +720,8 @@ impl LayoutEngine {
                             width: Width::new(PositiveFloat::parse(entity_width).unwrap()),
                             height: Height::new(PositiveFloat::parse(entity_height).unwrap()),
                         },
-                        entity_type: crate::event_model::entities::EntityType::Command, // TODO: Get from registry
-                        entity_name: crate::infrastructure::types::NonEmptyString::parse(
-                            "Entity".to_string(), // TODO: Get from registry
-                        )
-                        .unwrap(),
+                        entity_type,
+                        entity_name,
                         swimlane_id: swimlane_id.clone(),
                     };
 
