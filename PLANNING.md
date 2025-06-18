@@ -548,6 +548,8 @@ This ensures:
 
 ### PR Monitoring Tasks
 
+**🚨 CRITICAL WARNING**: When any PR in a chain merges, you MUST immediately rebase all downstream PRs. Squash merging breaks PR chains and makes downstream PRs unmergeable. See section 4 below for detailed instructions.
+
 **Check periodically throughout implementation:**
 
 1. **Check PR Status**
@@ -574,21 +576,50 @@ This ensures:
      git push --force-with-lease
      ```
 
-4. **Rebase Orphaned Branches**
-   - When a base branch PR merges, downstream PRs need rebasing:
-     ```bash
-     # Check if base branch still exists
-     gh pr view <PR-number> --json baseRefName
-     
-     # If base branch is gone (merged), rebase onto main
-     git checkout feature/<orphaned-branch>
-     git fetch origin
-     git rebase origin/main
-     git push --force-with-lease
-     
-     # Update PR base branch
-     gh pr edit <PR-number> --base main
-     ```
+4. **🚨 CRITICAL: Rebase Orphaned Branches After Squash Merges**
+   - **IMMEDIATE ACTION REQUIRED**: When a base branch PR merges, downstream PRs become orphaned
+   - **Root Cause**: Squash merging creates a new commit on main, breaking the chain for downstream PRs
+   - **Symptoms**: PR shows thousands of commits, impossible to merge, shows "commits that are no longer on main"
+   
+   **For each downstream PR, IMMEDIATELY after base PR merges:**
+   ```bash
+   # Check if base branch still exists
+   gh pr view <PR-number> --json baseRefName
+   
+   # If base branch is gone (merged), rebase onto main
+   git checkout feature/<orphaned-branch>
+   git fetch origin
+   git rebase origin/main
+   
+   # CONFLICT RESOLUTION: Always use --theirs to keep downstream changes
+   # The conflicts happen because git sees the same changes in different commits
+   git checkout --theirs <conflicted-file>
+   git add <conflicted-file>
+   git rebase --continue
+   # Repeat for all conflicts
+   
+   git push --force-with-lease
+   
+   # Update PR base branch
+   gh pr edit <PR-number> --base main
+   ```
+   
+   **EXAMPLE**: When PR #15 merges, immediately rebase PR #17 and PR #18:
+   ```bash
+   # Rebase PR #17
+   git checkout feature/domain-extensions
+   git fetch origin && git rebase origin/main
+   # Use --theirs for all conflicts
+   git push --force-with-lease
+   gh pr edit 17 --base main
+   
+   # Rebase PR #18  
+   git checkout feature/flow-layout
+   git rebase origin/main
+   # Use --theirs for all conflicts
+   git push --force-with-lease
+   gh pr edit 18 --base main
+   ```
 
 ### Branch Chain Example
 
