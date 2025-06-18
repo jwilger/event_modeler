@@ -205,7 +205,7 @@ pub struct FieldDefinition {
     pub generated: bool,
 }
 
-/// Type annotation for a field (e.g., "UserAccountId", "UserEmailAddress<Verified>").
+/// Type annotation for a field (e.g., "UserAccountId", "UserEmailAddress\<Verified\>").
 #[nutype(derive(Debug, Clone, PartialEq, Eq))]
 pub struct FieldType(NonEmptyString);
 
