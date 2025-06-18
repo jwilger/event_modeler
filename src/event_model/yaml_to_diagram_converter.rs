@@ -36,12 +36,7 @@ pub fn convert_yaml_to_diagram(
     >,
     ConversionError,
 > {
-    // Step 1: Convert swimlanes
-    let swimlanes = convert_swimlanes(&yaml_model.swimlanes);
-
-    // Step 2: Convert entities
-    // For now, we'll create empty collections as we don't have all entity types in the simple format
-
+    // Step 1: Convert entities first
     // Convert events
     let events = convert_events(&yaml_model.events, &yaml_model.swimlanes)?;
 
@@ -54,10 +49,7 @@ pub fn convert_yaml_to_diagram(
     let _automations: Vec<Automation> = vec![];
     let _wireframes: Vec<Wireframe> = vec![]; // Views will map to wireframes
 
-    // Step 3: Convert slices to connectors
-    let _connectors = convert_slices_to_connectors(&yaml_model.slices)?;
-
-    // Step 4: Build the EntityRegistry and collect entity IDs
+    // Step 2: Build the EntityRegistry and collect entity IDs
     use crate::event_model::entities::EntityId;
     use crate::event_model::registry::EntityRegistry;
     let mut entity_ids: Vec<EntityId> = Vec::new();
@@ -70,63 +62,28 @@ pub fn convert_yaml_to_diagram(
         entity_ids.push(command.id.clone());
     }
 
+    // Step 3: Convert swimlanes and populate with entities
+    let swimlanes = convert_swimlanes_with_entities(
+        &yaml_model.swimlanes,
+        &yaml_model.events,
+        &yaml_model.commands,
+    );
+
     // Build registry - for now we're returning an empty registry
     // as the type system requires us to maintain Empty type parameters
     let registry = EntityRegistry::new();
 
     // TODO: Add other entity types when implemented
 
-    // Step 5: Create metadata
+    // Step 4: Create metadata
     use crate::event_model::diagram::{DiagramMetadata, DiagramTitle};
     let metadata = DiagramMetadata {
         title: DiagramTitle::new(yaml_model.workflow.into_inner()),
         description: None, // YAML format doesn't have a top-level description
     };
 
-    // Step 6: Create a minimal slice
-    use crate::event_model::diagram::{
-        HorizontalPosition, Slice, SliceBoundaries, SliceId, SliceName,
-    };
-    use crate::infrastructure::types::{NonEmpty, NonEmptyString};
-
-    let slices = if entity_ids.is_empty() {
-        // Create a dummy slice if no entities
-        let dummy_id = EntityId::new(NonEmptyString::parse("dummy".to_string()).unwrap());
-        let slice = Slice {
-            id: SliceId::new(NonEmptyString::parse("default".to_string()).unwrap()),
-            name: SliceName::new(NonEmptyString::parse("Default".to_string()).unwrap()),
-            boundaries: SliceBoundaries {
-                start_x: HorizontalPosition::new(
-                    crate::infrastructure::types::NonNegativeInt::new(0),
-                ),
-                end_x: HorizontalPosition::new(crate::infrastructure::types::NonNegativeInt::new(
-                    100,
-                )),
-            },
-            entities: NonEmpty::singleton(dummy_id),
-            connections: Vec::new(),
-            acceptance_criteria: None,
-        };
-        NonEmpty::singleton(slice)
-    } else {
-        // Create slice with actual entities
-        let slice = Slice {
-            id: SliceId::new(NonEmptyString::parse("default".to_string()).unwrap()),
-            name: SliceName::new(NonEmptyString::parse("Default".to_string()).unwrap()),
-            boundaries: SliceBoundaries {
-                start_x: HorizontalPosition::new(
-                    crate::infrastructure::types::NonNegativeInt::new(0),
-                ),
-                end_x: HorizontalPosition::new(crate::infrastructure::types::NonNegativeInt::new(
-                    100,
-                )),
-            },
-            entities: NonEmpty::from_head_and_tail(entity_ids[0].clone(), entity_ids[1..].to_vec()),
-            connections: Vec::new(),
-            acceptance_criteria: None,
-        };
-        NonEmpty::singleton(slice)
-    };
+    // Step 5: Convert YAML slices to diagram slices
+    let slices = convert_yaml_slices_to_diagram_slices(&yaml_model.slices, &entity_ids)?;
 
     // Create the diagram
     Ok(EventModelDiagram {
@@ -137,12 +94,54 @@ pub fn convert_yaml_to_diagram(
     })
 }
 
-/// Convert YAML swimlanes to diagram swimlanes.
-fn convert_swimlanes(
+/// Convert YAML swimlanes to diagram swimlanes and populate them with entities.
+fn convert_swimlanes_with_entities(
     yaml_swimlanes: &crate::infrastructure::types::NonEmpty<yaml::Swimlane>,
+    yaml_events: &std::collections::HashMap<yaml::EventName, yaml::EventDefinition>,
+    yaml_commands: &std::collections::HashMap<yaml::CommandName, yaml::CommandDefinition>,
 ) -> crate::infrastructure::types::NonEmpty<crate::event_model::diagram::Swimlane> {
     use crate::event_model::diagram::{Swimlane, SwimlaneId, SwimlaneName, SwimlanePosition};
     use crate::infrastructure::types::NonEmpty;
+    use std::collections::HashMap;
+
+    // Build map of swimlane ID to entities
+    let mut swimlane_entities: HashMap<
+        yaml::SwimlaneId,
+        Vec<crate::event_model::entities::EntityId>,
+    > = HashMap::new();
+
+    // Initialize all swimlanes with empty entity lists
+    for yaml_swimlane in yaml_swimlanes.iter() {
+        swimlane_entities.insert(yaml_swimlane.id.clone(), Vec::new());
+    }
+
+    // Add events to their swimlanes by looking up the YAML definitions
+    for (yaml_event_name, event_def) in yaml_events {
+        let entity_id = crate::event_model::entities::EntityId::new(
+            crate::infrastructure::types::NonEmptyString::parse(format!(
+                "event_{}",
+                yaml_event_name.clone().into_inner().as_str()
+            ))
+            .unwrap(),
+        );
+        if let Some(entity_list) = swimlane_entities.get_mut(&event_def.swimlane) {
+            entity_list.push(entity_id);
+        }
+    }
+
+    // Add commands to their swimlanes by looking up the YAML definitions
+    for (yaml_command_name, command_def) in yaml_commands {
+        let entity_id = crate::event_model::entities::EntityId::new(
+            crate::infrastructure::types::NonEmptyString::parse(format!(
+                "command_{}",
+                yaml_command_name.clone().into_inner().as_str()
+            ))
+            .unwrap(),
+        );
+        if let Some(entity_list) = swimlane_entities.get_mut(&command_def.swimlane) {
+            entity_list.push(entity_id);
+        }
+    }
 
     let head = yaml_swimlanes.first();
     let tail: Vec<_> = yaml_swimlanes.iter().skip(1).cloned().collect();
@@ -151,21 +150,22 @@ fn convert_swimlanes(
         id: SwimlaneId::new(head.id.clone().into_inner()),
         name: SwimlaneName::new(head.name.clone().into_inner()),
         position: SwimlanePosition::new(crate::infrastructure::types::NonNegativeInt::new(0)),
-        entities: vec![], // Will be populated later
+        entities: swimlane_entities.get(&head.id).cloned().unwrap_or_default(),
     };
 
     let tail_swimlanes: Vec<_> = tail
         .into_iter()
         .enumerate()
-        .map(|(index, yaml_swimlane)| {
-            Swimlane {
-                id: SwimlaneId::new(yaml_swimlane.id.into_inner()),
-                name: SwimlaneName::new(yaml_swimlane.name.into_inner()),
-                position: SwimlanePosition::new(crate::infrastructure::types::NonNegativeInt::new(
-                    (index + 1) as u32,
-                )),
-                entities: vec![], // Will be populated later
-            }
+        .map(|(index, yaml_swimlane)| Swimlane {
+            id: SwimlaneId::new(yaml_swimlane.id.clone().into_inner()),
+            name: SwimlaneName::new(yaml_swimlane.name.into_inner()),
+            position: SwimlanePosition::new(crate::infrastructure::types::NonNegativeInt::new(
+                (index + 1) as u32,
+            )),
+            entities: swimlane_entities
+                .get(&yaml_swimlane.id)
+                .cloned()
+                .unwrap_or_default(),
         })
         .collect();
 
@@ -443,16 +443,206 @@ fn convert_commands(
     Ok(commands)
 }
 
-/// Convert YAML slices to diagram connectors.
-fn convert_slices_to_connectors(
-    _yaml_slices: &std::collections::HashMap<
+/// Convert YAML slices to diagram slices with their connections.
+fn convert_yaml_slices_to_diagram_slices(
+    yaml_slices: &std::collections::HashMap<
         yaml::SliceName,
         crate::infrastructure::types::NonEmpty<yaml::Connection>,
     >,
+    entity_ids: &[crate::event_model::entities::EntityId],
+) -> Result<
+    crate::infrastructure::types::NonEmpty<crate::event_model::diagram::Slice>,
+    ConversionError,
+> {
+    use crate::event_model::diagram::{
+        HorizontalPosition, Slice, SliceBoundaries, SliceId, SliceName,
+    };
+    use crate::infrastructure::types::{NonEmpty, NonEmptyString};
+
+    if yaml_slices.is_empty() || entity_ids.is_empty() {
+        // Create a default slice if no slices or entities
+        let dummy_id = if entity_ids.is_empty() {
+            crate::event_model::entities::EntityId::new(
+                NonEmptyString::parse("dummy".to_string()).unwrap(),
+            )
+        } else {
+            entity_ids[0].clone()
+        };
+
+        let slice = Slice {
+            id: SliceId::new(NonEmptyString::parse("default".to_string()).unwrap()),
+            name: SliceName::new(NonEmptyString::parse("Default".to_string()).unwrap()),
+            boundaries: SliceBoundaries {
+                start_x: HorizontalPosition::new(
+                    crate::infrastructure::types::NonNegativeInt::new(0),
+                ),
+                end_x: HorizontalPosition::new(crate::infrastructure::types::NonNegativeInt::new(
+                    100,
+                )),
+            },
+            entities: NonEmpty::singleton(dummy_id),
+            connections: Vec::new(),
+            acceptance_criteria: None,
+        };
+        return Ok(NonEmpty::singleton(slice));
+    }
+
+    let mut slices = Vec::new();
+
+    for (slice_index, (yaml_slice_name, yaml_connections)) in yaml_slices.iter().enumerate() {
+        // Convert connections for this slice
+        let connections = convert_yaml_connections_to_connectors(yaml_connections)?;
+
+        // Calculate slice boundaries (spread slices horizontally)
+        let start_x = slice_index * 300; // 300 pixels per slice
+        let end_x = start_x + 280; // 280 pixel wide slices with 20px gap
+
+        let slice = Slice {
+            id: SliceId::new(yaml_slice_name.clone().into_inner()),
+            name: SliceName::new(yaml_slice_name.clone().into_inner()),
+            boundaries: SliceBoundaries {
+                start_x: HorizontalPosition::new(
+                    crate::infrastructure::types::NonNegativeInt::new(start_x as u32),
+                ),
+                end_x: HorizontalPosition::new(crate::infrastructure::types::NonNegativeInt::new(
+                    end_x as u32,
+                )),
+            },
+            // For now, put all entities in all slices (this could be refined later)
+            entities: if entity_ids.len() == 1 {
+                NonEmpty::singleton(entity_ids[0].clone())
+            } else {
+                NonEmpty::from_head_and_tail(entity_ids[0].clone(), entity_ids[1..].to_vec())
+            },
+            connections,
+            acceptance_criteria: None,
+        };
+
+        slices.push(slice);
+    }
+
+    if slices.is_empty() {
+        return Err(ConversionError::InvalidReference(
+            "No slices created".to_string(),
+        ));
+    }
+
+    Ok(NonEmpty::from_head_and_tail(
+        slices[0].clone(),
+        slices[1..].to_vec(),
+    ))
+}
+
+/// Convert YAML connections to diagram connectors.
+fn convert_yaml_connections_to_connectors(
+    yaml_connections: &crate::infrastructure::types::NonEmpty<yaml::Connection>,
 ) -> Result<Vec<crate::event_model::diagram::Connector>, ConversionError> {
-    // For now, return empty connectors as we need to resolve entity references
-    // This will be implemented when we have all entity types converted
-    Ok(vec![])
+    use crate::event_model::diagram::Connector;
+    use crate::event_model::entities::EntityId;
+    use crate::infrastructure::types::NonEmptyString;
+
+    let mut connectors = Vec::new();
+
+    for connection in yaml_connections.iter() {
+        // Extract entity names from the connection
+        let from_entity_id = match &connection.from {
+            yaml::EntityReference::Event(event_name) => EntityId::new(
+                NonEmptyString::parse(format!(
+                    "event_{}",
+                    event_name.clone().into_inner().as_str()
+                ))
+                .unwrap(),
+            ),
+            yaml::EntityReference::Command(command_name) => EntityId::new(
+                NonEmptyString::parse(format!(
+                    "command_{}",
+                    command_name.clone().into_inner().as_str()
+                ))
+                .unwrap(),
+            ),
+            yaml::EntityReference::View(view_path) => {
+                // Extract top-level view name from view path (e.g., "NewAccountScreen" from "NewAccountScreen.AccountCredentials.Submit")
+                let path_string = view_path.clone().into_inner().into_inner();
+                let top_level_view = path_string.split('.').next().unwrap_or(&path_string);
+                EntityId::new(NonEmptyString::parse(format!("view_{}", top_level_view)).unwrap())
+            }
+            yaml::EntityReference::Projection(projection_name) => EntityId::new(
+                NonEmptyString::parse(format!(
+                    "projection_{}",
+                    projection_name.clone().into_inner().as_str()
+                ))
+                .unwrap(),
+            ),
+            yaml::EntityReference::Query(query_name) => EntityId::new(
+                NonEmptyString::parse(format!(
+                    "query_{}",
+                    query_name.clone().into_inner().as_str()
+                ))
+                .unwrap(),
+            ),
+            yaml::EntityReference::Automation(automation_name) => EntityId::new(
+                NonEmptyString::parse(format!(
+                    "automation_{}",
+                    automation_name.clone().into_inner().as_str()
+                ))
+                .unwrap(),
+            ),
+        };
+
+        let to_entity_id = match &connection.to {
+            yaml::EntityReference::Event(event_name) => EntityId::new(
+                NonEmptyString::parse(format!(
+                    "event_{}",
+                    event_name.clone().into_inner().as_str()
+                ))
+                .unwrap(),
+            ),
+            yaml::EntityReference::Command(command_name) => EntityId::new(
+                NonEmptyString::parse(format!(
+                    "command_{}",
+                    command_name.clone().into_inner().as_str()
+                ))
+                .unwrap(),
+            ),
+            yaml::EntityReference::View(view_path) => {
+                // Extract top-level view name from view path (e.g., "NewAccountScreen" from "NewAccountScreen.AccountCredentials.Submit")
+                let path_string = view_path.clone().into_inner().into_inner();
+                let top_level_view = path_string.split('.').next().unwrap_or(&path_string);
+                EntityId::new(NonEmptyString::parse(format!("view_{}", top_level_view)).unwrap())
+            }
+            yaml::EntityReference::Projection(projection_name) => EntityId::new(
+                NonEmptyString::parse(format!(
+                    "projection_{}",
+                    projection_name.clone().into_inner().as_str()
+                ))
+                .unwrap(),
+            ),
+            yaml::EntityReference::Query(query_name) => EntityId::new(
+                NonEmptyString::parse(format!(
+                    "query_{}",
+                    query_name.clone().into_inner().as_str()
+                ))
+                .unwrap(),
+            ),
+            yaml::EntityReference::Automation(automation_name) => EntityId::new(
+                NonEmptyString::parse(format!(
+                    "automation_{}",
+                    automation_name.clone().into_inner().as_str()
+                ))
+                .unwrap(),
+            ),
+        };
+
+        let connector = Connector {
+            from: from_entity_id,
+            to: to_entity_id,
+            label: None, // YAML connections don't specify labels
+        };
+
+        connectors.push(connector);
+    }
+
+    Ok(connectors)
 }
 
 /// Errors that can occur during YAML to diagram conversion.

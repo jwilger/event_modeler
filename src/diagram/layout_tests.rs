@@ -10,6 +10,8 @@ fn test_config() -> LayoutConfig {
         swimlane_height: SwimlaneHeight::new(PositiveFloat::parse(100.0).unwrap()),
         slice_gutter: SliceGutter::new(PositiveFloat::parse(10.0).unwrap()),
         connection_routing: ConnectionRouting::Straight,
+        entity_width: EntityWidth::new(PositiveFloat::parse(120.0).unwrap()),
+        entity_height: EntityHeight::new(PositiveFloat::parse(60.0).unwrap()),
     }
 }
 

@@ -81,38 +81,8 @@ impl ThemedRenderer<GithubLight> {
                 shadow: None,
             },
 
-            // Event style - orange
+            // Event style - purple
             event_style: EntityStyle {
-                fill: FillStyle {
-                    color: StyleColor::new(NonEmptyString::parse("#fff7ed".to_string()).unwrap()),
-                    opacity: None,
-                },
-                stroke: StrokeStyle {
-                    color: StyleColor::new(NonEmptyString::parse("#fb923c".to_string()).unwrap()),
-                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
-                    dasharray: None,
-                    opacity: None,
-                },
-                shadow: None,
-            },
-
-            // Projection style - green
-            projection_style: EntityStyle {
-                fill: FillStyle {
-                    color: StyleColor::new(NonEmptyString::parse("#f0fdf4".to_string()).unwrap()),
-                    opacity: None,
-                },
-                stroke: StrokeStyle {
-                    color: StyleColor::new(NonEmptyString::parse("#22c55e".to_string()).unwrap()),
-                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
-                    dasharray: None,
-                    opacity: None,
-                },
-                shadow: None,
-            },
-
-            // Query style - purple
-            query_style: EntityStyle {
                 fill: FillStyle {
                     color: StyleColor::new(NonEmptyString::parse("#f3e8ff".to_string()).unwrap()),
                     opacity: None,
@@ -126,14 +96,44 @@ impl ThemedRenderer<GithubLight> {
                 shadow: None,
             },
 
-            // Automation style - teal
-            automation_style: EntityStyle {
+            // Projection style - yellow
+            projection_style: EntityStyle {
                 fill: FillStyle {
-                    color: StyleColor::new(NonEmptyString::parse("#f0fdfa".to_string()).unwrap()),
+                    color: StyleColor::new(NonEmptyString::parse("#fefce8".to_string()).unwrap()),
                     opacity: None,
                 },
                 stroke: StrokeStyle {
-                    color: StyleColor::new(NonEmptyString::parse("#14b8a6".to_string()).unwrap()),
+                    color: StyleColor::new(NonEmptyString::parse("#eab308".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                shadow: None,
+            },
+
+            // Query style - blue (same as command)
+            query_style: EntityStyle {
+                fill: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#dbeafe".to_string()).unwrap()),
+                    opacity: None,
+                },
+                stroke: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#0969da".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                shadow: None,
+            },
+
+            // Automation style - green
+            automation_style: EntityStyle {
+                fill: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#f0fdf4".to_string()).unwrap()),
+                    opacity: None,
+                },
+                stroke: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#22c55e".to_string()).unwrap()),
                     width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
                     dasharray: None,
                     opacity: None,
@@ -293,38 +293,8 @@ impl ThemedRenderer<GithubDark> {
                 shadow: None,
             },
 
-            // Event style - orange
+            // Event style - purple
             event_style: EntityStyle {
-                fill: FillStyle {
-                    color: StyleColor::new(NonEmptyString::parse("#5a1e02".to_string()).unwrap()),
-                    opacity: None,
-                },
-                stroke: StrokeStyle {
-                    color: StyleColor::new(NonEmptyString::parse("#fb923c".to_string()).unwrap()),
-                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
-                    dasharray: None,
-                    opacity: None,
-                },
-                shadow: None,
-            },
-
-            // Projection style - green
-            projection_style: EntityStyle {
-                fill: FillStyle {
-                    color: StyleColor::new(NonEmptyString::parse("#04260f".to_string()).unwrap()),
-                    opacity: None,
-                },
-                stroke: StrokeStyle {
-                    color: StyleColor::new(NonEmptyString::parse("#22c55e".to_string()).unwrap()),
-                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
-                    dasharray: None,
-                    opacity: None,
-                },
-                shadow: None,
-            },
-
-            // Query style - purple
-            query_style: EntityStyle {
                 fill: FillStyle {
                     color: StyleColor::new(NonEmptyString::parse("#271052".to_string()).unwrap()),
                     opacity: None,
@@ -338,14 +308,44 @@ impl ThemedRenderer<GithubDark> {
                 shadow: None,
             },
 
-            // Automation style - teal
-            automation_style: EntityStyle {
+            // Projection style - yellow
+            projection_style: EntityStyle {
                 fill: FillStyle {
-                    color: StyleColor::new(NonEmptyString::parse("#033a3a".to_string()).unwrap()),
+                    color: StyleColor::new(NonEmptyString::parse("#422006".to_string()).unwrap()),
                     opacity: None,
                 },
                 stroke: StrokeStyle {
-                    color: StyleColor::new(NonEmptyString::parse("#2dd4bf".to_string()).unwrap()),
+                    color: StyleColor::new(NonEmptyString::parse("#eab308".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                shadow: None,
+            },
+
+            // Query style - blue (same as command)
+            query_style: EntityStyle {
+                fill: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#0c2d6b".to_string()).unwrap()),
+                    opacity: None,
+                },
+                stroke: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#388bfd".to_string()).unwrap()),
+                    width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
+                    dasharray: None,
+                    opacity: None,
+                },
+                shadow: None,
+            },
+
+            // Automation style - green
+            automation_style: EntityStyle {
+                fill: FillStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#04260f".to_string()).unwrap()),
+                    opacity: None,
+                },
+                stroke: StrokeStyle {
+                    color: StyleColor::new(NonEmptyString::parse("#22c55e".to_string()).unwrap()),
                     width: StrokeWidth::new(PositiveFloat::parse(2.0).unwrap()),
                     dasharray: None,
                     opacity: None,

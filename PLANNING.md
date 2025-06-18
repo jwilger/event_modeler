@@ -26,7 +26,10 @@ This ensures no work is forgotten or lost in the codebase.
 
 ## Current Status
 
-**Last Updated**: 2025-06-18 (Phase 1 COMPLETE, Phase 2 COMPLETE, Phase 3 COMPLETE, Phase 4 COMPLETE)
+**Last Updated**: 2025-06-18 (Phase 1 COMPLETE, Phase 2 COMPLETE, Phase 3 COMPLETE, Phase 4 COMPLETE, Phase 5 IN PROGRESS - PR #20)
+
+**🚨 CRITICAL DISCOVERY - Node-Based Layout (2025-06-18)**: 
+The example.jpg shows that entities can appear multiple times in the diagram as separate visual nodes. Each appearance is a distinct node with its own position and connections, even though they reference the same logical entity. This is essential for avoiding visual clutter and showing different relationships clearly. **This requires a fundamental shift from entity-based to node-based layout architecture.**
 
 **Critical Discovery**: The existing implementation was based on incorrect requirements. The actual requirements call for a rich YAML-based event modeling language with:
 - Multiple entity types (events, commands, views, projections, queries, automations)
@@ -77,7 +80,20 @@ The example.eventmodel and example.jpg files represent the TRUE requirements.
 - ✅ Handles circular dependency detection in entity flows
 - ✅ Uses slice definitions to determine flow order
 
-**Next Step**: Phase 5 - Rich Visual Rendering
+**Phase 5 IN PROGRESS**: Rich Visual Rendering (PR #20)
+- ✅ Updated entity color scheme to match requirements (blue for commands/views/queries, purple for events, yellow for projections, green for automations)
+- ✅ Enhanced entity text rendering with typography hierarchy (type labels + entity names)
+- ✅ Added configurable entity sizing for better visual space (160x80 vs 120x60)
+- ✅ Professional typography using theme font configuration
+- ✅ Fixed circular dependency issue with conservative temporal filtering (temporary fix)
+- ✅ Basic YAML integration working - can parse and render example.eventmodel
+- ⚠️ **CRITICAL DISCOVERY**: Layout must support multiple visual nodes per entity (see example.jpg)
+- ⚠️ Node-based layout architecture - **Required for proper rendering**
+- ⚠️ Rich entity content rendering (data schemas) - **Requires node-based layout**
+- ⚠️ Test scenario sub-diagrams - **Requires node-based layout**
+- ✅ Professional spacing and layout improvements
+
+**Next Step**: Complete Phase 5, then Phase 6 - Acceptance Testing & Documentation
 
 **Version Planning**: This rewrite will be released as version 0.3.0. Since we're pre-1.0, we can make breaking changes without maintaining backward compatibility. The YAML format will use this version number for its schema version.
 
@@ -134,6 +150,12 @@ The following Architecture Decision Records need to be created to document key d
    - Why incremental change wasn't feasible
    - Lessons learned from initial implementation
    - Future-proofing considerations
+
+7. **ADR: Node-Based Layout Architecture** (Phase 5)
+   - Why entities need multiple visual representations
+   - Benefits for complex event flows without visual clutter
+   - Node vs Entity separation
+   - How this solves circular dependency issues
 
 ## Acceptance Test Strategy
 
@@ -283,48 +305,72 @@ workflow: User Account Signup
 ### Phase 4: Flow-Based Layout Engine
 **Goal**: Layout entities based on slice-defined flows, not grid positions
 
+**⚠️ CRITICAL UPDATE**: Phase 4 implementation must be revised to support node-based layout where entities can appear multiple times as distinct visual nodes.
+
 #### Tasks:
-1. Implement topological sort for entity positioning
-2. Use slice definitions to determine flow order
-3. Layout test scenarios as sub-diagrams below main flow
-4. Implement smart connector routing
-5. Handle multiple parallel flows
-6. Ensure readable left-to-right timeline layout
+1. ~~Implement topological sort for entity positioning~~ ✅ DONE (but needs revision)
+2. ~~Use slice definitions to determine flow order~~ ✅ DONE (but needs revision)
+3. ~~Layout test scenarios as sub-diagrams below main flow~~ ✅ Foundation added
+4. ~~Implement smart connector routing~~ ✅ Basic routing done
+5. ~~Handle multiple parallel flows~~ ✅ DONE
+6. ~~Ensure readable left-to-right timeline layout~~ ✅ DONE
+
+#### Required Revisions for Node-Based Layout:
+1. Create distinct visual nodes for each entity reference in connections
+2. Position nodes (not entities) using topological sort
+3. Support multiple node instances per entity
+4. Route connections between specific node instances
+5. Maintain entity identity while having multiple visual representations
 
 #### Documentation Tasks:
 1. Create ADR for flow-based layout algorithm
-2. Document layout constraints and rules
-3. Update diagram module documentation
-4. Create layout troubleshooting guide
+2. **Create ADR for node-based layout architecture** 
+3. Document layout constraints and rules
+4. Update diagram module documentation
+5. Create layout troubleshooting guide
 
 ### Phase 5: Rich Visual Rendering
 **Goal**: Produce professional diagrams matching the example output
 
-#### Tasks:
-1. Implement entity-type-specific styling:
+#### Completed Tasks:
+1. ✅ Implement entity-type-specific styling:
    - Blue: Commands, Views, Queries
    - Purple: Events
    - Yellow: Projections
    - Green: Automations
    - Red: Error states
-2. Render entity content:
-   - Names and descriptions
-   - Data schemas
-   - UI component hierarchies
-3. Render test scenarios:
-   - Separate boxes below main flow
-   - Given/When/Then sections
-   - Connected to parent command
-4. Professional typography:
+2. ✅ Basic entity rendering with names and type labels
+3. ✅ Professional typography:
    - Proper text sizing
    - Clear hierarchy
    - Readable spacing
+4. ✅ Fixed circular dependency with conservative temporal filtering
+
+#### Remaining Tasks (Blocked on Node-Based Layout):
+1. **Implement node-based layout architecture**:
+   - Create `DiagramNode` type that references an entity
+   - Generate nodes from slice connections (each endpoint = node)
+   - Update layout engine to position nodes instead of entities
+   - Support multiple visual nodes per logical entity
+   - Maintain node-to-entity mapping for styling
+2. Render entity content:
+   - Names and descriptions ✅ DONE
+   - Data schemas (requires node space allocation)
+   - UI component hierarchies (requires node space allocation)
+3. Render test scenarios:
+   - Separate boxes below main flow
+   - Given/When/Then sections
+   - Connected to parent command node
+4. Restore all entity types to layout:
+   - Currently filtering out non-temporal connections
+   - Node-based layout eliminates cycles, allowing all connections
 
 #### Documentation Tasks:
 1. Create visual style guide document
-2. Document color scheme and rationale
+2. Document color scheme and rationale ✅ Partially done
 3. Update theme documentation
 4. Create accessibility considerations guide
+5. Document node-based layout architecture
 
 ### Phase 6: Acceptance Testing & Documentation
 **Goal**: Ensure the implementation meets requirements and documentation is complete
@@ -452,18 +498,25 @@ Following our type-driven testing ADR:
 1. **EVERY OTHER TASK** in your todo list must be:
    - "Run the build (cargo build) and tests (cargo test --workspace), and if everything passes (except e2e tests), commit changes and push"
    
-2. The **LAST item** on EVERY todo list must always be:
+2. **AFTER EVERY PUSH**, the next task must be:
+   - "Check PR status and CI checks after push"
+   
+3. The **LAST item** on EVERY todo list must always be:
    - "Review PLANNING.md, update with current status, determine next tasks, and START implementing them"
 
 ### Example Todo List Structure:
 1. Implement CLI argument parsing in src/cli.rs
 2. Run build and tests; commit and push if passing (first push creates upstream branch)
-3. Create draft PR immediately after first push
-4. Implement main entry point in src/main.rs  
-5. Run build and tests; commit and push if passing
-6. Add error handling for invalid arguments
+3. Check PR status and CI checks after push
+4. Create draft PR immediately after first push
+5. Check PR status after creating draft PR
+6. Implement main entry point in src/main.rs  
 7. Run build and tests; commit and push if passing
-8. Review PLANNING.md, update with current status, determine next tasks, and START implementing them
+8. Check PR status and CI checks after push
+9. Add error handling for invalid arguments
+10. Run build and tests; commit and push if passing
+11. Check PR status and CI checks after push
+12. Review PLANNING.md, update with current status, determine next tasks, and START implementing them
 
 This ensures:
 1. **Extremely frequent verification** that code compiles and tests pass
@@ -678,9 +731,9 @@ The implementation is complete when:
 
 ## PR Monitoring Checklist
 
-Throughout the implementation, regularly check:
+**MANDATORY**: PR monitoring must be built into every TodoWrite list:
 
-1. **Every 30 minutes during active development:**
+1. **After every push** (mandatory todo item):
    ```bash
    # Check all open PRs
    gh pr list --author @me
@@ -689,7 +742,12 @@ Throughout the implementation, regularly check:
    gh pr checks <PR-number>
    ```
 
-2. **When switching between features:**
+2. **Additional checks every 30 minutes during active development:**
+   - Run the same commands above
+   - Look for any failed CI runs
+   - Check if any base branches have been merged
+
+3. **When switching between features:**
    - Ensure previous PR is green and auto-merge is enabled
    - Check if any base branches have been merged
    - Rebase if necessary
