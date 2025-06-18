@@ -253,6 +253,7 @@ impl LayoutEngine {
     }
 
     /// Calculate positions for entities within a swimlane.
+    #[allow(dead_code)]
     fn position_entities_in_swimlane<W, C, E, P, Q, A>(
         &self,
         swimlane: &crate::event_model::diagram::Swimlane,
@@ -496,18 +497,8 @@ impl LayoutEngine {
             );
         }
 
-        // Position entities within each swimlane
-        let mut entity_positions = HashMap::new();
-        for swimlane in diagram.swimlanes.iter() {
-            if let Some(swimlane_layout) = swimlane_layouts.get(&swimlane.id) {
-                let swimlane_entities = self.position_entities_in_swimlane(
-                    swimlane,
-                    swimlane_layout,
-                    &diagram.entities,
-                );
-                entity_positions.extend(swimlane_entities);
-            }
-        }
+        // Position entities using flow-based layout with topological sorting
+        let entity_positions = self.compute_flow_based_positions(diagram, &swimlane_layouts)?;
 
         // Route connections between entities from all slices
         let connector_pairs: Vec<(EntityId, EntityId)> = diagram
@@ -525,6 +516,188 @@ impl LayoutEngine {
             slice_layouts: HashMap::new(),
             connections,
         })
+    }
+
+    /// Compute entity positions using flow-based layout with topological sorting.
+    ///
+    /// This method uses the connections in slices to determine the temporal order
+    /// of entities and positions them in a left-to-right timeline layout.
+    fn compute_flow_based_positions<W, C, E, P, Q, A>(
+        &self,
+        diagram: &crate::event_model::diagram::EventModelDiagram<W, C, E, P, Q, A>,
+        swimlane_layouts: &HashMap<SwimlaneId, SwimlaneLayout>,
+    ) -> Result<HashMap<EntityId, EntityPosition>, LayoutError> {
+        // Build dependency graph from slice connections
+        let (graph, entity_to_swimlane) = self.build_dependency_graph(diagram);
+
+        // Perform topological sort to determine temporal order
+        let timeline_order = self.topological_sort(&graph)?;
+
+        // Position entities based on timeline order and swimlanes
+        let positions = self.position_entities_in_timeline(
+            &timeline_order,
+            &entity_to_swimlane,
+            swimlane_layouts,
+            &diagram.entities,
+        );
+
+        Ok(positions)
+    }
+
+    /// Build a dependency graph from slice connections.
+    ///
+    /// Returns a graph where each entity points to its dependencies,
+    /// and a mapping from entity to swimlane.
+    fn build_dependency_graph<W, C, E, P, Q, A>(
+        &self,
+        diagram: &crate::event_model::diagram::EventModelDiagram<W, C, E, P, Q, A>,
+    ) -> (
+        HashMap<EntityId, Vec<EntityId>>,
+        HashMap<EntityId, SwimlaneId>,
+    ) {
+        let mut graph: HashMap<EntityId, Vec<EntityId>> = HashMap::new();
+        let mut entity_to_swimlane: HashMap<EntityId, SwimlaneId> = HashMap::new();
+
+        // Initialize graph with all entities
+        for swimlane in diagram.swimlanes.iter() {
+            for entity_id in &swimlane.entities {
+                graph.insert(entity_id.clone(), Vec::new());
+                entity_to_swimlane.insert(entity_id.clone(), swimlane.id.clone());
+            }
+        }
+
+        // Add dependencies from slice connections
+        for slice in diagram.slices.iter() {
+            for connection in &slice.connections {
+                // 'to' entity depends on 'from' entity (from happens before to)
+                if let Some(dependencies) = graph.get_mut(&connection.to) {
+                    dependencies.push(connection.from.clone());
+                }
+            }
+        }
+
+        (graph, entity_to_swimlane)
+    }
+
+    /// Perform topological sort on the dependency graph.
+    ///
+    /// Returns entities in temporal order (entities with no dependencies first).
+    fn topological_sort(
+        &self,
+        graph: &HashMap<EntityId, Vec<EntityId>>,
+    ) -> Result<Vec<EntityId>, LayoutError> {
+        let mut in_degree: HashMap<EntityId, usize> = HashMap::new();
+        let mut adj_list: HashMap<EntityId, Vec<EntityId>> = HashMap::new();
+
+        // Initialize in-degree count and adjacency list
+        for (entity, dependencies) in graph {
+            in_degree.insert(entity.clone(), dependencies.len());
+
+            // Build reverse adjacency list (from dependencies to dependents)
+            for dependency in dependencies {
+                adj_list
+                    .entry(dependency.clone())
+                    .or_default()
+                    .push(entity.clone());
+            }
+        }
+
+        // Find entities with no dependencies (in-degree 0)
+        let mut queue: Vec<EntityId> = in_degree
+            .iter()
+            .filter(|(_, degree)| **degree == 0)
+            .map(|(entity, _)| entity.clone())
+            .collect();
+
+        let mut result = Vec::new();
+
+        while let Some(entity) = queue.pop() {
+            result.push(entity.clone());
+
+            // Reduce in-degree for all dependents
+            if let Some(dependents) = adj_list.get(&entity) {
+                for dependent in dependents {
+                    if let Some(degree) = in_degree.get_mut(dependent) {
+                        *degree -= 1;
+                        if *degree == 0 {
+                            queue.push(dependent.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check for circular dependencies
+        if result.len() != graph.len() {
+            return Err(LayoutError::CircularDependency);
+        }
+
+        Ok(result)
+    }
+
+    /// Position entities in timeline order within their respective swimlanes.
+    fn position_entities_in_timeline<W, C, E, P, Q, A>(
+        &self,
+        timeline_order: &[EntityId],
+        entity_to_swimlane: &HashMap<EntityId, SwimlaneId>,
+        swimlane_layouts: &HashMap<SwimlaneId, SwimlaneLayout>,
+        _entities: &crate::event_model::registry::EntityRegistry<W, C, E, P, Q, A>,
+    ) -> HashMap<EntityId, EntityPosition> {
+        let mut positions = HashMap::new();
+        let mut swimlane_x_positions: HashMap<SwimlaneId, f32> = HashMap::new();
+
+        let entity_width = 150.0;
+        let entity_height = 60.0;
+        let spacing = self.config.entity_spacing.into_inner().value();
+
+        // Initialize starting X positions for each swimlane
+        for swimlane_id in swimlane_layouts.keys() {
+            swimlane_x_positions.insert(swimlane_id.clone(), spacing);
+        }
+
+        // Position entities in timeline order
+        for entity_id in timeline_order {
+            if let Some(swimlane_id) = entity_to_swimlane.get(entity_id) {
+                if let Some(swimlane_layout) = swimlane_layouts.get(swimlane_id) {
+                    let current_x = swimlane_x_positions.get(swimlane_id).unwrap_or(&spacing);
+
+                    let position = EntityPosition {
+                        position: Position {
+                            x: XCoordinate::new(
+                                NonNegativeFloat::parse(
+                                    swimlane_layout.position.x.into_inner().value() + current_x,
+                                )
+                                .unwrap(),
+                            ),
+                            y: YCoordinate::new(
+                                NonNegativeFloat::parse(
+                                    swimlane_layout.position.y.into_inner().value() + 10.0,
+                                )
+                                .unwrap(),
+                            ),
+                        },
+                        dimensions: Dimensions {
+                            width: Width::new(PositiveFloat::parse(entity_width).unwrap()),
+                            height: Height::new(PositiveFloat::parse(entity_height).unwrap()),
+                        },
+                        entity_type: crate::event_model::entities::EntityType::Command, // Default for now
+                        entity_name: crate::infrastructure::types::NonEmptyString::parse(
+                            "Entity".to_string(),
+                        )
+                        .unwrap(),
+                        swimlane_id: swimlane_id.clone(),
+                    };
+
+                    positions.insert(entity_id.clone(), position);
+
+                    // Update X position for next entity in this swimlane
+                    swimlane_x_positions
+                        .insert(swimlane_id.clone(), current_x + entity_width + spacing);
+                }
+            }
+        }
+
+        positions
     }
 
     /// Get the current configuration.
