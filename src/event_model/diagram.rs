@@ -17,10 +17,8 @@ pub struct EventModelDiagram<W, C, E, P, Q, A> {
     pub swimlanes: NonEmpty<Swimlane>,
     /// Registry of all entities in the diagram.
     pub entities: EntityRegistry<W, C, E, P, Q, A>,
-    /// Vertical slices defining feature boundaries.
+    /// Vertical slices defining feature boundaries and entity connections.
     pub slices: NonEmpty<Slice>,
-    /// Connections between entities.
-    pub connectors: Vec<Connector>,
 }
 
 /// Metadata about the diagram.
@@ -56,6 +54,8 @@ pub struct Slice {
     pub boundaries: SliceBoundaries,
     /// Entity IDs contained in this slice.
     pub entities: NonEmpty<EntityId>,
+    /// Connections between entities within this slice.
+    pub connections: Vec<Connector>,
     /// Optional acceptance criteria for the slice.
     pub acceptance_criteria: Option<AcceptanceCriteria>,
 }
