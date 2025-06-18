@@ -680,9 +680,9 @@ impl LayoutEngine {
                             width: Width::new(PositiveFloat::parse(entity_width).unwrap()),
                             height: Height::new(PositiveFloat::parse(entity_height).unwrap()),
                         },
-                        entity_type: crate::event_model::entities::EntityType::Command, // TODO: Get from registry
+                        entity_type: crate::event_model::entities::EntityType::Command, // Default for now
                         entity_name: crate::infrastructure::types::NonEmptyString::parse(
-                            "Entity".to_string(), // TODO: Get from registry
+                            "Entity".to_string(),
                         )
                         .unwrap(),
                         swimlane_id: swimlane_id.clone(),
