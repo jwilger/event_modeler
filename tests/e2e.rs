@@ -60,8 +60,6 @@ slices:
     // Use temporary directory for test files
     let temp_dir = std::env::temp_dir();
     let input_path = temp_dir.join("test_input.eventmodel");
-    // Note: The CLI currently generates output filename based on input stem
-    let expected_output_path = temp_dir.join("test_input.svg");
     let output_path = temp_dir.join("test_output.svg");
 
     // Write the test input
@@ -100,15 +98,15 @@ slices:
         eprintln!("STDERR: {}", stderr);
     }
 
-    // Verify SVG output was created (with the actual output path the CLI uses)
+    // Verify SVG output was created
     assert!(
-        expected_output_path.exists(),
+        output_path.exists(),
         "SVG output file was not created at: {}",
-        expected_output_path.display()
+        output_path.display()
     );
 
     // Verify the SVG file contains expected content
-    let svg_content = fs::read_to_string(&expected_output_path).expect("Failed to read SVG output");
+    let svg_content = fs::read_to_string(&output_path).expect("Failed to read SVG output");
     assert!(
         svg_content.contains("<svg"),
         "Output does not appear to be valid SVG"
@@ -128,7 +126,7 @@ slices:
 
     // Clean up
     fs::remove_file(&input_path).ok();
-    fs::remove_file(&expected_output_path).ok();
+    fs::remove_file(&output_path).ok();
 }
 
 #[test]

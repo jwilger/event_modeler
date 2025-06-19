@@ -767,7 +767,13 @@ fn parse_entity_reference(ref_str: &str) -> Result<domain::EntityReference, Conv
                 .map_err(|_| ConversionError::EmptyField("query name".to_string()))?,
         );
         Ok(domain::EntityReference::Query(name))
-    } else if lower.ends_with("automation") || lower.contains("process") {
+    } else if lower.ends_with("automation")
+        || lower.contains("process")
+        || lower.ends_with("verifier")
+        || lower.ends_with("handler")
+        || lower.ends_with("worker")
+        || lower.ends_with("service")
+    {
         // Likely an automation
         let name = domain::AutomationName::new(
             NonEmptyString::parse(ref_str.to_string())

@@ -85,8 +85,10 @@ impl NodeLayoutEngine {
                 connected_entities.insert(target.clone(), true);
 
                 // Generate context based on slice and connection index
-                let source_context = format!("{:?}_source_{}", slice.name, conn_index);
-                let target_context = format!("{:?}_target_{}", slice.name, conn_index);
+                // Use Display instead of Debug to avoid quotes in the slice name
+                let slice_name_str = slice.name.clone().into_inner().as_str().to_string();
+                let source_context = format!("{}_source_{}", slice_name_str, conn_index);
+                let target_context = format!("{}_target_{}", slice_name_str, conn_index);
 
                 // Create or get source node
                 let source_key = (source.clone(), source_context.clone());
