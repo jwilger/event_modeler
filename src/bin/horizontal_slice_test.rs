@@ -89,14 +89,13 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             swimlane_height - 5 // Small gap between swimlanes
         ));
 
-        // Add swimlane label (rotated on the left side like in the gold master)
-        svg_content.push_str(&format!(
-            "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" dominant-baseline=\"middle\" transform=\"rotate(-90, {}, {})\" font-family=\"Arial, sans-serif\" font-size=\"12\" fill=\"#586069\">{}</text>",
+        // Add swimlane label with text fitting (rotated on the left side)
+        let swimlane_fitted_text = fit_text_to_container(name, swimlane_height, padding);
+        svg_content.push_str(&swimlane_fitted_text.render_svg_rotated(
             padding / 2,
             lane_y + (swimlane_height as f32 / 2.0),
-            padding / 2,
-            lane_y + (swimlane_height as f32 / 2.0),
-            name
+            -90.0,     // Rotate -90 degrees
+            "#586069", // Gray color for swimlane labels
         ));
     }
 
@@ -183,6 +182,27 @@ impl FittedText {
     }
 
     fn render_svg_with_style(&self, center_x: usize, center_y: usize, font_weight: &str) -> String {
+        self.render_svg_full(center_x, center_y, font_weight, "#24292e", None)
+    }
+
+    fn render_svg_rotated(
+        &self,
+        center_x: usize,
+        center_y: f32,
+        rotation: f32,
+        color: &str,
+    ) -> String {
+        self.render_svg_full(center_x, center_y as usize, "normal", color, Some(rotation))
+    }
+
+    fn render_svg_full(
+        &self,
+        center_x: usize,
+        center_y: usize,
+        font_weight: &str,
+        color: &str,
+        rotation: Option<f32>,
+    ) -> String {
         let mut svg = String::new();
         let line_height = self.font_size * 1.2;
         let total_height = line_height * self.lines.len() as f32;
@@ -190,12 +210,21 @@ impl FittedText {
 
         for (i, line) in self.lines.iter().enumerate() {
             let y = start_y + (i as f32 * line_height);
+
+            let transform = if let Some(rot) = rotation {
+                format!(" transform=\"rotate({}, {}, {})\"", rot, center_x, y)
+            } else {
+                String::new()
+            };
+
             svg.push_str(&format!(
-                "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"{}\" font-weight=\"{}\" fill=\"#24292e\">{}</text>",
+                "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"{}\" font-weight=\"{}\" fill=\"{}\"{}>{}</text>",
                 center_x,
                 y,
                 self.font_size,
                 font_weight,
+                color,
+                transform,
                 line
             ));
         }
