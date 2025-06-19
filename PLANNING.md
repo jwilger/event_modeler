@@ -44,7 +44,7 @@ This ensures no work is forgotten or lost in the codebase.
   - ✅ Step 4: Add Commands (Blue Boxes) - Complete
   - ✅ Step 5: Add Events (Purple Boxes) - Complete with corrected names
   - ✅ Step 6: Add Projections (Yellow Boxes) - Complete
-  - ⏳ Step 7: Add Queries (Blue Boxes) - Ready to start
+  - ✅ Step 7: Add Queries (Blue Boxes) - Complete
   - Note: Using temporary test binary `horizontal_slice_test.rs` with hardcoded entities
 
 **🚨 CRITICAL DISCOVERY - Node-Based Layout (2025-06-18)**: 
@@ -485,7 +485,7 @@ The gold master analysis revealed that slices should be horizontal bands represe
    - Position in middle swimlane
    - **Review Checkpoint**: User confirms projection layout
 
-7. **Step 7: Add Queries (Blue Boxes)**
+7. **Step 7: Add Queries (Blue Boxes)** ✅ COMPLETE
    - Add Query entities (GetAccountIdForEmailVerificationToken, GetUserProfile)
    - Use blue styling like Commands (#5b8def)
    - Position in middle swimlane
