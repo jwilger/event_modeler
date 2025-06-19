@@ -65,6 +65,50 @@ impl SvgDocument {
         xml
     }
 
+    /// Serialize a transform to SVG format.
+    fn serialize_transform(&self, transform: &Transform) -> String {
+        match transform {
+            Transform::Rotate(angle, cx, cy) => {
+                let angle_value = angle.into_inner().value();
+                if let (Some(cx), Some(cy)) = (cx, cy) {
+                    format!(
+                        "rotate({} {} {})",
+                        angle_value,
+                        cx.into_inner().value(),
+                        cy.into_inner().value()
+                    )
+                } else {
+                    format!("rotate({})", angle_value)
+                }
+            }
+            Transform::Translate(x, y) => {
+                format!(
+                    "translate({} {})",
+                    x.into_inner().value(),
+                    y.into_inner().value()
+                )
+            }
+            Transform::Scale(x, y) => {
+                format!(
+                    "scale({} {})",
+                    x.into_inner().value(),
+                    y.into_inner().value()
+                )
+            }
+            Transform::Matrix(matrix) => {
+                format!(
+                    "matrix({} {} {} {} {} {})",
+                    matrix.a.into_inner().value(),
+                    matrix.b.into_inner().value(),
+                    matrix.c.into_inner().value(),
+                    matrix.d.into_inner().value(),
+                    matrix.e.into_inner().value(),
+                    matrix.f.into_inner().value()
+                )
+            }
+        }
+    }
+
     /// Serialize a single SVG element with proper indentation.
     fn serialize_element(&self, element: &SvgElement, indent_level: usize) -> String {
         let indent = "  ".repeat(indent_level);
@@ -81,7 +125,13 @@ impl SvgDocument {
                         class.clone().into_inner().as_str()
                     ));
                 }
-                // TODO: Add transform attribute if present
+                // Add transform attribute if present
+                if let Some(transform) = &group.transform {
+                    xml.push_str(&format!(
+                        " transform=\"{}\"",
+                        self.serialize_transform(transform)
+                    ));
+                }
                 xml.push_str(">\n");
 
                 // Serialize children
@@ -847,8 +897,8 @@ impl SvgRenderer {
             class: Some(CssClass::new(
                 NonEmptyString::parse("swimlane-label".to_string()).unwrap(),
             )),
-            x: XCoordinate::new(NonNegativeFloat::parse(0.0).unwrap()), // Position relative to group
-            y: YCoordinate::new(NonNegativeFloat::parse(0.0).unwrap()),
+            x: XCoordinate::new(NonNegativeFloat::parse(label_x).unwrap()), // Position at center for rotation
+            y: YCoordinate::new(NonNegativeFloat::parse(label_y).unwrap()),
             content: TextContent::new(layout.name.clone()),
             style: TextStyle {
                 font_family: FontFamily::new(

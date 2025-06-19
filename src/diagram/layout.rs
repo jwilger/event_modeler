@@ -483,8 +483,8 @@ impl LayoutEngine {
         let swimlane_height = self.config.swimlane_height.into_inner().value();
         let spacing = self.config.entity_spacing.into_inner().value();
         let num_swimlanes = diagram.swimlanes.len() as f32;
-        let content_height =
-            num_swimlanes * swimlane_height + (num_swimlanes - 1.0).max(0.0) * spacing;
+        // No spacing between swimlanes - they share borders
+        let content_height = num_swimlanes * swimlane_height;
         let total_height =
             content_height + padding.top.into_inner().value() + padding.bottom.into_inner().value();
 
@@ -501,8 +501,8 @@ impl LayoutEngine {
             content_width + padding.left.into_inner().value() + padding.right.into_inner().value();
 
         let canvas = Canvas {
-            width: CanvasWidth::new(PositiveInt::parse(total_width.max(1200.0) as u32).unwrap()),
-            height: CanvasHeight::new(PositiveInt::parse(total_height.max(800.0) as u32).unwrap()),
+            width: CanvasWidth::new(PositiveInt::parse(total_width.max(800.0) as u32).unwrap()),
+            height: CanvasHeight::new(PositiveInt::parse(total_height.max(600.0) as u32).unwrap()),
             padding,
         };
 
