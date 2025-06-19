@@ -45,7 +45,32 @@ This ensures no work is forgotten or lost in the codebase.
   - ✅ Step 5: Add Events (Purple Boxes) - Complete with corrected names
   - ✅ Step 6: Add Projections (Yellow Boxes) - Complete
   - ✅ Step 7: Add Queries (Blue Boxes) - Complete
+  - ✅ Step 8: Add Automations (Green Boxes) - Complete
+  - ✅ Step 9: Add Connections - Complete
+  - ✅ Step 10: Add Test Scenarios - Complete
+  - ✅ Step 11: Final Polish - Complete
   - Note: Using temporary test binary `horizontal_slice_test.rs` with hardcoded entities
+
+**🚨 CRITICAL ISSUES DISCOVERED (2025-06-19)**:
+Major discrepancies between current implementation and gold standard:
+
+1. **Layout Architecture Wrong**: 
+   - Current: Vertical stacking of slices
+   - Required: Horizontal main diagram with test scenarios below
+   
+2. **Missing Core Elements**:
+   - Email Verifier entity (central icon in gold standard)
+   - Several projections and proper entity type labels
+   
+3. **Test Scenario Layout Wrong**:
+   - Current: Vertical panels with Given/When/Then rows
+   - Required: Horizontal boxes below main diagram with columnar structure
+   
+4. **Connection Routing Issues**:
+   - Many connections missing or incorrectly routed
+   - Arrow styles don't match gold standard
+
+**Fundamental Redesign Required**: The current approach is too different from the gold standard. Need to completely restructure the layout algorithm.
 
 **🚨 CRITICAL DISCOVERY - Node-Based Layout (2025-06-18)**: 
 The example.jpg shows that entities can appear multiple times in the diagram as separate visual nodes. Each appearance is a distinct node with its own position and connections, even though they reference the same logical entity. This is essential for avoiding visual clutter and showing different relationships clearly. **This requires a fundamental shift from entity-based to node-based layout architecture.**
@@ -412,8 +437,10 @@ workflow: User Account Signup
 4. Create accessibility considerations guide
 5. Document node-based layout architecture
 
-### Phase 6: Horizontal Slice Architecture (NEW - CRITICAL)
-**Goal**: Redesign slice handling to match gold master's horizontal workflow sections
+### Phase 6: Complete Layout Redesign (CRITICAL - REVISED)
+**Goal**: Completely redesign the layout to match the gold standard's structure
+
+**Previous Approach Failed**: The incremental steps 1-11 produced a diagram that is fundamentally different from the gold standard. We need a complete redesign.
 
 #### Context:
 The gold master analysis revealed that slices should be horizontal bands representing complete workflows, not vertical dividers. This is a fundamental change that affects the entire layout system.
@@ -422,100 +449,65 @@ The gold master analysis revealed that slices should be horizontal bands represe
 
 **Incremental Rendering Approach**: To ensure we're building the right solution, we'll implement visual elements incrementally with manual review checkpoints between each element. This allows for course correction before investing too much in any particular approach.
 
-**Implementation Strategy**: 
-- Use `example.eventmodel` as the test data throughout
-- Create a temporary test program (`src/bin/horizontal_slice_test.rs`) that renders only the elements for the current step
-- **IMPORTANT**: This test program uses HARDCODED entities for rapid visual iteration
-- The hardcoded entities match those in `example.eventmodel` but bypass parsing complexity
-- Generate PNG output using `magick` for visual comparison
-- Wait for explicit user approval before proceeding to the next step
-- Each step builds upon the previous, gradually increasing complexity
-- **Final Integration**: Once all 11 steps are complete and layout is proven:
-  - Port the layout algorithms from the test program back to the main application
-  - The acceptance test (`tests/yaml_acceptance.rs`) will verify full integration
-  - Remove the temporary test program after successful integration
+**New Implementation Strategy**:
 
-#### Incremental Implementation Steps:
+1. **Analyze Gold Standard Structure**:
+   - Main diagram area (top ~60% of image)
+   - Test scenario area (bottom ~40% of image)
+   - Horizontal flow within swimlanes
+   - Inline slice headers on the left
+   
+2. **Key Layout Requirements**:
+   - **Two-Part Layout**: Main diagram on top, test scenarios below
+   - **Swimlane Structure**: 3 horizontal swimlanes spanning full width
+   - **Entity Positioning**: Left-to-right flow within swimlanes
+   - **Email Verifier**: Central icon entity between swimlanes
+   - **Test Scenarios**: Horizontal boxes with columnar Given/When/Then
+   
+3. **Implementation Approach**:
+   - Start fresh with correct two-part layout
+   - Hardcode exact positions based on gold standard measurements
+   - Focus on matching the visual structure exactly
+   - Use the test binary for rapid iteration
 
-**🚨 CRITICAL**: Each step must be completed and manually reviewed before proceeding to the next. Generate PNG output and wait for user feedback.
+#### New Implementation Tasks:
 
-**🚨 MANDATORY COMPARISON STEP**: Before every commit/push/PR comment, you MUST:
-1. Generate PNG output of your current implementation
-2. Compare it side-by-side with the gold master: `tests/fixtures/acceptance/example.png`
-3. Analyze and document ALL visual differences (layout, proportions, positioning, gaps, text, colors)
-4. Only proceed to commit/push if the comparison shows the expected incremental progress
-5. If major issues are obvious in comparison, fix them before committing
+**RESTART FROM SCRATCH**: The previous 11 steps produced the wrong layout. We need to rebuild with the correct structure.
 
-**NEVER commit or post to PR without this comparison analysis step.**
+1. **Task 1: Create Two-Part Layout Structure**
+   - Top section: Main diagram area (height ~450px)
+   - Bottom section: Test scenarios area (height ~300px)
+   - Full width: 1200px
+   - Clear visual separation between sections
 
-1. **Step 1: Swimlanes Only** ✅ COMPLETE
-   - Render just the three swimlanes with labels
-   - No entities, no slices, no connections
-   - **Review Checkpoint**: User confirms swimlane layout and styling
+2. **Task 2: Implement Main Diagram Swimlanes**
+   - 3 horizontal swimlanes in top section
+   - Labels on left side (rotated text)
+   - Proper spacing and borders
+   - No slice divisions (they're conceptual, not visual)
 
-2. **Step 2: Add Slice Boundaries** ✅ COMPLETE
-   - Add horizontal slice divisions (CreateAccount, VerifyEmailAddress)
-   - Show slice headers/labels
-   - Still no entities
-   - **Review Checkpoint**: User confirms slice structure
+3. **Task 3: Position All Entities in Main Diagram**
+   - Use exact positions from gold standard
+   - Include Email Verifier central icon
+   - Add entity type labels (small text above entity name)
+   - Correct colors for each entity type
 
-3. **Step 3: Add Views (White Boxes)** ✅ COMPLETE
-   - Add only View entities (LoginScreen, NewAccountScreen, etc.)
-   - Position within correct swimlane and slice
-   - Use white/light gray styling
-   - **Review Checkpoint**: User confirms view positioning and styling
-   - **Implemented**: Text fitting with font scaling and word wrapping
+4. **Task 4: Add All Connections**
+   - Route arrows between entities
+   - Use curved paths where needed
+   - Proper arrow heads
+   - Follow the flow shown in gold standard
 
-4. **Step 4: Add Commands (Blue Boxes)** ✅ COMPLETE
-   - Add Command entities
-   - Position in commands swimlane within slices
-   - Use medium blue styling
-   - **Review Checkpoint**: User confirms command layout
+5. **Task 5: Implement Test Scenario Boxes**
+   - Three horizontal boxes below main diagram
+   - Each box has title header
+   - Given/When/Then in columns (not rows)
+   - Proper entity coloring within scenarios
 
-5. **Step 5: Add Events (Purple Boxes)** ✅ COMPLETE
-   - Add Event entities
-   - Position in event stream swimlane
-   - Use purple/lavender styling
-   - **Review Checkpoint**: User confirms event positioning
-   - **NOTE**: Always use timestamped filenames for output to avoid browser caching
-
-6. **Step 6: Add Projections (Yellow Boxes)** ✅ COMPLETE
-   - Add Projection entities (UserCredentialsProjection, UserEmailVerificationTokenProjection)
-   - Use yellow/orange styling (#ffd166)
-   - Position in middle swimlane
-   - **Review Checkpoint**: User confirms projection layout
-
-7. **Step 7: Add Queries (Blue Boxes)** ✅ COMPLETE
-   - Add Query entities (GetAccountIdForEmailVerificationToken, GetUserProfile)
-   - Use blue styling like Commands (#5b8def)
-   - Position in middle swimlane
-   - **Review Checkpoint**: User confirms query layout
-
-8. **Step 8: Add Automations (Green Boxes)** ✅ COMPLETE
-   - Add Automation entities (UserEmailVerifier)
-   - Use green styling (#06d6a0)
-   - Position in UX swimlane
-   - **Review Checkpoint**: User confirms automation layout
-
-9. **Step 9: Add Connections** ✅ COMPLETE
-   - Add arrows between entities following slice flows
-   - Route within slice boundaries
-   - **CRITICAL**: Adjust entity positioning within swimlanes to ensure connections flow naturally left-to-right
-   - May need to reposition entities to minimize crossing lines and maintain timeline flow
-   - **Review Checkpoint**: User confirms connection routing and entity positioning
-   - **IMPLEMENTED**: All 19 connections, dynamic layout, entity type labels, proper arrow directions
-
-10. **Step 10: Add Test Scenarios** ✅ COMPLETE
-    - Add test scenario labels within slices
-    - Group related entities
-    - **Review Checkpoint**: User confirms test scenario presentation
-    - **IMPLEMENTED**: Test scenarios with Given/When/Then structure, proper coloring
-
-11. **Step 11: Final Polish** ✅ COMPLETE
-    - Adjust spacing, alignment
-    - Fine-tune colors and typography
-    - **Final Review**: User confirms complete diagram
-    - **IMPLEMENTED**: Improved layout algorithm, accurate test scenarios, better spacing
+6. **Task 6: Final Adjustments**
+   - Fine-tune positions to match gold standard
+   - Adjust text sizes and fonts
+   - Ensure proper spacing throughout
 
 #### Original Tasks (to be implemented incrementally):
 1. **Redefine Slice concept**:
@@ -620,11 +612,13 @@ The gold master analysis revealed that slices should be horizontal bands represe
 - Phase 3 (Domain Extensions): ✅ COMPLETE
 - Phase 4 (Flow Layout): ✅ COMPLETE
 - Phase 5 (Rich Rendering): ✅ COMPLETE (with limitations)
-- Phase 6 (Horizontal Slices): 10-12 hours + 2 hours documentation (NEW)
+- Phase 6 (Complete Layout Redesign): 8-10 hours + 2 hours documentation (REVISED - IN PROGRESS)
+  - Previous approach (Steps 1-11): ❌ FAILED - Wrong layout structure
+  - New approach (Tasks 1-6): Starting fresh with correct structure
 - Phase 7 (Acceptance Testing): 4-6 hours + 4 hours documentation
 - Phase 8 (Cleanup): 2-3 hours
 
-Remaining: ~16-21 hours of implementation + ~6 hours of documentation = ~22-27 hours
+Remaining: ~14-19 hours of implementation + ~6 hours of documentation = ~20-25 hours
 
 **Note**: This is a complete rewrite with significantly more complexity than the original MVP. The rich format requires:
 - Complex type hierarchies

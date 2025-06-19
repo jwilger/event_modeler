@@ -200,11 +200,11 @@ fn render_dynamic_diagram() -> Result<String, Box<dyn std::error::Error>> {
             entity_type: EntityType::Automation,
             name: "Email\nVerifier".to_string(),
             slice: 1,
-            swimlane: 0,
+            swimlane: 0, // Will be positioned between swimlanes
             x: 0.0,
             y: 0.0,
-            width: 80.0,
-            height: 50.0,
+            width: 60.0,  // Smaller width for icon
+            height: 60.0, // Height for icon
         },
         Entity {
             id: "send_email_verification".to_string(),
@@ -231,7 +231,7 @@ fn render_dynamic_diagram() -> Result<String, Box<dyn std::error::Error>> {
         Entity {
             id: "get_account_id_for_email_verification_token".to_string(),
             entity_type: EntityType::Query,
-            name: "Get Account\nID for Email\nVerification\nToken".to_string(),
+            name: "Get Account\nId for Email\nVerification\nToken".to_string(),
             slice: 1,
             swimlane: 1,
             x: 0.0,
@@ -476,7 +476,15 @@ fn render_dynamic_diagram() -> Result<String, Box<dyn std::error::Error>> {
         },
         // Slice 2: Verify Email Address
         Connection {
-            from: "verify_email_screen".to_string(),
+            from: "verify_email_screen2".to_string(),
+            to: "get_account_id_for_email_verification_token".to_string(),
+        },
+        Connection {
+            from: "get_account_id_for_email_verification_token".to_string(),
+            to: "verify_user_email_address".to_string(),
+        },
+        Connection {
+            from: "user_email_verification_token_projection2".to_string(),
             to: "verify_user_email_address".to_string(),
         },
         Connection {
@@ -485,23 +493,19 @@ fn render_dynamic_diagram() -> Result<String, Box<dyn std::error::Error>> {
         },
         Connection {
             from: "email_address_verified".to_string(),
-            to: "user_credentials_projection2".to_string(),
-        },
-        Connection {
-            from: "email_address_verified".to_string(),
-            to: "user_email_verification_token_projection2".to_string(),
-        },
-        Connection {
-            from: "email_address_verified".to_string(),
             to: "verify_email_screen2".to_string(),
         },
         Connection {
             from: "verify_email_screen2".to_string(),
-            to: "user_profile_screen".to_string(),
+            to: "get_user_profile".to_string(),
         },
         Connection {
-            from: "user_profile_screen".to_string(),
+            from: "user_credentials_projection2".to_string(),
             to: "get_user_profile".to_string(),
+        },
+        Connection {
+            from: "get_user_profile".to_string(),
+            to: "user_profile_screen".to_string(),
         },
     ];
 
@@ -606,40 +610,64 @@ fn render_dynamic_diagram() -> Result<String, Box<dyn std::error::Error>> {
 
     // Draw entities
     for entity in &entities {
-        // Draw entity box
-        svg_content.push_str(&format!(
-            r#"<rect x="{}" y="{}" width="{}" height="{}" fill="{}" stroke="{}" stroke-width="1" rx="4"/>"#,
-            entity.x,
-            entity.y,
-            entity.width,
-            entity.height,
-            entity.entity_type.color(),
-            entity.entity_type.border_color()
-        ));
+        // Special case for Email Verifier - draw as circular icon
+        if entity.id == "email_verifier" {
+            // Draw circular icon between swimlanes
+            let icon_x = entity.x + entity.width / 2.0;
+            let icon_y = entity.y + entity.height / 2.0 - 20.0; // Position between swimlanes
 
-        // Draw entity type label
-        svg_content.push_str(&format!(
-            r#"<text x="{}" y="{}" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="10" fill="{}">{}</text>"#,
-            entity.x + entity.width / 2.0,
-            entity.y + 12.0,
-            entity.entity_type.text_color(),
-            entity.entity_type.label()
-        ));
-
-        // Draw entity name
-        let lines: Vec<&str> = entity.name.split('\n').collect();
-        let line_height = 14;
-        let total_height = (lines.len() as i32 - 1) * line_height;
-        let start_y = entity.y as i32 + entity.height as i32 / 2 - total_height / 2;
-
-        for (i, line) in lines.iter().enumerate() {
             svg_content.push_str(&format!(
-                r#"<text x="{}" y="{}" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="12" fill="{}">{}</text>"#,
-                entity.x + entity.width / 2.0,
-                start_y + (i as i32 * line_height),
-                entity.entity_type.text_color(),
-                line
+                "<circle cx=\"{}\" cy=\"{}\" r=\"25\" fill=\"#4a5568\" stroke=\"#2d3748\" stroke-width=\"2\"/>",
+                icon_x, icon_y
             ));
+
+            // Email icon
+            svg_content.push_str(&format!(
+                "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"20\" fill=\"white\">✉</text>",
+                icon_x, icon_y - 3.0
+            ));
+
+            // Label
+            svg_content.push_str(&format!(
+                "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"9\" fill=\"white\">Email Verifier</text>",
+                icon_x, icon_y + 12.0
+            ));
+        } else {
+            // Draw regular entity box
+            svg_content.push_str(&format!(
+                r#"<rect x="{}" y="{}" width="{}" height="{}" fill="{}" stroke="{}" stroke-width="1" rx="4"/>"#,
+                entity.x,
+                entity.y,
+                entity.width,
+                entity.height,
+                entity.entity_type.color(),
+                entity.entity_type.border_color()
+            ));
+
+            // Draw entity type label
+            svg_content.push_str(&format!(
+                r#"<text x="{}" y="{}" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="10" fill="{}">{}</text>"#,
+                entity.x + entity.width / 2.0,
+                entity.y + 12.0,
+                entity.entity_type.text_color(),
+                entity.entity_type.label()
+            ));
+
+            // Draw entity name
+            let lines: Vec<&str> = entity.name.split('\n').collect();
+            let line_height = 14;
+            let total_height = (lines.len() as i32 - 1) * line_height;
+            let start_y = entity.y as i32 + entity.height as i32 / 2 - total_height / 2;
+
+            for (i, line) in lines.iter().enumerate() {
+                svg_content.push_str(&format!(
+                    r#"<text x="{}" y="{}" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="12" fill="{}">{}</text>"#,
+                    entity.x + entity.width / 2.0,
+                    start_y + (i as i32 * line_height),
+                    entity.entity_type.text_color(),
+                    line
+                ));
+            }
         }
     }
 
@@ -745,7 +773,12 @@ fn layout_entities(entities: &mut [Entity], _connections: &[Connection]) -> (f64
 
             for entity in swimlane_entities.iter_mut() {
                 entity.x = x;
-                entity.y = y;
+                // Special positioning for Email Verifier - position between swimlanes
+                if entity.id == "email_verifier" {
+                    entity.y = padding + swimlane_height - 10.0; // Between swimlane 0 and 1
+                } else {
+                    entity.y = y;
+                }
                 x += entity.width + entity_h_spacing;
             }
         }
@@ -777,10 +810,18 @@ fn calculate_slice_positions(entities: &[Entity]) -> Vec<(f64, f64)> {
 }
 
 fn calculate_connection_points(from: &Entity, to: &Entity) -> (f64, f64, f64, f64) {
-    let from_center_x = from.x + from.width / 2.0;
-    let from_center_y = from.y + from.height / 2.0;
-    let to_center_x = to.x + to.width / 2.0;
-    let to_center_y = to.y + to.height / 2.0;
+    // Special handling for Email Verifier icon
+    let (from_center_x, from_center_y) = if from.id == "email_verifier" {
+        (from.x + from.width / 2.0, from.y + from.height / 2.0 - 20.0)
+    } else {
+        (from.x + from.width / 2.0, from.y + from.height / 2.0)
+    };
+
+    let (to_center_x, to_center_y) = if to.id == "email_verifier" {
+        (to.x + to.width / 2.0, to.y + to.height / 2.0 - 20.0)
+    } else {
+        (to.x + to.width / 2.0, to.y + to.height / 2.0)
+    };
 
     // Determine connection points based on relative positions
     let (from_x, from_y, to_x, to_y) = if to.x > from.x + from.width {
@@ -821,86 +862,94 @@ fn render_test_scenarios(svg_content: &mut String, test_scenarios: &[TestScenari
 
     let mut section_x = 50.0;
 
-    // Group and render test scenarios by command
-    for (command, scenarios) in scenarios_by_command.iter() {
-        // Calculate section dimensions
-        let num_scenarios = scenarios.len();
-        let section_height = header_height + (3.0 * row_height) + 20.0; // 3 rows + padding
+    // Define the correct order based on gold standard
+    let command_order = [
+        "Create User Account Credentials",
+        "Send Email Verification",
+        "Verify Email Address",
+    ];
 
-        // Draw section container
-        svg_content.push_str(&format!(
+    // Render test scenarios in the correct order
+    for command in &command_order {
+        if let Some(scenarios) = scenarios_by_command.get(*command) {
+            // Calculate section dimensions
+            let num_scenarios = scenarios.len();
+            let section_height = header_height + (3.0 * row_height) + 20.0; // 3 rows + padding
+
+            // Draw section container
+            svg_content.push_str(&format!(
             "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#ffffff\" stroke=\"#d1d5da\" stroke-width=\"1\"/>",
             section_x, y_start, section_width, section_height
         ));
 
-        // Draw section header
-        svg_content.push_str(&format!(
+            // Draw section header
+            svg_content.push_str(&format!(
             "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"14\" font-weight=\"bold\" fill=\"#24292e\">{}</text>",
             section_x + section_width / 2.0,
             y_start + 20.0,
             command
         ));
 
-        // Calculate column width for scenarios
-        let col_width = (section_width - 60.0) / num_scenarios as f64;
+            // Calculate column width for scenarios
+            let col_width = (section_width - 60.0) / num_scenarios as f64;
 
-        // Draw row labels and entries
-        for (row_idx, row_label) in row_labels.iter().enumerate() {
-            let row_y = y_start + header_height + (row_idx as f64 * row_height);
+            // Draw row labels and entries
+            for (row_idx, row_label) in row_labels.iter().enumerate() {
+                let row_y = y_start + header_height + (row_idx as f64 * row_height);
 
-            // Draw row label
-            svg_content.push_str(&format!(
+                // Draw row label
+                svg_content.push_str(&format!(
                 "<text x=\"{}\" y=\"{}\" font-family=\"Arial, sans-serif\" font-size=\"11\" fill=\"#586069\">{}</text>",
                 section_x + 10.0,
                 row_y + row_height / 2.0,
                 row_label
             ));
 
-            // Draw entries for each scenario
-            for (scenario_idx, scenario) in scenarios.iter().enumerate() {
-                let entries = match row_idx {
-                    0 => &scenario.given,
-                    1 => &scenario.when,
-                    2 => &scenario.then,
-                    _ => continue,
-                };
+                // Draw entries for each scenario
+                for (scenario_idx, scenario) in scenarios.iter().enumerate() {
+                    let entries = match row_idx {
+                        0 => &scenario.given,
+                        1 => &scenario.when,
+                        2 => &scenario.then,
+                        _ => continue,
+                    };
 
-                // Draw scenario name header if first row
-                if row_idx == 0 {
-                    let scenario_x = section_x + 50.0 + (scenario_idx as f64 * col_width);
-                    svg_content.push_str(&format!(
+                    // Draw scenario name header if first row
+                    if row_idx == 0 {
+                        let scenario_x = section_x + 50.0 + (scenario_idx as f64 * col_width);
+                        svg_content.push_str(&format!(
                         "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"10\" fill=\"#586069\">{}</text>",
                         scenario_x + col_width / 2.0,
                         row_y - 5.0,
                         scenario.name
                     ));
-                }
+                    }
 
-                // Draw entries
-                let mut entry_y = row_y + 5.0;
-                for entry in entries.iter() {
-                    let entry_x = section_x + 50.0 + (scenario_idx as f64 * col_width) + 5.0;
-                    let entry_w = col_width - 10.0;
-                    let entry_h = 35.0;
+                    // Draw entries
+                    let mut entry_y = row_y + 5.0;
+                    for entry in entries.iter() {
+                        let entry_x = section_x + 50.0 + (scenario_idx as f64 * col_width) + 5.0;
+                        let entry_w = col_width - 10.0;
+                        let entry_h = 35.0;
 
-                    // Determine colors based on content
-                    let (bg_color, text_color, border_color) = if entry.text.contains("Error") {
-                        ("#fee7e7", "#d73a3a", "#f5c6c6") // Light red for errors
-                    } else if entry.text.contains("Verified") || entry.text.contains("Sent") {
-                        ("#e6e1ff", "#5b41d9", "#c6b9ff") // Light purple for events
-                    } else {
-                        ("#e1edff", "#4a6bc7", "#b9d1ff") // Light blue for commands/default
-                    };
+                        // Determine colors based on content
+                        let (bg_color, text_color, border_color) = if entry.text.contains("Error") {
+                            ("#fee7e7", "#d73a3a", "#f5c6c6") // Light red for errors
+                        } else if entry.text.contains("Verified") || entry.text.contains("Sent") {
+                            ("#e6e1ff", "#5b41d9", "#c6b9ff") // Light purple for events
+                        } else {
+                            ("#e1edff", "#4a6bc7", "#b9d1ff") // Light blue for commands/default
+                        };
 
-                    // Draw entry box
-                    svg_content.push_str(&format!(
+                        // Draw entry box
+                        svg_content.push_str(&format!(
                         "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\" stroke=\"{}\" stroke-width=\"1\" rx=\"2\"/>",
                         entry_x, entry_y, entry_w, entry_h, bg_color, border_color
                     ));
 
-                    // Draw entry text (simplified - just first line for now)
-                    let text_lines: Vec<&str> = entry.text.split('\n').collect();
-                    svg_content.push_str(&format!(
+                        // Draw entry text (simplified - just first line for now)
+                        let text_lines: Vec<&str> = entry.text.split('\n').collect();
+                        svg_content.push_str(&format!(
                         "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"9\" fill=\"{}\">{}</text>",
                         entry_x + entry_w / 2.0,
                         entry_y + entry_h / 2.0,
@@ -908,11 +957,12 @@ fn render_test_scenarios(svg_content: &mut String, test_scenarios: &[TestScenari
                         text_lines.first().unwrap_or(&"")
                     ));
 
-                    entry_y += entry_h + 5.0;
+                        entry_y += entry_h + 5.0;
+                    }
                 }
             }
-        }
 
-        section_x += section_width + section_spacing;
+            section_x += section_width + section_spacing;
+        }
     }
 }
