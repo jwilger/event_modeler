@@ -37,13 +37,14 @@ This ensures no work is forgotten or lost in the codebase.
 - New Phase 6 added for horizontal slice architecture redesign
 - Incremental rendering approach defined with 10 manual review checkpoints
 - Library evaluation completed - continuing with custom implementation
-- Phase 6 Progress:
+- Phase 6 Progress (PR #23 - feature/incremental-rendering-approach):
   - ✅ Step 1: Swimlanes Only - Complete
   - ✅ Step 2: Add Slice Boundaries - Complete  
   - ✅ Step 3: Add Views (White Boxes) - Complete with text fitting
   - ✅ Step 4: Add Commands (Blue Boxes) - Complete
   - ✅ Step 5: Add Events (Purple Boxes) - Complete with corrected names
   - ⏳ Step 6: Add Projections (Yellow Boxes) - Ready to start
+  - Note: Using temporary test binary `horizontal_slice_test.rs` with hardcoded entities
 
 **🚨 CRITICAL DISCOVERY - Node-Based Layout (2025-06-18)**: 
 The example.jpg shows that entities can appear multiple times in the diagram as separate visual nodes. Each appearance is a distinct node with its own position and connections, even though they reference the same logical entity. This is essential for avoiding visual clutter and showing different relationships clearly. **This requires a fundamental shift from entity-based to node-based layout architecture.**
@@ -422,10 +423,16 @@ The gold master analysis revealed that slices should be horizontal bands represe
 
 **Implementation Strategy**: 
 - Use `example.eventmodel` as the test data throughout
-- Create a temporary test program that renders only the elements for the current step
+- Create a temporary test program (`src/bin/horizontal_slice_test.rs`) that renders only the elements for the current step
+- **IMPORTANT**: This test program uses HARDCODED entities for rapid visual iteration
+- The hardcoded entities match those in `example.eventmodel` but bypass parsing complexity
 - Generate PNG output using `magick` for visual comparison
 - Wait for explicit user approval before proceeding to the next step
 - Each step builds upon the previous, gradually increasing complexity
+- **Final Integration**: Once all 11 steps are complete and layout is proven:
+  - Port the layout algorithms from the test program back to the main application
+  - The acceptance test (`tests/yaml_acceptance.rs`) will verify full integration
+  - Remove the temporary test program after successful integration
 
 #### Incremental Implementation Steps:
 
