@@ -95,8 +95,10 @@ fn test_yaml_parsing_errors_are_helpful() {
     let invalid_yaml = r#"
 workflow: Test
 swimlanes:
-  - invalid yaml syntax here
-    should fail with clear error
+  - this is valid
+events:
+  TestEvent:
+    invalid: yaml: syntax: here
 "#;
 
     let temp_file = Path::new("target/test-output/invalid.eventmodel");
@@ -104,7 +106,13 @@ swimlanes:
     fs::write(temp_file, invalid_yaml).unwrap();
 
     let output = Command::new("cargo")
-        .args(["run", "--", temp_file.to_str().unwrap()])
+        .args([
+            "run",
+            "--",
+            temp_file.to_str().unwrap(),
+            "-o",
+            "target/test-output/error_test.svg",
+        ])
         .output()
         .expect("Failed to execute event_modeler");
 
@@ -131,12 +139,14 @@ swimlanes:
 events:
   TestEvent:
     swimlane: events
+    description: "A test event"
     data:
       id: String
 
 commands:
   TestCommand:
     swimlane: commands
+    description: "A test command"
     data:
       id: String
     tests:
@@ -152,18 +162,21 @@ commands:
 views:
   TestView:
     swimlane: ux
+    description: "A test view"
     components:
       - TestButton: Button
 
 projections:
   TestProjection:
     swimlane: commands
+    description: "A test projection"
     fields:
       id: String
 
 queries:
   TestQuery:
     swimlane: commands
+    description: "A test query"
     inputs:
       id: String
     outputs:
@@ -175,6 +188,7 @@ queries:
 automations:
   TestAutomation:
     swimlane: ux
+    description: "A test automation"
 
 slices:
   TestSlice:

@@ -66,6 +66,8 @@ pub struct RenderOptions {
     pub include_links: IncludeLinks,
     /// Directory to write output files (parent must exist).
     pub output_dir: TypedPath<AnyFile, Directory, MaybeExists>,
+    /// Optional specific output filename (if not provided, uses input filename).
+    pub output_filename: Option<String>,
 }
 
 /// Supported output formats for rendered diagrams.
@@ -156,8 +158,8 @@ impl Cli {
             }
         }
 
-        // Determine output directory and format
-        let (output_dir, format) = if let Some(path) = output_path {
+        // Determine output directory, format, and filename
+        let (output_dir, format, output_filename) = if let Some(path) = output_path {
             let path_buf = PathBuf::from(&path);
             let dir = path_buf
                 .parent()
@@ -172,10 +174,14 @@ impl Cli {
                 OutputFormat::Svg // Default to SVG
             };
 
-            (dir, format)
+            let filename = path_buf
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string());
+
+            (dir, format, filename)
         } else {
             // Default to current directory and SVG
-            (PathBuf::from("."), OutputFormat::Svg)
+            (PathBuf::from("."), OutputFormat::Svg, None)
         };
 
         // Parse the input file path
@@ -200,6 +206,7 @@ impl Cli {
                 },
                 include_links: IncludeLinks::new(false), // Default to no links
                 output_dir,
+                output_filename,
             },
         });
 
@@ -317,13 +324,17 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
                     .map_err(|e| Error::InvalidArguments(format!("SVG render error: {}", e)))?;
 
                 // Generate output filename
-                let input_stem = cmd
-                    .input
-                    .as_path_buf()
-                    .file_stem()
-                    .unwrap_or_default()
-                    .to_string_lossy();
-                let output_filename = format!("{}.svg", input_stem);
+                let output_filename = if let Some(filename) = &cmd.options.output_filename {
+                    filename.clone()
+                } else {
+                    let input_stem = cmd
+                        .input
+                        .as_path_buf()
+                        .file_stem()
+                        .unwrap_or_default()
+                        .to_string_lossy();
+                    format!("{}.svg", input_stem)
+                };
                 let output_path = cmd.options.output_dir.as_path_buf().join(&output_filename);
 
                 // Write SVG to file

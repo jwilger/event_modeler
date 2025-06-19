@@ -272,9 +272,9 @@ slices:
     - SendEmailVerification -> EmailVerificationMessageSent
     - EmailVerificationMessageSent -> UserEmailVerificationTokenProjection
     - VerifyEmailAddressScreen.VerificationForm.Submit -> VerifyUserEmailAddress
-    - VerifyUserEmailAddress -> UserEmailAddressVerified
-    - UserEmailAddressVerified -> UserCredentialsProjection
-    - UserEmailAddressVerified -> UserEmailVerificationTokenProjection
-    - UserEmailAddressVerified -> VerifyEmailAddressScreen
+    - VerifyUserEmailAddress -> EmailAddressVerified
+    - EmailAddressVerified -> UserCredentialsProjection
+    - EmailAddressVerified -> UserEmailVerificationTokenProjection
+    - EmailAddressVerified -> VerifyEmailAddressScreen
     - VerifyEmailAddressScreen -> UserProfileScreen
     - UserProfileScreen.EmailAddress -> GetUserProfile

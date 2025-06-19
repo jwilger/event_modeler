@@ -67,6 +67,10 @@ pub fn convert_yaml_to_diagram(
         &yaml_model.swimlanes,
         &yaml_model.events,
         &yaml_model.commands,
+        &yaml_model.views,
+        &yaml_model.projections,
+        &yaml_model.queries,
+        &yaml_model.automations,
     );
 
     // Build registry - For now we use an empty registry as the typestate pattern
@@ -100,6 +104,10 @@ fn convert_swimlanes_with_entities(
     yaml_swimlanes: &crate::infrastructure::types::NonEmpty<yaml::Swimlane>,
     yaml_events: &std::collections::HashMap<yaml::EventName, yaml::EventDefinition>,
     yaml_commands: &std::collections::HashMap<yaml::CommandName, yaml::CommandDefinition>,
+    yaml_views: &std::collections::HashMap<yaml::ViewName, yaml::ViewDefinition>,
+    yaml_projections: &std::collections::HashMap<yaml::ProjectionName, yaml::ProjectionDefinition>,
+    yaml_queries: &std::collections::HashMap<yaml::QueryName, yaml::QueryDefinition>,
+    yaml_automations: &std::collections::HashMap<yaml::AutomationName, yaml::AutomationDefinition>,
 ) -> crate::infrastructure::types::NonEmpty<crate::event_model::diagram::Swimlane> {
     use crate::event_model::diagram::{Swimlane, SwimlaneId, SwimlaneName, SwimlanePosition};
     use crate::infrastructure::types::NonEmpty;
@@ -140,6 +148,62 @@ fn convert_swimlanes_with_entities(
             .unwrap(),
         );
         if let Some(entity_list) = swimlane_entities.get_mut(&command_def.swimlane) {
+            entity_list.push(entity_id);
+        }
+    }
+
+    // Add views to their swimlanes
+    for (yaml_view_name, view_def) in yaml_views {
+        let entity_id = crate::event_model::entities::EntityId::new(
+            crate::infrastructure::types::NonEmptyString::parse(format!(
+                "view_{}",
+                yaml_view_name.clone().into_inner().as_str()
+            ))
+            .unwrap(),
+        );
+        if let Some(entity_list) = swimlane_entities.get_mut(&view_def.swimlane) {
+            entity_list.push(entity_id);
+        }
+    }
+
+    // Add projections to their swimlanes
+    for (yaml_projection_name, projection_def) in yaml_projections {
+        let entity_id = crate::event_model::entities::EntityId::new(
+            crate::infrastructure::types::NonEmptyString::parse(format!(
+                "projection_{}",
+                yaml_projection_name.clone().into_inner().as_str()
+            ))
+            .unwrap(),
+        );
+        if let Some(entity_list) = swimlane_entities.get_mut(&projection_def.swimlane) {
+            entity_list.push(entity_id);
+        }
+    }
+
+    // Add queries to their swimlanes
+    for (yaml_query_name, query_def) in yaml_queries {
+        let entity_id = crate::event_model::entities::EntityId::new(
+            crate::infrastructure::types::NonEmptyString::parse(format!(
+                "query_{}",
+                yaml_query_name.clone().into_inner().as_str()
+            ))
+            .unwrap(),
+        );
+        if let Some(entity_list) = swimlane_entities.get_mut(&query_def.swimlane) {
+            entity_list.push(entity_id);
+        }
+    }
+
+    // Add automations to their swimlanes
+    for (yaml_automation_name, automation_def) in yaml_automations {
+        let entity_id = crate::event_model::entities::EntityId::new(
+            crate::infrastructure::types::NonEmptyString::parse(format!(
+                "automation_{}",
+                yaml_automation_name.clone().into_inner().as_str()
+            ))
+            .unwrap(),
+        );
+        if let Some(entity_list) = swimlane_entities.get_mut(&automation_def.swimlane) {
             entity_list.push(entity_id);
         }
     }
