@@ -770,17 +770,18 @@ impl SvgRenderer {
             elements.push(SvgElement::Group(swimlane_group));
         }
 
+        // TODO: Step 2 - Temporarily disable connections and nodes to show only swimlanes
         // Render node connections BEFORE nodes so they appear behind
-        for connection in &node_layout.connections {
-            let connector_element = self.render_node_connector(connection, &node_layout.nodes)?;
-            elements.push(connector_element);
-        }
+        // for connection in &node_layout.connections {
+        //     let connector_element = self.render_node_connector(connection, &node_layout.nodes)?;
+        //     elements.push(connector_element);
+        // }
 
         // Render nodes on top of connectors
-        for positioned_node in node_layout.nodes.values() {
-            let node_element = self.render_node(positioned_node)?;
-            elements.push(node_element);
-        }
+        // for positioned_node in node_layout.nodes.values() {
+        //     let node_element = self.render_node(positioned_node)?;
+        //     elements.push(node_element);
+        // }
 
         // Create empty defs for now
         let defs = SvgDefs {
@@ -1034,6 +1035,7 @@ impl SvgRenderer {
     }
 
     /// Render a node as an SVG element.
+    #[allow(dead_code)] // TODO: Remove when Step 2 is complete
     fn render_node(
         &self,
         positioned_node: &crate::diagram::node_layout::PositionedNode,
@@ -1173,6 +1175,7 @@ impl SvgRenderer {
     }
 
     /// Render a node connector as an SVG path.
+    #[allow(dead_code)] // TODO: Remove when Step 2 is complete
     fn render_node_connector(
         &self,
         connection: &crate::diagram::node::NodeConnection,
