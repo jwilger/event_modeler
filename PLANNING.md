@@ -497,7 +497,7 @@ The gold master analysis revealed that slices should be horizontal bands represe
    - Position in UX swimlane
    - **Review Checkpoint**: User confirms automation layout
 
-9. **Step 9: Add Connections**
+9. **Step 9: Add Connections** ⏳ PARTIAL (basic arrows implemented)
    - Add arrows between entities following slice flows
    - Route within slice boundaries
    - **CRITICAL**: Adjust entity positioning within swimlanes to ensure connections flow naturally left-to-right
