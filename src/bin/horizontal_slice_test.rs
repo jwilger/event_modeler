@@ -1,6 +1,6 @@
 //! Temporary test program for incrementally implementing horizontal slice architecture.
 //!
-//! This binary is used to test Step 1: Swimlanes Only rendering.
+//! This binary is used to test Step 6: Adding Projections (Yellow Boxes) rendering.
 
 use event_modeler::diagram::svg::{
     DecimalPrecision, EmbedFonts, OptimizationLevel, SvgRenderConfig, SvgRenderer,
@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let output_path = PathBuf::from(&args[1]);
 
-    // Step 2: Render horizontal swimlanes + slice boundaries
+    // Step 6: Render horizontal swimlanes + slice boundaries + Views + Commands + Events + Projections
     let svg_content = render_swimlanes_and_slices()?;
 
     // Write to file
@@ -45,13 +45,14 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
         .clone();
     let _renderer = SvgRenderer::new(svg_config, theme);
 
-    // Step 5: Render horizontal swimlanes + slice boundaries + Views + Commands + Events
+    // Step 6: Render horizontal swimlanes + slice boundaries + Views + Commands + Events + Projections
     // Based on the gold master, we need:
     // - 3 horizontal swimlanes: UX, Commands, Events
     // - 3 vertical slices: CreateAccount, SendEmailVerification, VerifyEmailAddress
     // - View entities (white boxes) in the UX swimlane
     // - Command entities (blue boxes) in the Commands swimlane
     // - Event entities (purple boxes) in the Events swimlane
+    // - Projection entities (yellow boxes) in the Commands swimlane
 
     let canvas_width = 1200;
     let canvas_height = 400;
@@ -240,6 +241,45 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             event_y + event_height / 2,
             "normal",
             "white", // White text on purple background
+            None,
+        ));
+    }
+
+    // Step 6: Add Projection entities (yellow/orange boxes) in the Commands swimlane
+    // Based on example.eventmodel projections and gold master layout
+    let projections = [
+        ("User\nCredentials\nProjection", 0), // slice 0 (Create Account)
+        ("User Email\nVerification Token\nProjection", 1), // slice 1 (Send Email Verification)
+    ];
+
+    // Projection styling
+    let projection_width = 120;
+    let projection_height = 80;
+    // Projections go in the middle swimlane along with commands
+    let projection_y = commands_swimlane_y + (swimlane_height - projection_height) / 2;
+
+    for (projection_name, slice_index) in &projections {
+        let slice_x = padding + (slice_index * slice_width);
+        // Position projections to the right of commands
+        let projection_x = slice_x + 30 + command_width + 20; // Offset from command
+
+        // Draw projection box (yellow/orange with border)
+        svg_content.push_str(&format!(
+            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#ffd166\" stroke=\"#f4a261\" stroke-width=\"1\" rx=\"4\"/>",
+            projection_x,
+            projection_y,
+            projection_width,
+            projection_height
+        ));
+
+        // Add projection text with fitting (dark text on yellow background)
+        let projection_fitted_text =
+            fit_text_to_container(projection_name, projection_width, projection_height);
+        svg_content.push_str(&projection_fitted_text.render_svg_full(
+            projection_x + projection_width / 2,
+            projection_y + projection_height / 2,
+            "normal",
+            "#24292e", // Dark text on yellow background
             None,
         ));
     }
