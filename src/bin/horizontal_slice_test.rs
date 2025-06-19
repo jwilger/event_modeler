@@ -21,8 +21,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let output_path = PathBuf::from(&args[1]);
 
-    // Step 1: Render only horizontal swimlanes
-    let svg_content = render_swimlanes_only()?;
+    // Step 2: Render horizontal swimlanes + slice boundaries
+    let svg_content = render_swimlanes_and_slices()?;
 
     // Write to file
     let mut file = fs::File::create(&output_path)?;
@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn render_swimlanes_only() -> Result<String, Box<dyn std::error::Error>> {
+fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
     // Create SVG renderer
     let svg_config = SvgRenderConfig {
         precision: DecimalPrecision::new(PositiveInt::parse(2).unwrap()),
@@ -45,11 +45,10 @@ fn render_swimlanes_only() -> Result<String, Box<dyn std::error::Error>> {
         .clone();
     let _renderer = SvgRenderer::new(svg_config, theme);
 
-    // Create a simple SVG showing only horizontal swimlanes
-    // Based on the gold master, we need 3 horizontal bands:
-    // 1. "UX, Automations" (top)
-    // 2. "Commands, Projections, Queries" (middle)
-    // 3. "User Account Event Stream" (bottom)
+    // Step 2: Render horizontal swimlanes + slice boundaries
+    // Based on the gold master, we need:
+    // - 3 horizontal swimlanes: UX, Commands, Events
+    // - 3 vertical slices: CreateAccount, VerifyEmailAddress, (other)
 
     let canvas_width = 1200;
     let canvas_height = 400;
@@ -97,6 +96,38 @@ fn render_swimlanes_only() -> Result<String, Box<dyn std::error::Error>> {
             padding / 2,
             lane_y + (swimlane_height as f32 / 2.0),
             name
+        ));
+    }
+
+    // Step 2: Add slice boundaries (vertical dividers)
+    // Based on the example.eventmodel, we have slices: CreateAccount, VerifyEmailAddress
+    let slice_names = [
+        "Create Account",
+        "Send Email Verification",
+        "Verify Email Address",
+    ];
+    let slice_width = (canvas_width - 2 * padding) / slice_names.len();
+
+    for (i, slice_name) in slice_names.iter().enumerate() {
+        let slice_x = padding + (i * slice_width);
+
+        // Draw vertical slice boundary line (except for the first one)
+        if i > 0 {
+            svg_content.push_str(&format!(
+                "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"#d1d5da\" stroke-width=\"2\"/>",
+                slice_x,
+                padding,
+                slice_x,
+                canvas_height - padding
+            ));
+        }
+
+        // Add slice header at the top
+        svg_content.push_str(&format!(
+            "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"14\" font-weight=\"bold\" fill=\"#24292e\">{}</text>",
+            slice_x + (slice_width / 2),
+            padding / 2 + 5, // Position above the swimlanes
+            slice_name
         ));
     }
 
