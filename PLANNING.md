@@ -472,26 +472,36 @@ The gold master analysis revealed that slices should be horizontal bands represe
    - **NOTE**: Always use timestamped filenames for output to avoid browser caching
 
 6. **Step 6: Add Projections (Yellow Boxes)**
-   - Add Projection entities
-   - Use yellow/orange styling
+   - Add Projection entities (UserCredentialsProjection, UserEmailVerificationTokenProjection)
+   - Use yellow/orange styling (#ffd166)
+   - Position in middle swimlane
    - **Review Checkpoint**: User confirms projection layout
 
-7. **Step 7: Add Other Entity Types**
-   - Add Queries, Automations
-   - Apply appropriate colors
-   - **Review Checkpoint**: User confirms all entity types
+7. **Step 7: Add Queries (Blue Boxes)**
+   - Add Query entities (GetAccountIdForEmailVerificationToken, GetUserProfile)
+   - Use blue styling like Commands (#5b8def)
+   - Position in middle swimlane
+   - **Review Checkpoint**: User confirms query layout
 
-8. **Step 8: Add Connections**
+8. **Step 8: Add Automations (Green Boxes)**
+   - Add Automation entities (UserEmailVerifier)
+   - Use green styling (#06d6a0)
+   - Position in UX swimlane
+   - **Review Checkpoint**: User confirms automation layout
+
+9. **Step 9: Add Connections**
    - Add arrows between entities following slice flows
    - Route within slice boundaries
-   - **Review Checkpoint**: User confirms connection routing
+   - **CRITICAL**: Adjust entity positioning within swimlanes to ensure connections flow naturally left-to-right
+   - May need to reposition entities to minimize crossing lines and maintain timeline flow
+   - **Review Checkpoint**: User confirms connection routing and entity positioning
 
-9. **Step 9: Add Test Scenarios**
-   - Add test scenario labels within slices
-   - Group related entities
-   - **Review Checkpoint**: User confirms test scenario presentation
+10. **Step 10: Add Test Scenarios**
+    - Add test scenario labels within slices
+    - Group related entities
+    - **Review Checkpoint**: User confirms test scenario presentation
 
-10. **Step 10: Final Polish**
+11. **Step 11: Final Polish**
     - Adjust spacing, alignment
     - Fine-tune colors and typography
     - **Final Review**: User confirms complete diagram
