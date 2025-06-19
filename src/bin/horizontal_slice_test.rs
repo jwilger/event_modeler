@@ -1,6 +1,6 @@
 //! Temporary test program for incrementally implementing horizontal slice architecture.
 //!
-//! This binary is used to test Step 6: Adding Projections (Yellow Boxes) rendering.
+//! This binary is used to test Step 7: Adding Queries (Blue Boxes) rendering.
 
 use event_modeler::diagram::svg::{
     DecimalPrecision, EmbedFonts, OptimizationLevel, SvgRenderConfig, SvgRenderer,
@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let output_path = PathBuf::from(&args[1]);
 
-    // Step 6: Render horizontal swimlanes + slice boundaries + Views + Commands + Events + Projections
+    // Step 7: Render horizontal swimlanes + slice boundaries + Views + Commands + Events + Projections + Queries
     let svg_content = render_swimlanes_and_slices()?;
 
     // Write to file
@@ -45,7 +45,7 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
         .clone();
     let _renderer = SvgRenderer::new(svg_config, theme);
 
-    // Step 6: Render horizontal swimlanes + slice boundaries + Views + Commands + Events + Projections
+    // Step 7: Render horizontal swimlanes + slice boundaries + Views + Commands + Events + Projections + Queries
     // Based on the gold master, we need:
     // - 3 horizontal swimlanes: UX, Commands, Events
     // - 3 vertical slices: CreateAccount, SendEmailVerification, VerifyEmailAddress
@@ -53,6 +53,7 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
     // - Command entities (blue boxes) in the Commands swimlane
     // - Event entities (purple boxes) in the Events swimlane
     // - Projection entities (yellow boxes) in the Commands swimlane
+    // - Query entities (blue boxes) in the Commands swimlane
 
     let canvas_width = 1200;
     let canvas_height = 400;
@@ -280,6 +281,50 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             projection_y + projection_height / 2,
             "normal",
             "#24292e", // Dark text on yellow background
+            None,
+        ));
+    }
+
+    // Step 7: Add Query entities (blue boxes) in the Commands swimlane
+    // Based on example.eventmodel queries and gold master layout
+    let queries = [
+        ("Get Account\nID for Email\nVerification\nToken", 1), // slice 1 (Send Email Verification)
+        ("Get\nUser\nProfile", 2),                             // slice 2 (Verify Email Address)
+    ];
+
+    // Query styling (same as commands - blue boxes)
+    let query_width = 120;
+    let query_height = 80;
+    // Queries go in the middle swimlane along with commands and projections
+    let query_y = commands_swimlane_y + (swimlane_height - query_height) / 2;
+
+    for (query_name, slice_index) in &queries {
+        let slice_x = padding + (slice_index * slice_width);
+        // Position queries after projections in the slice
+        let query_x = if *slice_index == 1 {
+            // In slice 1, position after the projection
+            slice_x + 30 + command_width + 20 + projection_width + 20
+        } else {
+            // In slice 2, we have a command but no projection, so position after command
+            slice_x + 30 + command_width + 20
+        };
+
+        // Draw query box (blue like commands)
+        svg_content.push_str(&format!(
+            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#5b8def\" stroke=\"#4a6bc7\" stroke-width=\"1\" rx=\"4\"/>",
+            query_x,
+            query_y,
+            query_width,
+            query_height
+        ));
+
+        // Add query text with fitting (white text on blue background)
+        let query_fitted_text = fit_text_to_container(query_name, query_width, query_height);
+        svg_content.push_str(&query_fitted_text.render_svg_full(
+            query_x + query_width / 2,
+            query_y + query_height / 2,
+            "normal",
+            "white", // White text on blue background
             None,
         ));
     }
