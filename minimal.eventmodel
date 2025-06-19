@@ -1,0 +1,11 @@
+workflow: Simple System
+swimlanes:
+  - id: system
+    name: "System"
+events:
+  SystemStarted:
+    description: "System was started"
+    swimlane: system
+    data:
+      timestamp:
+        type: DateTime

@@ -62,6 +62,7 @@ impl NodeLayoutEngine {
     ///
     /// Each endpoint in a slice connection becomes a potential node.
     /// Multiple connections to/from the same entity create separate nodes.
+    /// Also creates nodes for isolated entities that have no connections.
     fn generate_nodes_from_slices<W, C, E, P, Q, A>(
         &self,
         diagram: &EventModelDiagram<W, C, E, P, Q, A>,
@@ -70,6 +71,7 @@ impl NodeLayoutEngine {
         let mut nodes = Vec::new();
         let mut connections = Vec::new();
         let mut node_map: HashMap<(EntityId, String), NodeId> = HashMap::new();
+        let mut connected_entities: HashMap<EntityId, bool> = HashMap::new();
 
         // Process each slice
         for slice in diagram.slices.iter() {
@@ -77,6 +79,10 @@ impl NodeLayoutEngine {
             for (conn_index, connection) in slice.connections.iter().enumerate() {
                 let source = &connection.from;
                 let target = &connection.to;
+
+                // Mark these entities as connected
+                connected_entities.insert(source.clone(), true);
+                connected_entities.insert(target.clone(), true);
 
                 // Generate context based on slice and connection index
                 let source_context = format!("{:?}_source_{}", slice.name, conn_index);
@@ -87,10 +93,28 @@ impl NodeLayoutEngine {
                 let source_node_id = if let Some(id) = node_map.get(&source_key) {
                     id.clone()
                 } else {
-                    // Look up entity type from registry
-                    let entity_type = registry
-                        .get_entity_type(source)
-                        .ok_or_else(|| LayoutError::InvalidEntityReference(source.clone()))?;
+                    // Look up entity type from registry, or infer from entity ID prefix
+                    let entity_type = registry.get_entity_type(source).unwrap_or_else(|| {
+                        // Infer type from entity ID prefix (e.g., "event_OrderPlaced" -> Event)
+                        let id_string = source.clone().into_inner();
+                        let id_str = id_string.as_str();
+                        if id_str.starts_with("event_") {
+                            crate::event_model::entities::EntityType::Event
+                        } else if id_str.starts_with("command_") {
+                            crate::event_model::entities::EntityType::Command
+                        } else if id_str.starts_with("view_") {
+                            crate::event_model::entities::EntityType::View
+                        } else if id_str.starts_with("projection_") {
+                            crate::event_model::entities::EntityType::Projection
+                        } else if id_str.starts_with("query_") {
+                            crate::event_model::entities::EntityType::Query
+                        } else if id_str.starts_with("automation_") {
+                            crate::event_model::entities::EntityType::Automation
+                        } else {
+                            // Default to command if unknown
+                            crate::event_model::entities::EntityType::Command
+                        }
+                    });
 
                     let entity_ref = EntityReference {
                         entity_type,
@@ -110,10 +134,28 @@ impl NodeLayoutEngine {
                 let target_node_id = if let Some(id) = node_map.get(&target_key) {
                     id.clone()
                 } else {
-                    // Look up entity type from registry
-                    let entity_type = registry
-                        .get_entity_type(target)
-                        .ok_or_else(|| LayoutError::InvalidEntityReference(target.clone()))?;
+                    // Look up entity type from registry, or infer from entity ID prefix
+                    let entity_type = registry.get_entity_type(target).unwrap_or_else(|| {
+                        // Infer type from entity ID prefix (e.g., "event_OrderPlaced" -> Event)
+                        let id_string = target.clone().into_inner();
+                        let id_str = id_string.as_str();
+                        if id_str.starts_with("event_") {
+                            crate::event_model::entities::EntityType::Event
+                        } else if id_str.starts_with("command_") {
+                            crate::event_model::entities::EntityType::Command
+                        } else if id_str.starts_with("view_") {
+                            crate::event_model::entities::EntityType::View
+                        } else if id_str.starts_with("projection_") {
+                            crate::event_model::entities::EntityType::Projection
+                        } else if id_str.starts_with("query_") {
+                            crate::event_model::entities::EntityType::Query
+                        } else if id_str.starts_with("automation_") {
+                            crate::event_model::entities::EntityType::Automation
+                        } else {
+                            // Default to command if unknown
+                            crate::event_model::entities::EntityType::Command
+                        }
+                    });
 
                     let entity_ref = EntityReference {
                         entity_type,
@@ -135,6 +177,47 @@ impl NodeLayoutEngine {
                     label: None,
                 };
                 connections.push(node_connection);
+            }
+        }
+
+        // Now add nodes for isolated entities (entities not in any connections)
+        for swimlane in diagram.swimlanes.iter() {
+            for entity_id in &swimlane.entities {
+                if !connected_entities.contains_key(entity_id) {
+                    // This entity has no connections, create a standalone node
+                    let entity_type = registry.get_entity_type(entity_id).unwrap_or_else(|| {
+                        // Infer type from entity ID prefix
+                        let id_string = entity_id.clone().into_inner();
+                        let id_str = id_string.as_str();
+                        if id_str.starts_with("event_") {
+                            crate::event_model::entities::EntityType::Event
+                        } else if id_str.starts_with("command_") {
+                            crate::event_model::entities::EntityType::Command
+                        } else if id_str.starts_with("view_") {
+                            crate::event_model::entities::EntityType::View
+                        } else if id_str.starts_with("projection_") {
+                            crate::event_model::entities::EntityType::Projection
+                        } else if id_str.starts_with("query_") {
+                            crate::event_model::entities::EntityType::Query
+                        } else if id_str.starts_with("automation_") {
+                            crate::event_model::entities::EntityType::Automation
+                        } else {
+                            // Default to command if unknown
+                            crate::event_model::entities::EntityType::Command
+                        }
+                    });
+
+                    let entity_ref = EntityReference {
+                        entity_type,
+                        entity_id: entity_id.clone(),
+                    };
+
+                    let context = "isolated";
+                    let node_id = NodeId::new(&entity_ref, context);
+                    let node = DiagramNode::new(node_id.clone(), entity_ref);
+
+                    nodes.push(node);
+                }
             }
         }
 

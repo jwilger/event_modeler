@@ -1,12 +1,19 @@
-Title: Simple Test Model
-
-Swimlane: Customer
-- Command: PlaceOrder
-- Event: OrderPlaced
-
-Swimlane: System
-- Projection: OrderList
-- Policy: ProcessPayment
-
-PlaceOrder -> OrderPlaced
-OrderPlaced -> OrderList
+workflow: Test
+swimlanes:
+  - id: lane1
+    name: "Service 1"
+events:
+  TestEvent:
+    description: "Test event"
+    swimlane: lane1
+    data:
+      test: String
+commands:
+  TestCommand:
+    description: "Test command"
+    swimlane: lane1
+    data:
+      test: String
+slices:
+  flow:
+    - command_TestCommand -> event_TestEvent

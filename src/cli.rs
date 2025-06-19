@@ -256,8 +256,9 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
         .sum();
     println!("Found {} entities total", total_entities);
 
-    // 5. Create layout from the diagram
-    use crate::diagram::layout::{LayoutConfig, LayoutEngine};
+    // 5. Create layout from the diagram using node-based layout
+    use crate::diagram::layout::LayoutConfig;
+    use crate::diagram::node_layout::NodeLayoutEngine;
     use crate::infrastructure::types::PositiveFloat;
 
     let layout_config = LayoutConfig {
@@ -277,9 +278,10 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
         ),
     };
 
-    let layout_engine = LayoutEngine::new(layout_config);
-    let layout = layout_engine
-        .compute_layout(&event_model_diagram)
+    // Use node-based layout engine
+    let node_layout_engine = NodeLayoutEngine::new(layout_config);
+    let node_layout = node_layout_engine
+        .compute_node_layout(&event_model_diagram, &event_model_diagram.entities)
         .map_err(|e| Error::InvalidArguments(format!("Layout error: {:?}", e)))?;
 
     // 6. Render to requested formats
@@ -311,7 +313,7 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
 
                 let renderer = crate::diagram::svg::SvgRenderer::new(svg_config, theme);
                 let svg_doc = renderer
-                    .render(&layout)
+                    .render_node_layout(&node_layout)
                     .map_err(|e| Error::InvalidArguments(format!("SVG render error: {}", e)))?;
 
                 // Generate output filename

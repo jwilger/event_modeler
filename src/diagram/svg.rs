@@ -743,6 +743,59 @@ impl SvgRenderer {
         })
     }
 
+    /// Render a node-based layout to an SVG document.
+    pub fn render_node_layout(
+        &self,
+        node_layout: &crate::diagram::node_layout::NodeLayout,
+    ) -> Result<SvgDocument, SvgRenderError> {
+        // Create viewbox from canvas
+        let viewbox = ViewBox {
+            x: XCoordinate::new(NonNegativeFloat::parse(0.0).unwrap()),
+            y: YCoordinate::new(NonNegativeFloat::parse(0.0).unwrap()),
+            width: Width::new(
+                PositiveFloat::parse(node_layout.canvas.width.into_inner().value() as f32).unwrap(),
+            ),
+            height: Height::new(
+                PositiveFloat::parse(node_layout.canvas.height.into_inner().value() as f32)
+                    .unwrap(),
+            ),
+        };
+
+        // Create SVG elements
+        let mut elements = Vec::new();
+
+        // Render swimlanes
+        for (swimlane_id, swimlane_layout) in &node_layout.swimlane_layouts {
+            let swimlane_group = self.render_swimlane(swimlane_id, swimlane_layout)?;
+            elements.push(SvgElement::Group(swimlane_group));
+        }
+
+        // Render node connections BEFORE nodes so they appear behind
+        for connection in &node_layout.connections {
+            let connector_element = self.render_node_connector(connection, &node_layout.nodes)?;
+            elements.push(connector_element);
+        }
+
+        // Render nodes on top of connectors
+        for positioned_node in node_layout.nodes.values() {
+            let node_element = self.render_node(positioned_node)?;
+            elements.push(node_element);
+        }
+
+        // Create empty defs for now
+        let defs = SvgDefs {
+            patterns: vec![],
+            gradients: vec![],
+            markers: vec![],
+        };
+
+        Ok(SvgDocument {
+            viewbox,
+            elements,
+            defs,
+        })
+    }
+
     /// Get the current configuration.
     pub fn config(&self) -> &SvgRenderConfig {
         &self.config
@@ -980,6 +1033,199 @@ impl SvgRenderer {
         Ok(SvgElement::Group(group))
     }
 
+    /// Render a node as an SVG element.
+    fn render_node(
+        &self,
+        positioned_node: &crate::diagram::node_layout::PositionedNode,
+    ) -> Result<SvgElement, SvgRenderError> {
+        let entity_ref = positioned_node.node.entity_ref();
+
+        // Render similar to entity but use node position and entity reference
+        let rect = SvgRectangle {
+            id: Some(ElementId::new(
+                NonEmptyString::parse(format!("node-{}", positioned_node.node.id().as_str()))
+                    .unwrap(),
+            )),
+            class: Some(CssClass::new(
+                NonEmptyString::parse("node".to_string()).unwrap(),
+            )),
+            x: positioned_node.position.x,
+            y: positioned_node.position.y,
+            width: positioned_node.dimensions.width,
+            height: positioned_node.dimensions.height,
+            rx: Some(BorderRadius::new(NonNegativeFloat::parse(8.0).unwrap())),
+            ry: Some(BorderRadius::new(NonNegativeFloat::parse(8.0).unwrap())),
+            style: match entity_ref.entity_type {
+                crate::event_model::entities::EntityType::Wireframe => {
+                    self.theme.wireframe_style.clone()
+                }
+                crate::event_model::entities::EntityType::Command => {
+                    self.theme.command_style.clone()
+                }
+                crate::event_model::entities::EntityType::Event => self.theme.event_style.clone(),
+                crate::event_model::entities::EntityType::View => {
+                    self.theme.command_style.clone() // Views use command styling (blue)
+                }
+                crate::event_model::entities::EntityType::Projection => {
+                    self.theme.projection_style.clone()
+                }
+                crate::event_model::entities::EntityType::Query => self.theme.query_style.clone(),
+                crate::event_model::entities::EntityType::Automation => {
+                    self.theme.automation_style.clone()
+                }
+            },
+        };
+
+        // Create a group to hold both the rectangle and text
+        let mut group_elements = vec![SvgElement::Rectangle(rect)];
+
+        // Add entity type label at the top
+        let type_label = match entity_ref.entity_type {
+            crate::event_model::entities::EntityType::Wireframe => "Wireframe",
+            crate::event_model::entities::EntityType::Command => "Command",
+            crate::event_model::entities::EntityType::Event => "Event",
+            crate::event_model::entities::EntityType::View => "View",
+            crate::event_model::entities::EntityType::Projection => "Projection",
+            crate::event_model::entities::EntityType::Query => "Query",
+            crate::event_model::entities::EntityType::Automation => "Automation",
+        };
+
+        let type_text_x = positioned_node.position.x.into_inner().value()
+            + positioned_node.dimensions.width.into_inner().value() / 2.0;
+        let type_text_y = positioned_node.position.y.into_inner().value() + 16.0;
+
+        let type_text = SvgText {
+            id: None,
+            class: Some(CssClass::new(
+                NonEmptyString::parse("entity-type-label".to_string()).unwrap(),
+            )),
+            x: XCoordinate::new(NonNegativeFloat::parse(type_text_x).unwrap()),
+            y: YCoordinate::new(NonNegativeFloat::parse(type_text_y).unwrap()),
+            content: TextContent::new(NonEmptyString::parse(type_label.to_string()).unwrap()),
+            style: TextStyle {
+                font_family: FontFamily::new(
+                    self.theme
+                        .text_style
+                        .entity_name
+                        .family
+                        .clone()
+                        .into_inner(),
+                ),
+                font_size: FontSize::new(
+                    crate::infrastructure::types::PositiveFloat::parse(10.0).unwrap(),
+                ),
+                font_weight: Some(FontWeight::Normal),
+                fill: Color::new(NonEmptyString::parse("#666666".to_string()).unwrap()),
+                anchor: Some(TextAnchor::Middle),
+            },
+        };
+
+        group_elements.push(SvgElement::Text(type_text));
+
+        // Add entity name in the center with enhanced typography
+        let name_text_x = positioned_node.position.x.into_inner().value()
+            + positioned_node.dimensions.width.into_inner().value() / 2.0;
+        let name_text_y = positioned_node.position.y.into_inner().value()
+            + positioned_node.dimensions.height.into_inner().value() / 2.0
+            + 2.0; // Slight offset for better centering
+
+        let name_text = SvgText {
+            id: None,
+            class: Some(CssClass::new(
+                NonEmptyString::parse("entity-name".to_string()).unwrap(),
+            )),
+            x: XCoordinate::new(NonNegativeFloat::parse(name_text_x).unwrap()),
+            y: YCoordinate::new(NonNegativeFloat::parse(name_text_y).unwrap()),
+            content: TextContent::new(entity_ref.entity_id.clone().into_inner()),
+            style: TextStyle {
+                font_family: FontFamily::new(
+                    self.theme
+                        .text_style
+                        .entity_name
+                        .family
+                        .clone()
+                        .into_inner(),
+                ),
+                font_size: FontSize::new(self.theme.text_style.entity_name.size.into_inner()),
+                font_weight: match self.theme.text_style.entity_name.weight {
+                    crate::diagram::style::StyleFontWeight::Bold => Some(FontWeight::Bold),
+                    crate::diagram::style::StyleFontWeight::Normal => Some(FontWeight::Normal),
+                },
+                fill: Color::new(NonEmptyString::parse("#000000".to_string()).unwrap()),
+                anchor: Some(TextAnchor::Middle),
+            },
+        };
+
+        group_elements.push(SvgElement::Text(name_text));
+
+        // Return a group containing both elements
+        let group = SvgGroup {
+            id: Some(ElementId::new(
+                NonEmptyString::parse(format!("node-group-{}", positioned_node.node.id().as_str()))
+                    .unwrap(),
+            )),
+            class: None,
+            transform: None,
+            children: group_elements,
+        };
+
+        Ok(SvgElement::Group(group))
+    }
+
+    /// Render a node connector as an SVG path.
+    fn render_node_connector(
+        &self,
+        connection: &crate::diagram::node::NodeConnection,
+        nodes: &std::collections::HashMap<
+            crate::diagram::node::NodeId,
+            crate::diagram::node_layout::PositionedNode,
+        >,
+    ) -> Result<SvgElement, SvgRenderError> {
+        // Get source and target nodes
+        let source_node = nodes.get(&connection.from).ok_or_else(|| {
+            SvgRenderError::InvalidConnection(format!(
+                "Source node not found: {:?}",
+                connection.from
+            ))
+        })?;
+        let target_node = nodes.get(&connection.to).ok_or_else(|| {
+            SvgRenderError::InvalidConnection(format!("Target node not found: {:?}", connection.to))
+        })?;
+
+        // Calculate connection points
+        let start_x = source_node.position.x.into_inner().value()
+            + source_node.dimensions.width.into_inner().value();
+        let start_y = source_node.position.y.into_inner().value()
+            + source_node.dimensions.height.into_inner().value() / 2.0;
+        let end_x = target_node.position.x.into_inner().value();
+        let end_y = target_node.position.y.into_inner().value()
+            + target_node.dimensions.height.into_inner().value() / 2.0;
+
+        // Create path data
+        let path_data = PathData::new(
+            NonEmptyString::parse(format!("M {} {} L {} {}", start_x, start_y, end_x, end_y))
+                .unwrap(),
+        );
+
+        let path = SvgPath {
+            id: Some(ElementId::new(
+                NonEmptyString::parse(format!(
+                    "connection-{}-to-{}",
+                    connection.from.as_str(),
+                    connection.to.as_str()
+                ))
+                .unwrap(),
+            )),
+            class: Some(CssClass::new(
+                NonEmptyString::parse("connector".to_string()).unwrap(),
+            )),
+            d: path_data,
+            style: self.theme.connection_style.clone(),
+        };
+
+        Ok(SvgElement::Path(path))
+    }
+
     /// Render a connector as an SVG path.
     fn render_connector(
         &self,
@@ -1038,6 +1284,10 @@ pub enum SvgRenderError {
     /// A required resource was not found.
     #[error("Resource not found: {0}")]
     ResourceNotFound(String),
+
+    /// Invalid connection in the layout.
+    #[error("Invalid connection: {0}")]
+    InvalidConnection(String),
 }
 
 #[cfg(test)]
