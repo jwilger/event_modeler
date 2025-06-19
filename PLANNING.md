@@ -26,7 +26,7 @@ This ensures no work is forgotten or lost in the codebase.
 
 ## Current Status
 
-**Last Updated**: 2025-06-19 (Phase 1-5 COMPLETE, Phase 6 IN PROGRESS - Steps 1-5 Complete)
+**Last Updated**: 2025-06-19 (Phase 1-5 COMPLETE, Phase 6 IN PROGRESS - Steps 1-6 Complete)
 
 **Latest Progress**: 
 - Phase 5 (Rich Visual Rendering) completed with limitations - PR #20 merged
@@ -43,7 +43,8 @@ This ensures no work is forgotten or lost in the codebase.
   - ✅ Step 3: Add Views (White Boxes) - Complete with text fitting
   - ✅ Step 4: Add Commands (Blue Boxes) - Complete
   - ✅ Step 5: Add Events (Purple Boxes) - Complete with corrected names
-  - ⏳ Step 6: Add Projections (Yellow Boxes) - Ready to start
+  - ✅ Step 6: Add Projections (Yellow Boxes) - Complete
+  - ⏳ Step 7: Add Queries (Blue Boxes) - Ready to start
   - Note: Using temporary test binary `horizontal_slice_test.rs` with hardcoded entities
 
 **🚨 CRITICAL DISCOVERY - Node-Based Layout (2025-06-18)**: 
@@ -478,7 +479,7 @@ The gold master analysis revealed that slices should be horizontal bands represe
    - **Review Checkpoint**: User confirms event positioning
    - **NOTE**: Always use timestamped filenames for output to avoid browser caching
 
-6. **Step 6: Add Projections (Yellow Boxes)**
+6. **Step 6: Add Projections (Yellow Boxes)** ✅ COMPLETE
    - Add Projection entities (UserCredentialsProjection, UserEmailVerificationTokenProjection)
    - Use yellow/orange styling (#ffd166)
    - Position in middle swimlane
