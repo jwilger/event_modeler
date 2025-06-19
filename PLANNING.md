@@ -424,6 +424,15 @@ The gold master analysis revealed that slices should be horizontal bands represe
 
 **🚨 CRITICAL**: Each step must be completed and manually reviewed before proceeding to the next. Generate PNG output and wait for user feedback.
 
+**🚨 MANDATORY COMPARISON STEP**: Before every commit/push/PR comment, you MUST:
+1. Generate PNG output of your current implementation
+2. Compare it side-by-side with the gold master: `tests/fixtures/acceptance/example.png`
+3. Analyze and document ALL visual differences (layout, proportions, positioning, gaps, text, colors)
+4. Only proceed to commit/push if the comparison shows the expected incremental progress
+5. If major issues are obvious in comparison, fix them before committing
+
+**NEVER commit or post to PR without this comparison analysis step.**
+
 1. **Step 1: Swimlanes Only**
    - Render just the three swimlanes with labels
    - No entities, no slices, no connections
