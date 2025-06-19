@@ -1,6 +1,6 @@
 //! Temporary test program for incrementally implementing horizontal slice architecture.
 //!
-//! This binary is used to test Step 8: Adding Automations (Green Boxes) rendering.
+//! This binary is used to test Step 9: Adding Connections (Arrows) rendering.
 
 use event_modeler::diagram::svg::{
     DecimalPrecision, EmbedFonts, OptimizationLevel, SvgRenderConfig, SvgRenderer,
@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let output_path = PathBuf::from(&args[1]);
 
-    // Step 8: Render horizontal swimlanes + slice boundaries + Views + Commands + Events + Projections + Queries + Automations
+    // Step 9: Render horizontal swimlanes + slice boundaries + Views + Commands + Events + Projections + Queries + Automations + Connections
     let svg_content = render_swimlanes_and_slices()?;
 
     // Write to file
@@ -45,7 +45,7 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
         .clone();
     let _renderer = SvgRenderer::new(svg_config, theme);
 
-    // Step 8: Render horizontal swimlanes + slice boundaries + Views + Commands + Events + Projections + Queries + Automations
+    // Step 9: Render horizontal swimlanes + slice boundaries + Views + Commands + Events + Projections + Queries + Automations + Connections
     // Based on the gold master, we need:
     // - 3 horizontal swimlanes: UX, Commands, Events
     // - 3 vertical slices: CreateAccount, SendEmailVerification, VerifyEmailAddress
@@ -55,6 +55,7 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
     // - Projection entities (yellow boxes) in the Commands swimlane
     // - Query entities (blue boxes) in the Commands swimlane
     // - Automation entities (green boxes) in the UX swimlane
+    // - Connections (arrows) between entities based on slice flows
 
     let canvas_width = 1200;
     let canvas_height = 400;
@@ -66,6 +67,9 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
         "<svg width=\"{}\" height=\"{}\" xmlns=\"http://www.w3.org/2000/svg\">",
         canvas_width, canvas_height
     ));
+
+    // Add arrow markers
+    svg_content.push_str(&render_arrow_markers());
 
     // Add background
     svg_content.push_str(&format!(
@@ -366,6 +370,46 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
         ));
     }
 
+    // Step 9: Add Connections (arrows) between entities
+    // For now, let's add a few basic connections to test the arrow rendering
+    // We'll need to store entity positions to properly connect them
+
+    // Example connections in slice 0 (Create Account):
+    // LoginScreen -> NewAccountScreen
+    let login_x = padding + 20 + 100 / 2; // Center of LoginScreen
+    let login_y = padding + swimlane_height / 2;
+    let new_account_x = padding + 20 + 110 + 100 / 2; // Center of NewAccountScreen
+    let new_account_y = padding + swimlane_height / 2;
+
+    svg_content.push_str(&render_arrow(
+        login_x + 50, // Right edge of LoginScreen
+        login_y,
+        new_account_x - 50, // Left edge of NewAccountScreen
+        new_account_y,
+    ));
+
+    // NewAccountScreen -> CreateUserAccountCredentials
+    let command_x = padding + 30 + command_width / 2;
+    let command_y = padding + swimlane_height + swimlane_height / 2;
+
+    svg_content.push_str(&render_arrow(
+        new_account_x,
+        new_account_y + 30, // Bottom of view
+        command_x,
+        command_y - 40, // Top of command
+    ));
+
+    // CreateUserAccountCredentials -> UserAccountCredentialsCreated
+    let event_x = padding + 30 + event_width / 2;
+    let event_y = padding + 2 * swimlane_height + swimlane_height / 2;
+
+    svg_content.push_str(&render_arrow(
+        command_x,
+        command_y + 40, // Bottom of command
+        event_x,
+        event_y - 40, // Top of event
+    ));
+
     svg_content.push_str("</svg>");
 
     Ok(svg_content)
@@ -494,4 +538,36 @@ fn fit_text_to_container(
         // Reduce font size and try again
         font_size = (font_size - 1.0).max(min_font_size);
     }
+}
+
+/// Renders an arrow from one point to another
+fn render_arrow(from_x: usize, from_y: usize, to_x: usize, to_y: usize) -> String {
+    let mut svg = String::new();
+
+    // Use generic marker
+    let marker_id = "arrowhead";
+
+    // Draw the line
+    svg.push_str(&format!(
+        "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"#586069\" stroke-width=\"2\" marker-end=\"url(#{})\" />",
+        from_x, from_y, to_x, to_y, marker_id
+    ));
+
+    svg
+}
+
+/// Renders arrow markers in defs section
+fn render_arrow_markers() -> String {
+    let mut svg = String::new();
+    svg.push_str("<defs>");
+
+    // Create a generic arrow marker
+    svg.push_str(
+        "<marker id=\"arrowhead\" markerWidth=\"10\" markerHeight=\"7\" refX=\"9\" refY=\"3.5\" orient=\"auto\">\
+            <polygon points=\"0 0, 10 3.5, 0 7\" fill=\"#586069\" />\
+        </marker>"
+    );
+
+    svg.push_str("</defs>");
+    svg
 }
