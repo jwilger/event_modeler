@@ -1,16 +1,82 @@
 //! Temporary test program for incrementally implementing horizontal slice architecture.
 //!
-//! This binary is used to test Step 9: Adding Connections (Arrows) rendering.
+//! This binary is used to test Step 9: Adding Connections (Arrows) rendering with proper layout.
 
-use event_modeler::diagram::svg::{
-    DecimalPrecision, EmbedFonts, OptimizationLevel, SvgRenderConfig, SvgRenderer,
-};
-use event_modeler::diagram::theme::{GithubLight, ThemedRenderer};
-use event_modeler::infrastructure::types::PositiveInt;
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
+
+#[derive(Debug, Clone)]
+struct Entity {
+    id: String,
+    entity_type: EntityType,
+    name: String,
+    slice: usize,
+    swimlane: usize,
+    x: usize,
+    y: usize,
+    width: usize,
+    height: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum EntityType {
+    View,
+    Command,
+    Event,
+    Projection,
+    Query,
+    Automation,
+}
+
+impl EntityType {
+    fn label(&self) -> &'static str {
+        match self {
+            EntityType::View => "View",
+            EntityType::Command => "Command",
+            EntityType::Event => "Event",
+            EntityType::Projection => "Projection",
+            EntityType::Query => "Query",
+            EntityType::Automation => "Automation",
+        }
+    }
+
+    fn color(&self) -> &'static str {
+        match self {
+            EntityType::View => "#f8f9fa",
+            EntityType::Command => "#5b8def",
+            EntityType::Event => "#8b5cf6",
+            EntityType::Projection => "#ffd166",
+            EntityType::Query => "#5b8def",
+            EntityType::Automation => "#06d6a0",
+        }
+    }
+
+    fn text_color(&self) -> &'static str {
+        match self {
+            EntityType::View => "#24292e",
+            _ => "white",
+        }
+    }
+
+    fn border_color(&self) -> &'static str {
+        match self {
+            EntityType::View => "#d1d5da",
+            EntityType::Command | EntityType::Query => "#4a6bc7",
+            EntityType::Event => "#7c3aed",
+            EntityType::Projection => "#f4a261",
+            EntityType::Automation => "#04a77d",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Connection {
+    from: String,
+    to: String,
+}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
@@ -21,7 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let output_path = PathBuf::from(&args[1]);
 
-    // Step 9: Render horizontal swimlanes + slice boundaries + Views + Commands + Events + Projections + Queries + Automations + Connections
+    // Step 9: Render horizontal swimlanes + slice boundaries + all entities + connections
     let svg_content = render_swimlanes_and_slices()?;
 
     // Write to file
@@ -33,541 +99,530 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
-    // Create SVG renderer
-    let svg_config = SvgRenderConfig {
-        precision: DecimalPrecision::new(PositiveInt::parse(2).unwrap()),
-        optimize: OptimizationLevel::Basic,
-        embed_fonts: EmbedFonts::new(false),
-    };
+    // Define all entities with their types, names, and slice/swimlane positions
+    let mut entities = vec![
+        // Slice 0: Create Account
+        Entity {
+            id: "login_screen".to_string(),
+            entity_type: EntityType::View,
+            name: "Login\nScreen".to_string(),
+            slice: 0,
+            swimlane: 0,
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 60,
+        },
+        Entity {
+            id: "new_account_screen".to_string(),
+            entity_type: EntityType::View,
+            name: "New\nAccount\nScreen".to_string(),
+            slice: 0,
+            swimlane: 0,
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 60,
+        },
+        Entity {
+            id: "create_user_account_credentials".to_string(),
+            entity_type: EntityType::Command,
+            name: "Create\nUser Account\nCredentials".to_string(),
+            slice: 0,
+            swimlane: 1,
+            x: 0,
+            y: 0,
+            width: 120,
+            height: 80,
+        },
+        Entity {
+            id: "user_credentials_projection".to_string(),
+            entity_type: EntityType::Projection,
+            name: "User\nCredentials\nProjection".to_string(),
+            slice: 0,
+            swimlane: 1,
+            x: 0,
+            y: 0,
+            width: 120,
+            height: 80,
+        },
+        Entity {
+            id: "user_account_credentials_created".to_string(),
+            entity_type: EntityType::Event,
+            name: "User Account\nCredentials\nCreated".to_string(),
+            slice: 0,
+            swimlane: 2,
+            x: 0,
+            y: 0,
+            width: 120,
+            height: 80,
+        },
+        // Slice 1: Send Email Verification
+        Entity {
+            id: "new_account_screen2".to_string(),
+            entity_type: EntityType::View,
+            name: "New\nAccount\nScreen".to_string(),
+            slice: 1,
+            swimlane: 0,
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 60,
+        },
+        Entity {
+            id: "verify_email_screen".to_string(),
+            entity_type: EntityType::View,
+            name: "Verify\nEmail\nAddress\nScreen".to_string(),
+            slice: 1,
+            swimlane: 0,
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 60,
+        },
+        Entity {
+            id: "email_verifier".to_string(),
+            entity_type: EntityType::Automation,
+            name: "Email\nVerifier".to_string(),
+            slice: 1,
+            swimlane: 0,
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 60,
+        },
+        Entity {
+            id: "send_email_verification".to_string(),
+            entity_type: EntityType::Command,
+            name: "Send Email\nVerification".to_string(),
+            slice: 1,
+            swimlane: 1,
+            x: 0,
+            y: 0,
+            width: 120,
+            height: 80,
+        },
+        Entity {
+            id: "user_email_verification_token_projection".to_string(),
+            entity_type: EntityType::Projection,
+            name: "User Email\nVerification\nToken\nProjection".to_string(),
+            slice: 1,
+            swimlane: 1,
+            x: 0,
+            y: 0,
+            width: 120,
+            height: 80,
+        },
+        Entity {
+            id: "get_account_id_for_email_verification_token".to_string(),
+            entity_type: EntityType::Query,
+            name: "Get Account\nID for Email\nVerification\nToken".to_string(),
+            slice: 1,
+            swimlane: 1,
+            x: 0,
+            y: 0,
+            width: 120,
+            height: 80,
+        },
+        Entity {
+            id: "email_verification_message_sent".to_string(),
+            entity_type: EntityType::Event,
+            name: "Email\nVerification\nMessage Sent".to_string(),
+            slice: 1,
+            swimlane: 2,
+            x: 0,
+            y: 0,
+            width: 120,
+            height: 80,
+        },
+        // Slice 2: Verify Email Address
+        Entity {
+            id: "verify_email_screen2".to_string(),
+            entity_type: EntityType::View,
+            name: "Verify Email\nAddress\nScreen".to_string(),
+            slice: 2,
+            swimlane: 0,
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 60,
+        },
+        Entity {
+            id: "user_profile_screen".to_string(),
+            entity_type: EntityType::View,
+            name: "User\nProfile\nScreen".to_string(),
+            slice: 2,
+            swimlane: 0,
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 60,
+        },
+        Entity {
+            id: "verify_user_email_address".to_string(),
+            entity_type: EntityType::Command,
+            name: "Verify\nUser Email\nAddress".to_string(),
+            slice: 2,
+            swimlane: 1,
+            x: 0,
+            y: 0,
+            width: 120,
+            height: 80,
+        },
+        Entity {
+            id: "user_email_verification_token_projection2".to_string(),
+            entity_type: EntityType::Projection,
+            name: "User Email\nVerification\nToken\nProjection".to_string(),
+            slice: 2,
+            swimlane: 1,
+            x: 0,
+            y: 0,
+            width: 120,
+            height: 80,
+        },
+        Entity {
+            id: "user_credentials_projection2".to_string(),
+            entity_type: EntityType::Projection,
+            name: "User\nCredentials\nProjection".to_string(),
+            slice: 2,
+            swimlane: 1,
+            x: 0,
+            y: 0,
+            width: 120,
+            height: 80,
+        },
+        Entity {
+            id: "get_user_profile".to_string(),
+            entity_type: EntityType::Query,
+            name: "Get\nUser\nProfile".to_string(),
+            slice: 2,
+            swimlane: 1,
+            x: 0,
+            y: 0,
+            width: 120,
+            height: 80,
+        },
+        Entity {
+            id: "email_address_verified".to_string(),
+            entity_type: EntityType::Event,
+            name: "Email\nAddress\nVerified".to_string(),
+            slice: 2,
+            swimlane: 2,
+            x: 0,
+            y: 0,
+            width: 120,
+            height: 80,
+        },
+    ];
 
-    let theme = ThemedRenderer::<GithubLight>::github_light()
-        .theme()
-        .clone();
-    let _renderer = SvgRenderer::new(svg_config, theme);
+    // Define all connections based on the slices
+    let connections = vec![
+        // Slice 0: Create Account
+        Connection {
+            from: "login_screen".to_string(),
+            to: "new_account_screen".to_string(),
+        },
+        Connection {
+            from: "new_account_screen".to_string(),
+            to: "create_user_account_credentials".to_string(),
+        },
+        Connection {
+            from: "create_user_account_credentials".to_string(),
+            to: "user_account_credentials_created".to_string(),
+        },
+        Connection {
+            from: "user_account_credentials_created".to_string(),
+            to: "user_credentials_projection".to_string(),
+        },
+        Connection {
+            from: "user_account_credentials_created".to_string(),
+            to: "new_account_screen2".to_string(),
+        },
+        Connection {
+            from: "new_account_screen2".to_string(),
+            to: "verify_email_screen".to_string(),
+        },
+        // Slice 1: Send Email Verification
+        Connection {
+            from: "user_account_credentials_created".to_string(),
+            to: "email_verifier".to_string(),
+        },
+        Connection {
+            from: "email_verifier".to_string(),
+            to: "send_email_verification".to_string(),
+        },
+        Connection {
+            from: "send_email_verification".to_string(),
+            to: "email_verification_message_sent".to_string(),
+        },
+        Connection {
+            from: "email_verification_message_sent".to_string(),
+            to: "user_email_verification_token_projection".to_string(),
+        },
+        // Slice 2: Verify Email Address
+        Connection {
+            from: "verify_email_screen".to_string(),
+            to: "verify_user_email_address".to_string(),
+        },
+        Connection {
+            from: "verify_user_email_address".to_string(),
+            to: "email_address_verified".to_string(),
+        },
+        Connection {
+            from: "email_address_verified".to_string(),
+            to: "user_credentials_projection2".to_string(),
+        },
+        Connection {
+            from: "email_address_verified".to_string(),
+            to: "user_email_verification_token_projection2".to_string(),
+        },
+        Connection {
+            from: "email_address_verified".to_string(),
+            to: "verify_email_screen2".to_string(),
+        },
+        Connection {
+            from: "verify_email_screen2".to_string(),
+            to: "user_profile_screen".to_string(),
+        },
+        Connection {
+            from: "user_profile_screen".to_string(),
+            to: "get_user_profile".to_string(),
+        },
+    ];
 
-    // Step 9: Render horizontal swimlanes + slice boundaries + Views + Commands + Events + Projections + Queries + Automations + Connections
-    // Based on the gold master, we need:
-    // - 3 horizontal swimlanes: UX, Commands, Events
-    // - 3 vertical slices: CreateAccount, SendEmailVerification, VerifyEmailAddress
-    // - View entities (white boxes) in the UX swimlane
-    // - Command entities (blue boxes) in the Commands swimlane
-    // - Event entities (purple boxes) in the Events swimlane
-    // - Projection entities (yellow boxes) in the Commands swimlane
-    // - Query entities (blue boxes) in the Commands swimlane
-    // - Automation entities (green boxes) in the UX swimlane
-    // - Connections (arrows) between entities based on slice flows
+    // Layout entities dynamically
+    layout_entities(&mut entities, &connections);
 
-    let canvas_width = 1200;
-    let canvas_height = 400;
-    let swimlane_height = 120;
-    let padding = 20;
+    // Create entity lookup map
+    let mut entity_map: HashMap<String, &Entity> = HashMap::new();
+    for entity in &entities {
+        entity_map.insert(entity.id.clone(), entity);
+    }
 
+    // Calculate dynamic canvas size based on entity positions
+    let mut max_x = 0;
+    let mut max_y = 0;
+    for entity in &entities {
+        max_x = max_x.max(entity.x + entity.width);
+        max_y = max_y.max(entity.y + entity.height);
+    }
+    let canvas_width = max_x + 100; // Add padding
+    let canvas_height = max_y + 100; // Add padding
+
+    let padding = 40;
+    let swimlane_height = 150;
+
+    // Build SVG
     let mut svg_content = String::new();
     svg_content.push_str(&format!(
-        "<svg width=\"{}\" height=\"{}\" xmlns=\"http://www.w3.org/2000/svg\">",
+        r#"<svg width="{}" height="{}" xmlns="http://www.w3.org/2000/svg">"#,
         canvas_width, canvas_height
     ));
 
     // Add arrow markers
-    svg_content.push_str(&render_arrow_markers());
+    svg_content.push_str(
+        "<defs>\
+        <marker id=\"arrowhead\" markerWidth=\"10\" markerHeight=\"7\" refX=\"9\" refY=\"3.5\" orient=\"auto\">\
+            <polygon points=\"0 0, 10 3.5, 0 7\" fill=\"#586069\" />\
+        </marker>\
+    </defs>",
+    );
 
     // Add background
     svg_content.push_str(&format!(
-        "<rect width=\"{}\" height=\"{}\" fill=\"white\" stroke=\"none\"/>",
+        r#"<rect width="{}" height="{}" fill="white" stroke="none"/>"#,
         canvas_width, canvas_height
     ));
 
-    // Swimlane data
+    // Draw swimlanes
     let swimlanes = [
         ("UX, Automations", 0),
         ("Commands, Projections, Queries", 1),
         ("User Account Event Stream", 2),
     ];
 
-    // Draw horizontal swimlanes
     for (name, index) in &swimlanes {
         let y = padding + (index * swimlane_height);
-        let lane_y = y as f32;
-
-        // Draw swimlane background
         svg_content.push_str(&format!(
             "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#f8f9fa\" stroke=\"#e1e4e8\" stroke-width=\"1\"/>",
             padding,
-            lane_y,
+            y,
             canvas_width - 2 * padding,
-            swimlane_height - 5 // Small gap between swimlanes
+            swimlane_height - 5
         ));
 
-        // Add swimlane label with text fitting (rotated on the left side)
-        let swimlane_fitted_text = fit_text_to_container(name, swimlane_height, padding);
-        svg_content.push_str(&swimlane_fitted_text.render_svg_rotated(
+        // Swimlane label
+        svg_content.push_str(&format!(
+            "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"12\" fill=\"#586069\" transform=\"rotate(-90, {}, {})\">{}</text>",
             padding / 2,
-            lane_y + (swimlane_height as f32 / 2.0),
-            -90.0,     // Rotate -90 degrees
-            "#586069", // Gray color for swimlane labels
+            y + swimlane_height / 2,
+            padding / 2,
+            y + swimlane_height / 2,
+            name
         ));
     }
 
-    // Step 2: Add slice boundaries (vertical dividers)
-    // Based on the example.eventmodel, we have slices: CreateAccount, VerifyEmailAddress
+    // Draw slice boundaries and headers
     let slice_names = [
         "Create Account",
         "Send Email Verification",
         "Verify Email Address",
     ];
-    let slice_width = (canvas_width - 2 * padding) / slice_names.len();
 
-    for (i, slice_name) in slice_names.iter().enumerate() {
-        let slice_x = padding + (i * slice_width);
+    // Calculate slice positions based on actual entity positions
+    let slice_positions = calculate_slice_positions(&entities);
 
-        // Draw vertical slice boundary line (except for the first one)
+    for (i, (slice_name, (start_x, end_x))) in
+        slice_names.iter().zip(slice_positions.iter()).enumerate()
+    {
+        // Draw slice boundary line (except for the first)
         if i > 0 {
             svg_content.push_str(&format!(
                 "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"#d1d5da\" stroke-width=\"2\"/>",
-                slice_x,
-                padding,
-                slice_x,
-                canvas_height - padding
+                start_x, padding, start_x, canvas_height - padding
             ));
         }
 
-        // Add slice header at the top with text fitting
-        let header_fitted_text = fit_text_to_container(slice_name, slice_width, padding);
-        svg_content.push_str(&header_fitted_text.render_svg_with_style(
-            slice_x + (slice_width / 2),
+        // Add slice header
+        let slice_center = (start_x + end_x) / 2;
+        svg_content.push_str(&format!(
+            "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"14\" font-weight=\"bold\" fill=\"#24292e\">{}</text>",
+            slice_center,
             padding / 2 + 5,
-            "bold",
+            slice_name
         ));
     }
 
-    // Step 3: Add View entities (white boxes) in the UX swimlane
-    // Based on example.eventmodel views and gold master layout
-    let views = [
-        ("Login\nScreen", 0),                 // slice 0 (Create Account)
-        ("New\nAccount\nScreen", 0),          // slice 0 (Create Account)
-        ("Verify Email\nAddress\nScreen", 2), // slice 2 (Verify Email Address)
-        ("User\nProfile\nScreen", 2),         // slice 2 (Verify Email Address)
-    ];
-
-    // View styling
-    let view_width = 100;
-    let view_height = 60;
-    let ux_swimlane_y = padding; // Top swimlane
-    let view_y = ux_swimlane_y + (swimlane_height - view_height) / 2;
-
-    for (i, (view_name, slice_index)) in views.iter().enumerate() {
-        let slice_x = padding + (slice_index * slice_width);
-        let view_x = slice_x + 20 + (i % 2) * (view_width + 10); // Offset multiple views in same slice
-
-        // Draw view box (white with border)
+    // Draw entities
+    for entity in &entities {
+        // Draw entity box
         svg_content.push_str(&format!(
-            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"white\" stroke=\"#d1d5da\" stroke-width=\"1\" rx=\"4\"/>",
-            view_x,
-            view_y,
-            view_width,
-            view_height
+            r#"<rect x="{}" y="{}" width="{}" height="{}" fill="{}" stroke="{}" stroke-width="1" rx="4"/>"#,
+            entity.x,
+            entity.y,
+            entity.width,
+            entity.height,
+            entity.entity_type.color(),
+            entity.entity_type.border_color()
         ));
 
-        // Add view text with proper text fitting
-        let fitted_text = fit_text_to_container(view_name, view_width, view_height);
-        svg_content
-            .push_str(&fitted_text.render_svg(view_x + view_width / 2, view_y + view_height / 2));
-    }
-
-    // Step 4: Add Command entities (blue boxes) in the Commands swimlane
-    // Based on example.eventmodel commands and gold master layout
-    let commands = [
-        ("Create\nUser Account\nCredentials", 0), // slice 0 (Create Account)
-        ("Send Email\nVerification", 1),          // slice 1 (Send Email Verification)
-        ("Verify\nUser Email\nAddress", 2),       // slice 2 (Verify Email Address)
-    ];
-
-    // Command styling
-    let command_width = 120;
-    let command_height = 80;
-    let commands_swimlane_y = padding + swimlane_height; // Middle swimlane
-    let command_y = commands_swimlane_y + (swimlane_height - command_height) / 2;
-
-    for (command_name, slice_index) in &commands {
-        let slice_x = padding + (slice_index * slice_width);
-        let command_x = slice_x + 30; // Small offset from slice boundary
-
-        // Draw command box (blue with border)
+        // Draw entity type label
         svg_content.push_str(&format!(
-            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#5b8def\" stroke=\"#4a6bc7\" stroke-width=\"1\" rx=\"4\"/>",
-            command_x,
-            command_y,
-            command_width,
-            command_height
+            r#"<text x="{}" y="{}" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="10" fill="{}">{}</text>"#,
+            entity.x + entity.width / 2,
+            entity.y + 12,
+            entity.entity_type.text_color(),
+            entity.entity_type.label()
         ));
 
-        // Add command text with fitting (white text on blue background)
-        let command_fitted_text =
-            fit_text_to_container(command_name, command_width, command_height);
-        svg_content.push_str(&command_fitted_text.render_svg_full(
-            command_x + command_width / 2,
-            command_y + command_height / 2,
-            "normal",
-            "white", // White text on blue background
-            None,
-        ));
+        // Draw entity name
+        let lines: Vec<&str> = entity.name.split('\n').collect();
+        let line_height = 14;
+        let total_height = (lines.len() as i32 - 1) * line_height;
+        let start_y = entity.y as i32 + entity.height as i32 / 2 - total_height / 2;
+
+        for (i, line) in lines.iter().enumerate() {
+            svg_content.push_str(&format!(
+                r#"<text x="{}" y="{}" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="12" fill="{}">{}</text>"#,
+                entity.x + entity.width / 2,
+                start_y + (i as i32 * line_height),
+                entity.entity_type.text_color(),
+                line
+            ));
+        }
     }
 
-    // Step 5: Add Event entities (purple boxes) in the Events swimlane
-    // Based on example.eventmodel events and gold master layout
-    let events = [
-        ("User Account\nCredentials\nCreated", 0), // slice 0 (Create Account)
-        ("Email Verification\nMessage Sent", 1),   // slice 1 (Send Email Verification)
-        ("Email\nAddress\nVerified", 2),           // slice 2 (Verify Email Address)
-    ];
+    // Draw connections
+    for connection in &connections {
+        if let (Some(from_entity), Some(to_entity)) = (
+            entity_map.get(&connection.from),
+            entity_map.get(&connection.to),
+        ) {
+            let (from_x, from_y, to_x, to_y) = calculate_connection_points(from_entity, to_entity);
 
-    // Event styling
-    let event_width = 120;
-    let event_height = 80;
-    let events_swimlane_y = padding + (2 * swimlane_height); // Bottom swimlane
-    let event_y = events_swimlane_y + (swimlane_height - event_height) / 2;
-
-    for (event_name, slice_index) in &events {
-        let slice_x = padding + (slice_index * slice_width);
-        let event_x = slice_x + 30; // Small offset from slice boundary
-
-        // Draw event box (purple with border)
-        svg_content.push_str(&format!(
-            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#8b5cf6\" stroke=\"#7c3aed\" stroke-width=\"1\" rx=\"4\"/>",
-            event_x,
-            event_y,
-            event_width,
-            event_height
-        ));
-
-        // Add event text with fitting (white text on purple background)
-        let event_fitted_text = fit_text_to_container(event_name, event_width, event_height);
-        svg_content.push_str(&event_fitted_text.render_svg_full(
-            event_x + event_width / 2,
-            event_y + event_height / 2,
-            "normal",
-            "white", // White text on purple background
-            None,
-        ));
+            svg_content.push_str(&format!(
+                "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"#586069\" stroke-width=\"2\" marker-end=\"url(#arrowhead)\"/>",
+                from_x, from_y, to_x, to_y
+            ));
+        }
     }
-
-    // Step 6: Add Projection entities (yellow/orange boxes) in the Commands swimlane
-    // Based on example.eventmodel projections and gold master layout
-    let projections = [
-        ("User\nCredentials\nProjection", 0), // slice 0 (Create Account)
-        ("User Email\nVerification Token\nProjection", 1), // slice 1 (Send Email Verification)
-    ];
-
-    // Projection styling
-    let projection_width = 120;
-    let projection_height = 80;
-    // Projections go in the middle swimlane along with commands
-    let projection_y = commands_swimlane_y + (swimlane_height - projection_height) / 2;
-
-    for (projection_name, slice_index) in &projections {
-        let slice_x = padding + (slice_index * slice_width);
-        // Position projections to the right of commands
-        let projection_x = slice_x + 30 + command_width + 20; // Offset from command
-
-        // Draw projection box (yellow/orange with border)
-        svg_content.push_str(&format!(
-            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#ffd166\" stroke=\"#f4a261\" stroke-width=\"1\" rx=\"4\"/>",
-            projection_x,
-            projection_y,
-            projection_width,
-            projection_height
-        ));
-
-        // Add projection text with fitting (dark text on yellow background)
-        let projection_fitted_text =
-            fit_text_to_container(projection_name, projection_width, projection_height);
-        svg_content.push_str(&projection_fitted_text.render_svg_full(
-            projection_x + projection_width / 2,
-            projection_y + projection_height / 2,
-            "normal",
-            "#24292e", // Dark text on yellow background
-            None,
-        ));
-    }
-
-    // Step 7: Add Query entities (blue boxes) in the Commands swimlane
-    // Based on example.eventmodel queries and gold master layout
-    let queries = [
-        ("Get Account\nID for Email\nVerification\nToken", 1), // slice 1 (Send Email Verification)
-        ("Get\nUser\nProfile", 2),                             // slice 2 (Verify Email Address)
-    ];
-
-    // Query styling (same as commands - blue boxes)
-    let query_width = 120;
-    let query_height = 80;
-    // Queries go in the middle swimlane along with commands and projections
-    let query_y = commands_swimlane_y + (swimlane_height - query_height) / 2;
-
-    for (query_name, slice_index) in &queries {
-        let slice_x = padding + (slice_index * slice_width);
-        // Position queries after projections in the slice
-        let query_x = if *slice_index == 1 {
-            // In slice 1, position after the projection
-            slice_x + 30 + command_width + 20 + projection_width + 20
-        } else {
-            // In slice 2, we have a command but no projection, so position after command
-            slice_x + 30 + command_width + 20
-        };
-
-        // Draw query box (blue like commands)
-        svg_content.push_str(&format!(
-            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#5b8def\" stroke=\"#4a6bc7\" stroke-width=\"1\" rx=\"4\"/>",
-            query_x,
-            query_y,
-            query_width,
-            query_height
-        ));
-
-        // Add query text with fitting (white text on blue background)
-        let query_fitted_text = fit_text_to_container(query_name, query_width, query_height);
-        svg_content.push_str(&query_fitted_text.render_svg_full(
-            query_x + query_width / 2,
-            query_y + query_height / 2,
-            "normal",
-            "white", // White text on blue background
-            None,
-        ));
-    }
-
-    // Step 8: Add Automation entities (green boxes) in the UX swimlane
-    // Based on example.eventmodel automations and gold master layout
-    let automations = [("Email\nVerifier", 1)]; // slice 1 (Send Email Verification)
-
-    // Automation styling
-    let automation_width = 100;
-    let automation_height = 60;
-    let ux_swimlane_y = padding; // Top swimlane
-    let automation_y = ux_swimlane_y + (swimlane_height - automation_height) / 2;
-
-    for (automation_name, slice_index) in &automations {
-        let slice_x = padding + (slice_index * slice_width);
-        // Position automation in the middle-right area of the slice in the UX swimlane
-        let automation_x = slice_x + slice_width / 2;
-
-        // Draw automation box (green with border)
-        svg_content.push_str(&format!(
-            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#06d6a0\" stroke=\"#04a77d\" stroke-width=\"1\" rx=\"4\"/>",
-            automation_x,
-            automation_y,
-            automation_width,
-            automation_height
-        ));
-
-        // Add automation text with fitting (white text on green background)
-        let automation_fitted_text =
-            fit_text_to_container(automation_name, automation_width, automation_height);
-        svg_content.push_str(&automation_fitted_text.render_svg_full(
-            automation_x + automation_width / 2,
-            automation_y + automation_height / 2,
-            "normal",
-            "white", // White text on green background
-            None,
-        ));
-    }
-
-    // Step 9: Add Connections (arrows) between entities
-    // For now, let's add a few basic connections to test the arrow rendering
-    // We'll need to store entity positions to properly connect them
-
-    // Example connections in slice 0 (Create Account):
-    // LoginScreen -> NewAccountScreen
-    let login_x = padding + 20 + 100 / 2; // Center of LoginScreen
-    let login_y = padding + swimlane_height / 2;
-    let new_account_x = padding + 20 + 110 + 100 / 2; // Center of NewAccountScreen
-    let new_account_y = padding + swimlane_height / 2;
-
-    svg_content.push_str(&render_arrow(
-        login_x + 50, // Right edge of LoginScreen
-        login_y,
-        new_account_x - 50, // Left edge of NewAccountScreen
-        new_account_y,
-    ));
-
-    // NewAccountScreen -> CreateUserAccountCredentials
-    let command_x = padding + 30 + command_width / 2;
-    let command_y = padding + swimlane_height + swimlane_height / 2;
-
-    svg_content.push_str(&render_arrow(
-        new_account_x,
-        new_account_y + 30, // Bottom of view
-        command_x,
-        command_y - 40, // Top of command
-    ));
-
-    // CreateUserAccountCredentials -> UserAccountCredentialsCreated
-    let event_x = padding + 30 + event_width / 2;
-    let event_y = padding + 2 * swimlane_height + swimlane_height / 2;
-
-    svg_content.push_str(&render_arrow(
-        command_x,
-        command_y + 40, // Bottom of command
-        event_x,
-        event_y - 40, // Top of event
-    ));
 
     svg_content.push_str("</svg>");
 
     Ok(svg_content)
 }
 
-/// Represents fitted text with appropriate font size and line breaks
-struct FittedText {
-    lines: Vec<String>,
-    font_size: f32,
-}
+fn layout_entities(entities: &mut [Entity], _connections: &[Connection]) {
+    let padding = 40;
+    let swimlane_height = 150;
+    let entity_spacing = 30;
+    let slice_padding = 50;
 
-impl FittedText {
-    fn render_svg(&self, center_x: usize, center_y: usize) -> String {
-        self.render_svg_with_style(center_x, center_y, "normal")
+    // Group entities by slice and swimlane
+    let mut slice_groups: Vec<Vec<Vec<&mut Entity>>> = vec![
+        vec![vec![], vec![], vec![]],
+        vec![vec![], vec![], vec![]],
+        vec![vec![], vec![], vec![]],
+    ];
+
+    for entity in entities.iter_mut() {
+        slice_groups[entity.slice][entity.swimlane].push(entity);
     }
 
-    fn render_svg_with_style(&self, center_x: usize, center_y: usize, font_weight: &str) -> String {
-        self.render_svg_full(center_x, center_y, font_weight, "#24292e", None)
-    }
+    // Layout entities in each slice/swimlane
+    let mut current_x = padding + slice_padding;
 
-    fn render_svg_rotated(
-        &self,
-        center_x: usize,
-        center_y: f32,
-        rotation: f32,
-        color: &str,
-    ) -> String {
-        self.render_svg_full(center_x, center_y as usize, "normal", color, Some(rotation))
-    }
+    for slice in slice_groups.iter_mut() {
+        let mut max_width_in_slice = 0;
 
-    fn render_svg_full(
-        &self,
-        center_x: usize,
-        center_y: usize,
-        font_weight: &str,
-        color: &str,
-        rotation: Option<f32>,
-    ) -> String {
-        let mut svg = String::new();
-        let line_height = self.font_size * 1.2;
-        let total_height = line_height * self.lines.len() as f32;
-        let start_y = center_y as f32 - (total_height - line_height) / 2.0;
+        for (swimlane_idx, swimlane_entities) in slice.iter_mut().enumerate() {
+            let y = padding + (swimlane_idx * swimlane_height) + (swimlane_height - 80) / 2;
+            let mut x = current_x;
 
-        for (i, line) in self.lines.iter().enumerate() {
-            let y = start_y + (i as f32 * line_height);
-
-            let transform = if let Some(rot) = rotation {
-                format!(" transform=\"rotate({}, {}, {})\"", rot, center_x, y)
-            } else {
-                String::new()
-            };
-
-            svg.push_str(&format!(
-                "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"{}\" font-weight=\"{}\" fill=\"{}\"{}>{}</text>",
-                center_x,
-                y,
-                self.font_size,
-                font_weight,
-                color,
-                transform,
-                line
-            ));
-        }
-        svg
-    }
-}
-
-/// Fits text to a container by adjusting font size and wrapping lines
-fn fit_text_to_container(
-    text: &str,
-    container_width: usize,
-    container_height: usize,
-) -> FittedText {
-    // Convert newlines to line breaks for manual line breaks
-    let initial_lines: Vec<&str> = text.split('\n').collect();
-
-    // Start with a reasonable font size and scale down if needed
-    let mut font_size = 12.0;
-    let _max_font_size = 16.0;
-    let min_font_size = 6.0;
-
-    // Approximate character width (varies by font, but this is a reasonable estimate)
-    let char_width_ratio = 0.6; // chars per pixel at font size 1
-
-    loop {
-        let max_chars_per_line =
-            ((container_width as f32 - 10.0) / (font_size * char_width_ratio)) as usize;
-        let line_height = font_size * 1.2;
-
-        // Wrap text based on character limits
-        let mut wrapped_lines = Vec::new();
-        for line in &initial_lines {
-            if line.len() <= max_chars_per_line {
-                wrapped_lines.push(line.to_string());
-            } else {
-                // Simple word wrapping
-                let words: Vec<&str> = line.split_whitespace().collect();
-                let mut current_line = String::new();
-
-                for word in words {
-                    if current_line.is_empty() {
-                        current_line = word.to_string();
-                    } else if current_line.len() + 1 + word.len() <= max_chars_per_line {
-                        current_line.push(' ');
-                        current_line.push_str(word);
-                    } else {
-                        wrapped_lines.push(current_line);
-                        current_line = word.to_string();
-                    }
-                }
-                if !current_line.is_empty() {
-                    wrapped_lines.push(current_line);
-                }
+            for entity in swimlane_entities.iter_mut() {
+                entity.x = x;
+                entity.y = y;
+                x += entity.width + entity_spacing;
+                max_width_in_slice = max_width_in_slice.max(x - current_x);
             }
         }
 
-        // Check if all lines fit vertically
-        let total_height = line_height * wrapped_lines.len() as f32;
-        if total_height <= (container_height as f32 - 10.0) || font_size <= min_font_size {
-            return FittedText {
-                lines: wrapped_lines,
-                font_size,
-            };
-        }
-
-        // Reduce font size and try again
-        font_size = (font_size - 1.0).max(min_font_size);
+        current_x += max_width_in_slice + slice_padding;
     }
 }
 
-/// Renders an arrow from one point to another
-fn render_arrow(from_x: usize, from_y: usize, to_x: usize, to_y: usize) -> String {
-    let mut svg = String::new();
+fn calculate_slice_positions(entities: &[Entity]) -> Vec<(usize, usize)> {
+    let mut slice_bounds = vec![(usize::MAX, 0); 3];
 
-    // Use generic marker
-    let marker_id = "arrowhead";
+    for entity in entities {
+        let slice = entity.slice;
+        slice_bounds[slice].0 = slice_bounds[slice].0.min(entity.x - 20);
+        slice_bounds[slice].1 = slice_bounds[slice].1.max(entity.x + entity.width + 20);
+    }
 
-    // Draw the line
-    svg.push_str(&format!(
-        "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"#586069\" stroke-width=\"2\" marker-end=\"url(#{})\" />",
-        from_x, from_y, to_x, to_y, marker_id
-    ));
-
-    svg
+    slice_bounds
 }
 
-/// Renders arrow markers in defs section
-fn render_arrow_markers() -> String {
-    let mut svg = String::new();
-    svg.push_str("<defs>");
+fn calculate_connection_points(from: &Entity, to: &Entity) -> (usize, usize, usize, usize) {
+    let from_center_x = from.x + from.width / 2;
+    let from_center_y = from.y + from.height / 2;
+    let to_center_x = to.x + to.width / 2;
+    let to_center_y = to.y + to.height / 2;
 
-    // Create a generic arrow marker
-    svg.push_str(
-        "<marker id=\"arrowhead\" markerWidth=\"10\" markerHeight=\"7\" refX=\"9\" refY=\"3.5\" orient=\"auto\">\
-            <polygon points=\"0 0, 10 3.5, 0 7\" fill=\"#586069\" />\
-        </marker>"
-    );
+    // Determine connection points based on relative positions
+    let (from_x, from_y, to_x, to_y) = if to.x > from.x + from.width {
+        // To is to the right
+        (from.x + from.width, from_center_y, to.x, to_center_y)
+    } else if to.y > from.y + from.height {
+        // To is below
+        (from_center_x, from.y + from.height, to_center_x, to.y)
+    } else if to.y < from.y {
+        // To is above
+        (from_center_x, from.y, to_center_x, to.y + to.height)
+    } else {
+        // Default: center to center
+        (from_center_x, from_center_y, to_center_x, to_center_y)
+    };
 
-    svg.push_str("</defs>");
-    svg
+    (from_x, from_y, to_x, to_y)
 }
