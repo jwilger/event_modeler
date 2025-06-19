@@ -1,6 +1,6 @@
-//! Temporary test program for incrementally implementing horizontal slice architecture.
+//! Temporary test program for implementing dynamic horizontal slice architecture.
 //!
-//! This binary is used to test Step 11: Final Polish and layout refinements.
+//! This binary creates a properly sized diagram with dynamic slice widths and test scenarios.
 
 use std::collections::HashMap;
 use std::env;
@@ -15,10 +15,10 @@ struct Entity {
     name: String,
     slice: usize,
     swimlane: usize,
-    x: usize,
-    y: usize,
-    width: usize,
-    height: usize,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -102,8 +102,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let output_path = PathBuf::from(&args[1]);
 
-    // Step 9: Render horizontal swimlanes + slice boundaries + all entities + connections
-    let svg_content = render_swimlanes_and_slices()?;
+    // Render dynamic diagram with all components
+    let svg_content = render_dynamic_diagram()?;
 
     // Write to file
     let mut file = fs::File::create(&output_path)?;
@@ -113,7 +113,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
+fn render_dynamic_diagram() -> Result<String, Box<dyn std::error::Error>> {
     // Define all entities with their types, names, and slice/swimlane positions
     let mut entities = vec![
         // Slice 0: Create Account
@@ -123,10 +123,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "Login\nScreen".to_string(),
             slice: 0,
             swimlane: 0,
-            x: 0,
-            y: 0,
-            width: 100,
-            height: 60,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
         Entity {
             id: "new_account_screen".to_string(),
@@ -134,10 +134,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "New\nAccount\nScreen".to_string(),
             slice: 0,
             swimlane: 0,
-            x: 0,
-            y: 0,
-            width: 100,
-            height: 60,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
         Entity {
             id: "create_user_account_credentials".to_string(),
@@ -145,10 +145,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "Create\nUser Account\nCredentials".to_string(),
             slice: 0,
             swimlane: 1,
-            x: 0,
-            y: 0,
-            width: 120,
-            height: 80,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
         Entity {
             id: "user_credentials_projection".to_string(),
@@ -156,10 +156,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "User\nCredentials\nProjection".to_string(),
             slice: 0,
             swimlane: 1,
-            x: 0,
-            y: 0,
-            width: 120,
-            height: 80,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
         Entity {
             id: "user_account_credentials_created".to_string(),
@@ -167,10 +167,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "User Account\nCredentials\nCreated".to_string(),
             slice: 0,
             swimlane: 2,
-            x: 0,
-            y: 0,
-            width: 120,
-            height: 80,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
         // Slice 1: Send Email Verification
         Entity {
@@ -179,10 +179,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "New\nAccount\nScreen".to_string(),
             slice: 1,
             swimlane: 0,
-            x: 0,
-            y: 0,
-            width: 100,
-            height: 60,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
         Entity {
             id: "verify_email_screen".to_string(),
@@ -190,10 +190,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "Verify\nEmail\nAddress\nScreen".to_string(),
             slice: 1,
             swimlane: 0,
-            x: 0,
-            y: 0,
-            width: 100,
-            height: 60,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
         Entity {
             id: "email_verifier".to_string(),
@@ -201,10 +201,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "Email\nVerifier".to_string(),
             slice: 1,
             swimlane: 0,
-            x: 0,
-            y: 0,
-            width: 100,
-            height: 60,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
         Entity {
             id: "send_email_verification".to_string(),
@@ -212,10 +212,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "Send Email\nVerification".to_string(),
             slice: 1,
             swimlane: 1,
-            x: 0,
-            y: 0,
-            width: 120,
-            height: 80,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
         Entity {
             id: "user_email_verification_token_projection".to_string(),
@@ -223,10 +223,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "User Email\nVerification\nToken\nProjection".to_string(),
             slice: 1,
             swimlane: 1,
-            x: 0,
-            y: 0,
-            width: 120,
-            height: 80,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
         Entity {
             id: "get_account_id_for_email_verification_token".to_string(),
@@ -234,10 +234,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "Get Account\nID for Email\nVerification\nToken".to_string(),
             slice: 1,
             swimlane: 1,
-            x: 0,
-            y: 0,
-            width: 120,
-            height: 80,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
         Entity {
             id: "email_verification_message_sent".to_string(),
@@ -245,10 +245,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "Email\nVerification\nMessage Sent".to_string(),
             slice: 1,
             swimlane: 2,
-            x: 0,
-            y: 0,
-            width: 120,
-            height: 80,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
         // Slice 2: Verify Email Address
         Entity {
@@ -257,10 +257,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "Verify Email\nAddress\nScreen".to_string(),
             slice: 2,
             swimlane: 0,
-            x: 0,
-            y: 0,
-            width: 100,
-            height: 60,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
         Entity {
             id: "user_profile_screen".to_string(),
@@ -268,10 +268,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "User\nProfile\nScreen".to_string(),
             slice: 2,
             swimlane: 0,
-            x: 0,
-            y: 0,
-            width: 100,
-            height: 60,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
         Entity {
             id: "verify_user_email_address".to_string(),
@@ -279,10 +279,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "Verify\nUser Email\nAddress".to_string(),
             slice: 2,
             swimlane: 1,
-            x: 0,
-            y: 0,
-            width: 120,
-            height: 80,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
         Entity {
             id: "user_email_verification_token_projection2".to_string(),
@@ -290,10 +290,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "User Email\nVerification\nToken\nProjection".to_string(),
             slice: 2,
             swimlane: 1,
-            x: 0,
-            y: 0,
-            width: 120,
-            height: 80,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
         Entity {
             id: "user_credentials_projection2".to_string(),
@@ -301,10 +301,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "User\nCredentials\nProjection".to_string(),
             slice: 2,
             swimlane: 1,
-            x: 0,
-            y: 0,
-            width: 120,
-            height: 80,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
         Entity {
             id: "get_user_profile".to_string(),
@@ -312,10 +312,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "Get\nUser\nProfile".to_string(),
             slice: 2,
             swimlane: 1,
-            x: 0,
-            y: 0,
-            width: 120,
-            height: 80,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
         Entity {
             id: "email_address_verified".to_string(),
@@ -323,10 +323,10 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             name: "Email\nAddress\nVerified".to_string(),
             slice: 2,
             swimlane: 2,
-            x: 0,
-            y: 0,
-            width: 120,
-            height: 80,
+            x: 0.0,
+            y: 0.0,
+            width: 80.0,
+            height: 50.0,
         },
     ];
 
@@ -505,8 +505,8 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
         },
     ];
 
-    // Layout entities dynamically
-    layout_entities(&mut entities, &connections);
+    // Layout entities dynamically and get canvas dimensions
+    let (diagram_width, diagram_height) = layout_entities(&mut entities, &connections);
 
     // Create entity lookup map
     let mut entity_map: HashMap<String, &Entity> = HashMap::new();
@@ -514,22 +514,14 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
         entity_map.insert(entity.id.clone(), entity);
     }
 
-    // Calculate dynamic canvas size based on entity positions
-    let mut max_x = 0;
-    let mut max_y = 0;
-    for entity in &entities {
-        max_x = max_x.max(entity.x + entity.width);
-        max_y = max_y.max(entity.y + entity.height);
-    }
-    let canvas_width = max_x + 100; // Add padding
-
     // Calculate test scenario space
-    let test_scenario_height = 250; // Height for test scenario section
-    let test_scenario_y_start = max_y + 150; // Start test scenarios below main diagram
-    let canvas_height = test_scenario_y_start + test_scenario_height + 50; // Add padding
+    let test_scenario_height = 300.0; // Height for test scenario section
+    let test_scenario_y_start = diagram_height + 50.0; // Start test scenarios below main diagram
+    let canvas_width = diagram_width;
+    let canvas_height = test_scenario_y_start + test_scenario_height;
 
-    let padding = 60;
-    let swimlane_height = 140;
+    let padding = 40.0;
+    let swimlane_height = 100.0;
 
     // Build SVG
     let mut svg_content = String::new();
@@ -561,22 +553,22 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
     ];
 
     for (name, index) in &swimlanes {
-        let y = padding + (index * swimlane_height);
+        let y = padding + (*index as f64 * swimlane_height);
         svg_content.push_str(&format!(
             "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#f8f9fa\" stroke=\"#e1e4e8\" stroke-width=\"1\"/>",
             padding,
             y,
-            canvas_width - 2 * padding,
-            swimlane_height - 5
+            canvas_width - 2.0 * padding,
+            swimlane_height - 5.0
         ));
 
         // Swimlane label
         svg_content.push_str(&format!(
             "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"12\" fill=\"#586069\" transform=\"rotate(-90, {}, {})\">{}</text>",
-            padding / 2,
-            y + swimlane_height / 2,
-            padding / 2,
-            y + swimlane_height / 2,
+            padding / 2.0,
+            y + swimlane_height / 2.0,
+            padding / 2.0,
+            y + swimlane_height / 2.0,
             name
         ));
     }
@@ -603,11 +595,11 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
         }
 
         // Add slice header
-        let slice_center = (start_x + end_x) / 2;
+        let slice_center = (start_x + end_x) / 2.0;
         svg_content.push_str(&format!(
             "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"14\" font-weight=\"bold\" fill=\"#24292e\">{}</text>",
             slice_center,
-            padding / 2 + 5,
+            padding / 2.0 + 5.0,
             slice_name
         ));
     }
@@ -628,8 +620,8 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
         // Draw entity type label
         svg_content.push_str(&format!(
             r#"<text x="{}" y="{}" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="10" fill="{}">{}</text>"#,
-            entity.x + entity.width / 2,
-            entity.y + 12,
+            entity.x + entity.width / 2.0,
+            entity.y + 12.0,
             entity.entity_type.text_color(),
             entity.entity_type.label()
         ));
@@ -643,7 +635,7 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
         for (i, line) in lines.iter().enumerate() {
             svg_content.push_str(&format!(
                 r#"<text x="{}" y="{}" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="12" fill="{}">{}</text>"#,
-                entity.x + entity.width / 2,
+                entity.x + entity.width / 2.0,
                 start_y + (i as i32 * line_height),
                 entity.entity_type.text_color(),
                 line
@@ -674,95 +666,121 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
     Ok(svg_content)
 }
 
-fn layout_entities(entities: &mut [Entity], _connections: &[Connection]) {
-    let padding = 60;
-    let swimlane_height = 140;
-    let entity_spacing = 40;
-    let _slice_padding = 100;
-    let vertical_spacing = 20;
+fn layout_entities(entities: &mut [Entity], _connections: &[Connection]) -> (f64, f64) {
+    // Dynamic layout parameters
+    let padding = 40.0;
+    let swimlane_height = 100.0;
+    let entity_h_spacing = 20.0;
+    let _entity_v_spacing = 10.0;
+    let slice_padding = 60.0;
+    let min_slice_width = 200.0;
 
-    // Group entities by slice and swimlane
-    let mut slice_groups: Vec<Vec<Vec<&mut Entity>>> = vec![
-        vec![vec![], vec![], vec![]],
-        vec![vec![], vec![], vec![]],
-        vec![vec![], vec![], vec![]],
-    ];
+    // Find max slice and swimlane indices to handle any number
+    let max_slice = entities.iter().map(|e| e.slice).max().unwrap_or(0);
+    let max_swimlane = entities.iter().map(|e| e.swimlane).max().unwrap_or(0);
+
+    // Group entities by slice and swimlane dynamically
+    let mut slice_groups: Vec<Vec<Vec<&mut Entity>>> = vec![];
+    for _ in 0..=max_slice {
+        let mut swimlanes = vec![];
+        for _ in 0..=max_swimlane {
+            swimlanes.push(vec![]);
+        }
+        slice_groups.push(swimlanes);
+    }
 
     for entity in entities.iter_mut() {
+        // Set more reasonable entity sizes to match gold master
+        entity.width = 80.0;
+        entity.height = 50.0;
         slice_groups[entity.slice][entity.swimlane].push(entity);
     }
 
-    // Layout entities in each slice/swimlane
-    let mut slice_x_positions = vec![padding + 50];
+    // Calculate slice widths based on content
+    let mut slice_widths = vec![0.0; max_slice + 1];
+    for (slice_idx, slice) in slice_groups.iter().enumerate() {
+        let mut max_width: f64 = min_slice_width;
 
-    for (slice_idx, slice) in slice_groups.iter_mut().enumerate() {
-        let current_x = if slice_idx > 0 {
-            slice_x_positions[slice_idx - 1] + 450 // Fixed width per slice for better alignment
-        } else {
-            slice_x_positions[0]
-        };
-
-        if slice_idx < slice_x_positions.len() {
-            slice_x_positions[slice_idx] = current_x;
-        } else {
-            slice_x_positions.push(current_x);
+        for swimlane_entities in slice.iter() {
+            if !swimlane_entities.is_empty() {
+                let width_needed = swimlane_entities.iter().map(|e| e.width).sum::<f64>()
+                    + entity_h_spacing * (swimlane_entities.len() as f64 - 1.0)
+                    + 40.0; // Extra padding for swimlane
+                max_width = max_width.max(width_needed);
+            }
         }
 
-        for (swimlane_idx, swimlane_entities) in slice.iter_mut().enumerate() {
-            // Calculate total width needed for this swimlane
-            let total_width: usize = swimlane_entities.iter().map(|e| e.width).sum::<usize>()
-                + entity_spacing * (swimlane_entities.len().saturating_sub(1));
+        slice_widths[slice_idx] = max_width;
+    }
 
-            // Center entities within the slice
-            let start_x = if total_width < 400 {
-                current_x + (400 - total_width) / 2 // Center within ~400px slice width
-            } else {
-                current_x // Too wide to center, just start at slice beginning
-            };
+    // Calculate slice positions
+    let mut slice_x_positions = vec![padding + 30.0];
+    for i in 1..=max_slice {
+        let prev_x = slice_x_positions[i - 1];
+        let prev_width = slice_widths[i - 1];
+        slice_x_positions.push(prev_x + prev_width + slice_padding);
+    }
+
+    // Position entities within slices
+    for (slice_idx, slice) in slice_groups.iter_mut().enumerate() {
+        let slice_x = slice_x_positions[slice_idx];
+        let slice_width = slice_widths[slice_idx];
+
+        for (swimlane_idx, swimlane_entities) in slice.iter_mut().enumerate() {
+            if swimlane_entities.is_empty() {
+                continue;
+            }
+
+            // Calculate total width for centering
+            let total_width = swimlane_entities.iter().map(|e| e.width).sum::<f64>()
+                + entity_h_spacing * (swimlane_entities.len() as f64 - 1.0);
+
+            // Center entities in slice
+            let start_x = slice_x + (slice_width - total_width) / 2.0;
             let mut x = start_x;
 
-            // Vertical positioning with better spacing
-            let base_y = padding + (swimlane_idx * swimlane_height);
-            let y = if swimlane_entities.len() > 1 {
-                // Multiple entities - stagger them vertically
-                base_y + vertical_spacing
-            } else {
-                // Single entity - center it
-                base_y + (swimlane_height - 80) / 2
-            };
+            // Vertical positioning
+            let base_y = padding + (swimlane_idx as f64 * swimlane_height);
+            let y = base_y + (swimlane_height - 50.0) / 2.0;
 
-            let swimlane_len = swimlane_entities.len();
-            for (entity_idx, entity) in swimlane_entities.iter_mut().enumerate() {
+            for entity in swimlane_entities.iter_mut() {
                 entity.x = x;
-                // Stagger entities vertically in busy swimlanes
-                entity.y = if swimlane_len > 2 && entity_idx % 2 == 1 {
-                    y + vertical_spacing
-                } else {
-                    y
-                };
-                x += entity.width + entity_spacing;
+                entity.y = y;
+                x += entity.width + entity_h_spacing;
             }
         }
     }
+
+    // Calculate total canvas size
+    let total_width = if slice_x_positions.is_empty() {
+        200.0
+    } else {
+        slice_x_positions.last().unwrap() + slice_widths.last().unwrap_or(&0.0) + padding
+    };
+
+    let total_height = padding * 2.0 + ((max_swimlane + 1) as f64 * swimlane_height);
+
+    (total_width, total_height)
 }
 
-fn calculate_slice_positions(entities: &[Entity]) -> Vec<(usize, usize)> {
-    let mut slice_bounds = vec![(usize::MAX, 0); 3];
+fn calculate_slice_positions(entities: &[Entity]) -> Vec<(f64, f64)> {
+    let max_slice = entities.iter().map(|e| e.slice).max().unwrap_or(0);
+    let mut slice_bounds = vec![(f64::MAX, 0.0); max_slice + 1];
 
     for entity in entities {
         let slice = entity.slice;
-        slice_bounds[slice].0 = slice_bounds[slice].0.min(entity.x - 20);
-        slice_bounds[slice].1 = slice_bounds[slice].1.max(entity.x + entity.width + 20);
+        slice_bounds[slice].0 = slice_bounds[slice].0.min(entity.x - 20.0);
+        slice_bounds[slice].1 = f64::max(slice_bounds[slice].1, entity.x + entity.width + 20.0);
     }
 
     slice_bounds
 }
 
-fn calculate_connection_points(from: &Entity, to: &Entity) -> (usize, usize, usize, usize) {
-    let from_center_x = from.x + from.width / 2;
-    let from_center_y = from.y + from.height / 2;
-    let to_center_x = to.x + to.width / 2;
-    let to_center_y = to.y + to.height / 2;
+fn calculate_connection_points(from: &Entity, to: &Entity) -> (f64, f64, f64, f64) {
+    let from_center_x = from.x + from.width / 2.0;
+    let from_center_y = from.y + from.height / 2.0;
+    let to_center_x = to.x + to.width / 2.0;
+    let to_center_y = to.y + to.height / 2.0;
 
     // Determine connection points based on relative positions
     let (from_x, from_y, to_x, to_y) = if to.x > from.x + from.width {
@@ -782,104 +800,119 @@ fn calculate_connection_points(from: &Entity, to: &Entity) -> (usize, usize, usi
     (from_x, from_y, to_x, to_y)
 }
 
-fn render_test_scenarios(
-    svg_content: &mut String,
-    test_scenarios: &[TestScenario],
-    y_start: usize,
-) {
-    let scenario_width = 350;
-    let scenario_spacing = 30;
-    let row_height = 50;
-    let entry_width = 90;
-    let entry_height = 40;
-    let entry_spacing = 8;
-    let _padding = 20;
-
-    let mut x = 50;
-
+fn render_test_scenarios(svg_content: &mut String, test_scenarios: &[TestScenario], y_start: f64) {
+    // Reorganize test scenarios by command
+    let mut scenarios_by_command: HashMap<String, Vec<&TestScenario>> = HashMap::new();
     for scenario in test_scenarios {
-        // Draw scenario container
+        scenarios_by_command
+            .entry(scenario.command.clone())
+            .or_default()
+            .push(scenario);
+    }
+
+    let section_width = 300.0;
+    let section_spacing = 20.0;
+    let row_labels = ["Given", "When", "Then"];
+    let row_height = 60.0;
+    let _entry_width = 100.0;
+    let _entry_height = 45.0;
+    let _entry_spacing = 10.0;
+    let header_height = 40.0;
+
+    let mut section_x = 50.0;
+
+    // Group and render test scenarios by command
+    for (command, scenarios) in scenarios_by_command.iter() {
+        // Calculate section dimensions
+        let num_scenarios = scenarios.len();
+        let section_height = header_height + (3.0 * row_height) + 20.0; // 3 rows + padding
+
+        // Draw section container
         svg_content.push_str(&format!(
-            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#f8f9fa\" stroke=\"#d1d5da\" stroke-width=\"1\"/>",
-            x, y_start, scenario_width, 200
+            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#ffffff\" stroke=\"#d1d5da\" stroke-width=\"1\"/>",
+            section_x, y_start, section_width, section_height
         ));
 
-        // Draw scenario title
+        // Draw section header
         svg_content.push_str(&format!(
             "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"14\" font-weight=\"bold\" fill=\"#24292e\">{}</text>",
-            x + scenario_width / 2,
-            y_start + 20,
-            scenario.command
+            section_x + section_width / 2.0,
+            y_start + 20.0,
+            command
         ));
 
-        // Draw scenario name
-        svg_content.push_str(&format!(
-            "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"12\" fill=\"#586069\">{}</text>",
-            x + scenario_width / 2,
-            y_start + 35,
-            scenario.name
-        ));
+        // Calculate column width for scenarios
+        let col_width = (section_width - 60.0) / num_scenarios as f64;
 
-        // Draw Given/When/Then labels
-        let labels = ["Given", "When", "Then"];
-        let entries = [&scenario.given, &scenario.when, &scenario.then];
-
-        for (row_idx, (label, entries)) in labels.iter().zip(entries.iter()).enumerate() {
-            let y = y_start + 50 + (row_idx * row_height);
+        // Draw row labels and entries
+        for (row_idx, row_label) in row_labels.iter().enumerate() {
+            let row_y = y_start + header_height + (row_idx as f64 * row_height);
 
             // Draw row label
             svg_content.push_str(&format!(
-                "<text x=\"{}\" y=\"{}\" font-family=\"Arial, sans-serif\" font-size=\"12\" fill=\"#586069\">{}</text>",
-                x + 10,
-                y + row_height / 2,
-                label
+                "<text x=\"{}\" y=\"{}\" font-family=\"Arial, sans-serif\" font-size=\"11\" fill=\"#586069\">{}</text>",
+                section_x + 10.0,
+                row_y + row_height / 2.0,
+                row_label
             ));
 
-            // Draw entries in this row
-            let mut entry_x = x + 60;
-            for entry in entries.iter() {
-                // Determine colors based on content
-                let (bg_color, text_color, border_color) = if entry.text.contains("Created") {
-                    ("#5b8def", "white", "#4a6bc7") // Blue for commands/events
-                } else if entry.text.contains("Error") {
-                    ("#ff6b6b", "white", "#e74c3c") // Red for errors
-                } else if entry.text.contains("Verified") || entry.text.contains("Sent") {
-                    ("#8b5cf6", "white", "#7c3aed") // Purple for events
-                } else {
-                    ("#5b8def", "white", "#4a6bc7") // Default blue
+            // Draw entries for each scenario
+            for (scenario_idx, scenario) in scenarios.iter().enumerate() {
+                let entries = match row_idx {
+                    0 => &scenario.given,
+                    1 => &scenario.when,
+                    2 => &scenario.then,
+                    _ => continue,
                 };
 
-                // Draw entry box
-                svg_content.push_str(&format!(
-                    "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\" stroke=\"{}\" stroke-width=\"1\" rx=\"3\"/>",
-                    entry_x,
-                    y,
-                    entry_width,
-                    entry_height,
-                    bg_color,
-                    border_color
-                ));
-
-                // Draw entry text (handle multi-line)
-                let lines: Vec<&str> = entry.text.split('\n').collect();
-                let line_height = 12;
-                let total_height = (lines.len() as i32 - 1) * line_height;
-                let text_start_y = y as i32 + entry_height / 2 - total_height / 2;
-
-                for (i, line) in lines.iter().enumerate() {
+                // Draw scenario name header if first row
+                if row_idx == 0 {
+                    let scenario_x = section_x + 50.0 + (scenario_idx as f64 * col_width);
                     svg_content.push_str(&format!(
-                        "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"10\" fill=\"{}\">{}</text>",
-                        entry_x + entry_width / 2,
-                        text_start_y + (i as i32 * line_height),
-                        text_color,
-                        line
+                        "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"10\" fill=\"#586069\">{}</text>",
+                        scenario_x + col_width / 2.0,
+                        row_y - 5.0,
+                        scenario.name
                     ));
                 }
 
-                entry_x += entry_width + entry_spacing;
+                // Draw entries
+                let mut entry_y = row_y + 5.0;
+                for entry in entries.iter() {
+                    let entry_x = section_x + 50.0 + (scenario_idx as f64 * col_width) + 5.0;
+                    let entry_w = col_width - 10.0;
+                    let entry_h = 35.0;
+
+                    // Determine colors based on content
+                    let (bg_color, text_color, border_color) = if entry.text.contains("Error") {
+                        ("#fee7e7", "#d73a3a", "#f5c6c6") // Light red for errors
+                    } else if entry.text.contains("Verified") || entry.text.contains("Sent") {
+                        ("#e6e1ff", "#5b41d9", "#c6b9ff") // Light purple for events
+                    } else {
+                        ("#e1edff", "#4a6bc7", "#b9d1ff") // Light blue for commands/default
+                    };
+
+                    // Draw entry box
+                    svg_content.push_str(&format!(
+                        "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\" stroke=\"{}\" stroke-width=\"1\" rx=\"2\"/>",
+                        entry_x, entry_y, entry_w, entry_h, bg_color, border_color
+                    ));
+
+                    // Draw entry text (simplified - just first line for now)
+                    let text_lines: Vec<&str> = entry.text.split('\n').collect();
+                    svg_content.push_str(&format!(
+                        "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"9\" fill=\"{}\">{}</text>",
+                        entry_x + entry_w / 2.0,
+                        entry_y + entry_h / 2.0,
+                        text_color,
+                        text_lines.first().unwrap_or(&"")
+                    ));
+
+                    entry_y += entry_h + 5.0;
+                }
             }
         }
 
-        x += scenario_width + scenario_spacing;
+        section_x += section_width + section_spacing;
     }
 }
