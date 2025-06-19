@@ -254,9 +254,9 @@ impl LayoutEngine {
         let base_y = padding.top.into_inner().value();
 
         // Calculate Y position based on index and swimlane height
+        // No spacing between swimlanes - they share borders
         let swimlane_height = self.config.swimlane_height.into_inner().value();
-        let spacing = self.config.entity_spacing.into_inner().value();
-        let y = base_y + (index as f32) * (swimlane_height + spacing);
+        let y = base_y + (index as f32) * swimlane_height;
 
         Position {
             x: XCoordinate::new(

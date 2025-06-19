@@ -836,17 +836,19 @@ impl SvgRenderer {
         };
         children.push(SvgElement::Rectangle(background));
 
-        // Create swimlane label
-        let label_x = layout.position.x.into_inner().value() + 10.0;
-        let label_y = layout.position.y.into_inner().value() + 25.0;
+        // Create vertical swimlane label at left side
+        let label_area_width = 60.0; // Width reserved for label area
+        let label_x = layout.position.x.into_inner().value() + 30.0; // Center in label area
+        let label_y = layout.position.y.into_inner().value()
+            + layout.dimensions.height.into_inner().value() / 2.0; // Center vertically
 
-        let label = SvgText {
+        let label_text = SvgText {
             id: None,
             class: Some(CssClass::new(
                 NonEmptyString::parse("swimlane-label".to_string()).unwrap(),
             )),
-            x: XCoordinate::new(NonNegativeFloat::parse(label_x).unwrap()),
-            y: YCoordinate::new(NonNegativeFloat::parse(label_y).unwrap()),
+            x: XCoordinate::new(NonNegativeFloat::parse(0.0).unwrap()), // Position relative to group
+            y: YCoordinate::new(NonNegativeFloat::parse(0.0).unwrap()),
             content: TextContent::new(layout.name.clone()),
             style: TextStyle {
                 font_family: FontFamily::new(
@@ -873,14 +875,56 @@ impl SvgRenderer {
                         .clone()
                         .into_inner(),
                 ),
-                anchor: match self.theme.swimlane_style.label_style.alignment {
-                    crate::diagram::style::TextAlignment::Left => Some(TextAnchor::Start),
-                    crate::diagram::style::TextAlignment::Center => Some(TextAnchor::Middle),
-                    crate::diagram::style::TextAlignment::Right => Some(TextAnchor::End),
-                },
+                anchor: Some(TextAnchor::Middle), // Center the text
             },
         };
-        children.push(SvgElement::Text(label));
+
+        // Wrap text in a group with rotation transform
+        let label_group = SvgGroup {
+            id: None,
+            class: None,
+            transform: Some(Transform::Rotate(
+                RotationAngle::new(
+                    crate::infrastructure::types::FiniteFloat::parse(-90.0).unwrap(),
+                ),
+                Some(XCoordinate::new(NonNegativeFloat::parse(label_x).unwrap())),
+                Some(YCoordinate::new(NonNegativeFloat::parse(label_y).unwrap())),
+            )),
+            children: vec![SvgElement::Text(label_text)],
+        };
+        children.push(SvgElement::Group(label_group));
+
+        // Add vertical separator line between label area and content area
+        let separator_x = layout.position.x.into_inner().value() + label_area_width;
+        let y1 = layout.position.y.into_inner().value();
+        let y2 =
+            layout.position.y.into_inner().value() + layout.dimensions.height.into_inner().value();
+
+        let separator_path = PathData::new(
+            NonEmptyString::parse(format!("M {} {} L {} {}", separator_x, y1, separator_x, y2))
+                .unwrap(),
+        );
+
+        let separator_line = SvgPath {
+            id: None,
+            class: Some(CssClass::new(
+                NonEmptyString::parse("swimlane-separator".to_string()).unwrap(),
+            )),
+            d: separator_path,
+            style: crate::diagram::style::ConnectionStyle {
+                stroke: crate::diagram::style::StrokeStyle {
+                    color: self.theme.swimlane_style.border.color.clone(),
+                    width: crate::diagram::style::StrokeWidth::new(
+                        crate::infrastructure::types::PositiveFloat::parse(1.0).unwrap(),
+                    ),
+                    dasharray: None,
+                    opacity: None,
+                },
+                marker_end: None,
+                marker_start: None,
+            },
+        };
+        children.push(SvgElement::Path(separator_line));
 
         Ok(SvgGroup {
             id: None,
