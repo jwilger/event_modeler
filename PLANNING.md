@@ -26,7 +26,7 @@ This ensures no work is forgotten or lost in the codebase.
 
 ## Current Status
 
-**Last Updated**: 2025-06-19 (Phase 1-5 COMPLETE, Phase 6 NEW - Horizontal Slices with Incremental Approach)
+**Last Updated**: 2025-06-19 (Phase 1-5 COMPLETE, Phase 6 IN PROGRESS - Steps 1-5 Complete)
 
 **Latest Progress**: 
 - Phase 5 (Rich Visual Rendering) completed with limitations - PR #20 merged
@@ -37,6 +37,13 @@ This ensures no work is forgotten or lost in the codebase.
 - New Phase 6 added for horizontal slice architecture redesign
 - Incremental rendering approach defined with 10 manual review checkpoints
 - Library evaluation completed - continuing with custom implementation
+- Phase 6 Progress:
+  - ✅ Step 1: Swimlanes Only - Complete
+  - ✅ Step 2: Add Slice Boundaries - Complete  
+  - ✅ Step 3: Add Views (White Boxes) - Complete with text fitting
+  - ✅ Step 4: Add Commands (Blue Boxes) - Complete
+  - ✅ Step 5: Add Events (Purple Boxes) - Complete with corrected names
+  - ⏳ Step 6: Add Projections (Yellow Boxes) - Ready to start
 
 **🚨 CRITICAL DISCOVERY - Node-Based Layout (2025-06-18)**: 
 The example.jpg shows that entities can appear multiple times in the diagram as separate visual nodes. Each appearance is a distinct node with its own position and connections, even though they reference the same logical entity. This is essential for avoiding visual clutter and showing different relationships clearly. **This requires a fundamental shift from entity-based to node-based layout architecture.**
@@ -433,34 +440,36 @@ The gold master analysis revealed that slices should be horizontal bands represe
 
 **NEVER commit or post to PR without this comparison analysis step.**
 
-1. **Step 1: Swimlanes Only**
+1. **Step 1: Swimlanes Only** ✅ COMPLETE
    - Render just the three swimlanes with labels
    - No entities, no slices, no connections
    - **Review Checkpoint**: User confirms swimlane layout and styling
 
-2. **Step 2: Add Slice Boundaries**
+2. **Step 2: Add Slice Boundaries** ✅ COMPLETE
    - Add horizontal slice divisions (CreateAccount, VerifyEmailAddress)
    - Show slice headers/labels
    - Still no entities
    - **Review Checkpoint**: User confirms slice structure
 
-3. **Step 3: Add Views (White Boxes)**
+3. **Step 3: Add Views (White Boxes)** ✅ COMPLETE
    - Add only View entities (LoginScreen, NewAccountScreen, etc.)
    - Position within correct swimlane and slice
    - Use white/light gray styling
    - **Review Checkpoint**: User confirms view positioning and styling
+   - **Implemented**: Text fitting with font scaling and word wrapping
 
-4. **Step 4: Add Commands (Blue Boxes)**
+4. **Step 4: Add Commands (Blue Boxes)** ✅ COMPLETE
    - Add Command entities
    - Position in commands swimlane within slices
    - Use medium blue styling
    - **Review Checkpoint**: User confirms command layout
 
-5. **Step 5: Add Events (Purple Boxes)**
+5. **Step 5: Add Events (Purple Boxes)** ✅ COMPLETE
    - Add Event entities
    - Position in event stream swimlane
    - Use purple/lavender styling
    - **Review Checkpoint**: User confirms event positioning
+   - **NOTE**: Always use timestamped filenames for output to avoid browser caching
 
 6. **Step 6: Add Projections (Yellow Boxes)**
    - Add Projection entities
