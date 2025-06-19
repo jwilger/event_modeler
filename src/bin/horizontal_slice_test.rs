@@ -1,6 +1,6 @@
 //! Temporary test program for incrementally implementing horizontal slice architecture.
 //!
-//! This binary is used to test Step 7: Adding Queries (Blue Boxes) rendering.
+//! This binary is used to test Step 8: Adding Automations (Green Boxes) rendering.
 
 use event_modeler::diagram::svg::{
     DecimalPrecision, EmbedFonts, OptimizationLevel, SvgRenderConfig, SvgRenderer,
@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let output_path = PathBuf::from(&args[1]);
 
-    // Step 7: Render horizontal swimlanes + slice boundaries + Views + Commands + Events + Projections + Queries
+    // Step 8: Render horizontal swimlanes + slice boundaries + Views + Commands + Events + Projections + Queries + Automations
     let svg_content = render_swimlanes_and_slices()?;
 
     // Write to file
@@ -45,7 +45,7 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
         .clone();
     let _renderer = SvgRenderer::new(svg_config, theme);
 
-    // Step 7: Render horizontal swimlanes + slice boundaries + Views + Commands + Events + Projections + Queries
+    // Step 8: Render horizontal swimlanes + slice boundaries + Views + Commands + Events + Projections + Queries + Automations
     // Based on the gold master, we need:
     // - 3 horizontal swimlanes: UX, Commands, Events
     // - 3 vertical slices: CreateAccount, SendEmailVerification, VerifyEmailAddress
@@ -54,6 +54,7 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
     // - Event entities (purple boxes) in the Events swimlane
     // - Projection entities (yellow boxes) in the Commands swimlane
     // - Query entities (blue boxes) in the Commands swimlane
+    // - Automation entities (green boxes) in the UX swimlane
 
     let canvas_width = 1200;
     let canvas_height = 400;
@@ -325,6 +326,42 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             query_y + query_height / 2,
             "normal",
             "white", // White text on blue background
+            None,
+        ));
+    }
+
+    // Step 8: Add Automation entities (green boxes) in the UX swimlane
+    // Based on example.eventmodel automations and gold master layout
+    let automations = [("Email\nVerifier", 1)]; // slice 1 (Send Email Verification)
+
+    // Automation styling
+    let automation_width = 100;
+    let automation_height = 60;
+    let ux_swimlane_y = padding; // Top swimlane
+    let automation_y = ux_swimlane_y + (swimlane_height - automation_height) / 2;
+
+    for (automation_name, slice_index) in &automations {
+        let slice_x = padding + (slice_index * slice_width);
+        // Position automation in the middle-right area of the slice in the UX swimlane
+        let automation_x = slice_x + slice_width / 2;
+
+        // Draw automation box (green with border)
+        svg_content.push_str(&format!(
+            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#06d6a0\" stroke=\"#04a77d\" stroke-width=\"1\" rx=\"4\"/>",
+            automation_x,
+            automation_y,
+            automation_width,
+            automation_height
+        ));
+
+        // Add automation text with fitting (white text on green background)
+        let automation_fitted_text =
+            fit_text_to_container(automation_name, automation_width, automation_height);
+        svg_content.push_str(&automation_fitted_text.render_svg_full(
+            automation_x + automation_width / 2,
+            automation_y + automation_height / 2,
+            "normal",
+            "white", // White text on green background
             None,
         ));
     }
