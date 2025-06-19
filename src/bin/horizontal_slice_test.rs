@@ -123,12 +123,12 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             ));
         }
 
-        // Add slice header at the top
-        svg_content.push_str(&format!(
-            "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"14\" font-weight=\"bold\" fill=\"#24292e\">{}</text>",
+        // Add slice header at the top with text fitting
+        let header_fitted_text = fit_text_to_container(slice_name, slice_width, padding);
+        svg_content.push_str(&header_fitted_text.render_svg_with_style(
             slice_x + (slice_width / 2),
-            padding / 2 + 5, // Position above the swimlanes
-            slice_name
+            padding / 2 + 5,
+            "bold",
         ));
     }
 
@@ -160,16 +160,108 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             view_height
         ));
 
-        // Add view text
-        svg_content.push_str(&format!(
-            "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"10\" fill=\"#24292e\">{}</text>",
-            view_x + view_width / 2,
-            view_y + view_height / 2,
-            view_name
-        ));
+        // Add view text with proper text fitting
+        let fitted_text = fit_text_to_container(view_name, view_width, view_height);
+        svg_content
+            .push_str(&fitted_text.render_svg(view_x + view_width / 2, view_y + view_height / 2));
     }
 
     svg_content.push_str("</svg>");
 
     Ok(svg_content)
+}
+
+/// Represents fitted text with appropriate font size and line breaks
+struct FittedText {
+    lines: Vec<String>,
+    font_size: f32,
+}
+
+impl FittedText {
+    fn render_svg(&self, center_x: usize, center_y: usize) -> String {
+        self.render_svg_with_style(center_x, center_y, "normal")
+    }
+
+    fn render_svg_with_style(&self, center_x: usize, center_y: usize, font_weight: &str) -> String {
+        let mut svg = String::new();
+        let line_height = self.font_size * 1.2;
+        let total_height = line_height * self.lines.len() as f32;
+        let start_y = center_y as f32 - (total_height - line_height) / 2.0;
+
+        for (i, line) in self.lines.iter().enumerate() {
+            let y = start_y + (i as f32 * line_height);
+            svg.push_str(&format!(
+                "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"{}\" font-weight=\"{}\" fill=\"#24292e\">{}</text>",
+                center_x,
+                y,
+                self.font_size,
+                font_weight,
+                line
+            ));
+        }
+        svg
+    }
+}
+
+/// Fits text to a container by adjusting font size and wrapping lines
+fn fit_text_to_container(
+    text: &str,
+    container_width: usize,
+    container_height: usize,
+) -> FittedText {
+    // Convert newlines to line breaks for manual line breaks
+    let initial_lines: Vec<&str> = text.split('\n').collect();
+
+    // Start with a reasonable font size and scale down if needed
+    let mut font_size = 12.0;
+    let _max_font_size = 16.0;
+    let min_font_size = 6.0;
+
+    // Approximate character width (varies by font, but this is a reasonable estimate)
+    let char_width_ratio = 0.6; // chars per pixel at font size 1
+
+    loop {
+        let max_chars_per_line =
+            ((container_width as f32 - 10.0) / (font_size * char_width_ratio)) as usize;
+        let line_height = font_size * 1.2;
+
+        // Wrap text based on character limits
+        let mut wrapped_lines = Vec::new();
+        for line in &initial_lines {
+            if line.len() <= max_chars_per_line {
+                wrapped_lines.push(line.to_string());
+            } else {
+                // Simple word wrapping
+                let words: Vec<&str> = line.split_whitespace().collect();
+                let mut current_line = String::new();
+
+                for word in words {
+                    if current_line.is_empty() {
+                        current_line = word.to_string();
+                    } else if current_line.len() + 1 + word.len() <= max_chars_per_line {
+                        current_line.push(' ');
+                        current_line.push_str(word);
+                    } else {
+                        wrapped_lines.push(current_line);
+                        current_line = word.to_string();
+                    }
+                }
+                if !current_line.is_empty() {
+                    wrapped_lines.push(current_line);
+                }
+            }
+        }
+
+        // Check if all lines fit vertically
+        let total_height = line_height * wrapped_lines.len() as f32;
+        if total_height <= (container_height as f32 - 10.0) || font_size <= min_font_size {
+            return FittedText {
+                lines: wrapped_lines,
+                font_size,
+            };
+        }
+
+        // Reduce font size and try again
+        font_size = (font_size - 1.0).max(min_font_size);
+    }
 }
