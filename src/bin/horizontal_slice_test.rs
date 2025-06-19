@@ -1,6 +1,6 @@
 //! Temporary test program for incrementally implementing horizontal slice architecture.
 //!
-//! This binary is used to test Step 10: Adding Test Scenarios rendering.
+//! This binary is used to test Step 11: Final Polish and layout refinements.
 
 use std::collections::HashMap;
 use std::env;
@@ -335,24 +335,31 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
         TestScenario {
             command: "Create User Account Credentials".to_string(),
             name: "Main Success".to_string(),
+            given: vec![],
+            when: vec![TestEntry {
+                _entity_type: "When".to_string(),
+                text: "Create\nUser\nAccount\nCredentials".to_string(),
+            }],
+            then: vec![TestEntry {
+                _entity_type: "Then".to_string(),
+                text: "User\nAccount\nCredentials\nCreated".to_string(),
+            }],
+        },
+        TestScenario {
+            command: "Create User Account Credentials".to_string(),
+            name: "Account Already Exists".to_string(),
             given: vec![TestEntry {
                 _entity_type: "Given".to_string(),
-                text: "Account Already Exists".to_string(),
+                text: "User\nAccount\nCredentials\nCreated".to_string(),
             }],
             when: vec![TestEntry {
                 _entity_type: "When".to_string(),
-                text: "User\nAccount\nCredentials\nCreated".to_string(),
+                text: "Create\nUser\nAccount\nCredentials".to_string(),
             }],
-            then: vec![
-                TestEntry {
-                    _entity_type: "Then".to_string(),
-                    text: "User\nAccount\nCredentials\nCreated".to_string(),
-                },
-                TestEntry {
-                    _entity_type: "Then".to_string(),
-                    text: "Duplicate\nUser\nAccount\nError".to_string(),
-                },
-            ],
+            then: vec![TestEntry {
+                _entity_type: "Then".to_string(),
+                text: "Duplicate\nUser\nAccount\nError".to_string(),
+            }],
         },
         TestScenario {
             command: "Send Email Verification".to_string(),
@@ -361,26 +368,14 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
                 _entity_type: "Given".to_string(),
                 text: "User\nAccount\nCredentials\nCreated".to_string(),
             }],
-            when: vec![
-                TestEntry {
-                    _entity_type: "When".to_string(),
-                    text: "Send Email\nVerification".to_string(),
-                },
-                TestEntry {
-                    _entity_type: "When".to_string(),
-                    text: "Send Email\nVerification".to_string(),
-                },
-            ],
-            then: vec![
-                TestEntry {
-                    _entity_type: "Then".to_string(),
-                    text: "Email\nVerification\nMessage\nSent".to_string(),
-                },
-                TestEntry {
-                    _entity_type: "Then".to_string(),
-                    text: "Unknown\nUser\nAccount\nError".to_string(),
-                },
-            ],
+            when: vec![TestEntry {
+                _entity_type: "When".to_string(),
+                text: "Send Email\nVerification".to_string(),
+            }],
+            then: vec![TestEntry {
+                _entity_type: "Then".to_string(),
+                text: "Email\nVerification\nMessage\nSent".to_string(),
+            }],
         },
         TestScenario {
             command: "Send Email Verification".to_string(),
@@ -388,18 +383,50 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             given: vec![],
             when: vec![TestEntry {
                 _entity_type: "When".to_string(),
-                text: "User\nAccount\nCredentials\nCreated".to_string(),
+                text: "Send Email\nVerification".to_string(),
             }],
-            then: vec![
+            then: vec![TestEntry {
+                _entity_type: "Then".to_string(),
+                text: "Unknown\nUser\nAccount\nError".to_string(),
+            }],
+        },
+        TestScenario {
+            command: "Verify Email Address".to_string(),
+            name: "Main Success".to_string(),
+            given: vec![
                 TestEntry {
-                    _entity_type: "Then".to_string(),
-                    text: "Verify\nUser Email\nAddress".to_string(),
+                    _entity_type: "Given".to_string(),
+                    text: "User\nAccount\nCredentials\nCreated".to_string(),
                 },
                 TestEntry {
-                    _entity_type: "Then".to_string(),
-                    text: "Verify\nUser Email\nAddress".to_string(),
+                    _entity_type: "Given".to_string(),
+                    text: "Email\nVerification\nMessage\nSent".to_string(),
                 },
             ],
+            when: vec![TestEntry {
+                _entity_type: "When".to_string(),
+                text: "Verify\nUser Email\nAddress".to_string(),
+            }],
+            then: vec![TestEntry {
+                _entity_type: "Then".to_string(),
+                text: "Email\nAddress\nVerified".to_string(),
+            }],
+        },
+        TestScenario {
+            command: "Verify Email Address".to_string(),
+            name: "Invalid Verification Token".to_string(),
+            given: vec![TestEntry {
+                _entity_type: "Given".to_string(),
+                text: "User\nAccount\nCredentials\nCreated".to_string(),
+            }],
+            when: vec![TestEntry {
+                _entity_type: "When".to_string(),
+                text: "Verify\nUser Email\nAddress".to_string(),
+            }],
+            then: vec![TestEntry {
+                _entity_type: "Then".to_string(),
+                text: "Invalid\nVerification\nToken\nError".to_string(),
+            }],
         },
     ];
 
@@ -501,8 +528,8 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
     let test_scenario_y_start = max_y + 150; // Start test scenarios below main diagram
     let canvas_height = test_scenario_y_start + test_scenario_height + 50; // Add padding
 
-    let padding = 40;
-    let swimlane_height = 150;
+    let padding = 60;
+    let swimlane_height = 140;
 
     // Build SVG
     let mut svg_content = String::new();
@@ -648,10 +675,11 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
 }
 
 fn layout_entities(entities: &mut [Entity], _connections: &[Connection]) {
-    let padding = 40;
-    let swimlane_height = 150;
-    let entity_spacing = 30;
-    let slice_padding = 50;
+    let padding = 60;
+    let swimlane_height = 140;
+    let entity_spacing = 40;
+    let _slice_padding = 100;
+    let vertical_spacing = 20;
 
     // Group entities by slice and swimlane
     let mut slice_groups: Vec<Vec<Vec<&mut Entity>>> = vec![
@@ -665,24 +693,56 @@ fn layout_entities(entities: &mut [Entity], _connections: &[Connection]) {
     }
 
     // Layout entities in each slice/swimlane
-    let mut current_x = padding + slice_padding;
+    let mut slice_x_positions = vec![padding + 50];
 
-    for slice in slice_groups.iter_mut() {
-        let mut max_width_in_slice = 0;
+    for (slice_idx, slice) in slice_groups.iter_mut().enumerate() {
+        let current_x = if slice_idx > 0 {
+            slice_x_positions[slice_idx - 1] + 450 // Fixed width per slice for better alignment
+        } else {
+            slice_x_positions[0]
+        };
 
-        for (swimlane_idx, swimlane_entities) in slice.iter_mut().enumerate() {
-            let y = padding + (swimlane_idx * swimlane_height) + (swimlane_height - 80) / 2;
-            let mut x = current_x;
-
-            for entity in swimlane_entities.iter_mut() {
-                entity.x = x;
-                entity.y = y;
-                x += entity.width + entity_spacing;
-                max_width_in_slice = max_width_in_slice.max(x - current_x);
-            }
+        if slice_idx < slice_x_positions.len() {
+            slice_x_positions[slice_idx] = current_x;
+        } else {
+            slice_x_positions.push(current_x);
         }
 
-        current_x += max_width_in_slice + slice_padding;
+        for (swimlane_idx, swimlane_entities) in slice.iter_mut().enumerate() {
+            // Calculate total width needed for this swimlane
+            let total_width: usize = swimlane_entities.iter().map(|e| e.width).sum::<usize>()
+                + entity_spacing * (swimlane_entities.len().saturating_sub(1));
+
+            // Center entities within the slice
+            let start_x = if total_width < 400 {
+                current_x + (400 - total_width) / 2 // Center within ~400px slice width
+            } else {
+                current_x // Too wide to center, just start at slice beginning
+            };
+            let mut x = start_x;
+
+            // Vertical positioning with better spacing
+            let base_y = padding + (swimlane_idx * swimlane_height);
+            let y = if swimlane_entities.len() > 1 {
+                // Multiple entities - stagger them vertically
+                base_y + vertical_spacing
+            } else {
+                // Single entity - center it
+                base_y + (swimlane_height - 80) / 2
+            };
+
+            let swimlane_len = swimlane_entities.len();
+            for (entity_idx, entity) in swimlane_entities.iter_mut().enumerate() {
+                entity.x = x;
+                // Stagger entities vertically in busy swimlanes
+                entity.y = if swimlane_len > 2 && entity_idx % 2 == 1 {
+                    y + vertical_spacing
+                } else {
+                    y
+                };
+                x += entity.width + entity_spacing;
+            }
+        }
     }
 }
 
@@ -727,12 +787,12 @@ fn render_test_scenarios(
     test_scenarios: &[TestScenario],
     y_start: usize,
 ) {
-    let scenario_width = 400;
-    let scenario_spacing = 50;
+    let scenario_width = 350;
+    let scenario_spacing = 30;
     let row_height = 50;
-    let entry_width = 100;
-    let entry_height = 45;
-    let entry_spacing = 10;
+    let entry_width = 90;
+    let entry_height = 40;
+    let entry_spacing = 8;
     let _padding = 20;
 
     let mut x = 50;
