@@ -26,7 +26,7 @@ This ensures no work is forgotten or lost in the codebase.
 
 ## Current Status
 
-**Last Updated**: 2025-06-19 (Phase 1-5 COMPLETE, Phase 6 IN PROGRESS - Steps 1-8 Complete)
+**Last Updated**: 2025-06-19 (Phase 1-5 COMPLETE, Phase 6 IN PROGRESS)
 
 **Latest Progress**: 
 - Phase 5 (Rich Visual Rendering) completed with limitations - PR #20 merged
@@ -58,19 +58,26 @@ Major discrepancies between current implementation and gold standard:
    - Current: Vertical stacking of slices
    - Required: Horizontal main diagram with test scenarios below
    
-2. **Missing Core Elements**:
-   - Email Verifier entity (central icon in gold standard)
-   - Several projections and proper entity type labels
+2. **Missing Core Elements**: ✅ PARTIALLY FIXED
+   - Email Verifier entity (central icon in gold standard) - ✅ FIXED
+   - Several projections and proper entity type labels - ✅ FIXED
    
-3. **Test Scenario Layout Wrong**:
-   - Current: Vertical panels with Given/When/Then rows
+3. **Test Scenario Layout Wrong**: ✅ PARTIALLY FIXED
+   - Current: Vertical panels with Given/When/Then rows - Still vertical, needs columnar layout
    - Required: Horizontal boxes below main diagram with columnar structure
+   - Test scenario order now correct
    
-4. **Connection Routing Issues**:
-   - Many connections missing or incorrectly routed
-   - Arrow styles don't match gold standard
+4. **Connection Routing Issues**: ✅ PARTIALLY FIXED
+   - Many connections missing or incorrectly routed - Some connections added
+   - Arrow styles don't match gold standard - Still needs work
 
-**Fundamental Redesign Required**: The current approach is too different from the gold standard. Need to completely restructure the layout algorithm.
+**Progress Update (2025-06-19)**:
+- Email Verifier now renders as circular icon with envelope
+- Test scenario boxes in correct order
+- Added missing connections in Verify Email Address slice
+- Entity names corrected (Get Account Id)
+
+**Still Required**: Complete layout restructure to match gold standard's two-part layout (main diagram + test scenarios)
 
 **🚨 CRITICAL DISCOVERY - Node-Based Layout (2025-06-18)**: 
 The example.jpg shows that entities can appear multiple times in the diagram as separate visual nodes. Each appearance is a distinct node with its own position and connections, even though they reference the same logical entity. This is essential for avoiding visual clutter and showing different relationships clearly. **This requires a fundamental shift from entity-based to node-based layout architecture.**
