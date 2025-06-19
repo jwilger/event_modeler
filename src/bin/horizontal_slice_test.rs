@@ -45,11 +45,13 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
         .clone();
     let _renderer = SvgRenderer::new(svg_config, theme);
 
-    // Step 3: Render horizontal swimlanes + slice boundaries + Views
+    // Step 5: Render horizontal swimlanes + slice boundaries + Views + Commands + Events
     // Based on the gold master, we need:
     // - 3 horizontal swimlanes: UX, Commands, Events
     // - 3 vertical slices: CreateAccount, SendEmailVerification, VerifyEmailAddress
     // - View entities (white boxes) in the UX swimlane
+    // - Command entities (blue boxes) in the Commands swimlane
+    // - Event entities (purple boxes) in the Events swimlane
 
     let canvas_width = 1200;
     let canvas_height = 400;
@@ -163,6 +165,83 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
         let fitted_text = fit_text_to_container(view_name, view_width, view_height);
         svg_content
             .push_str(&fitted_text.render_svg(view_x + view_width / 2, view_y + view_height / 2));
+    }
+
+    // Step 4: Add Command entities (blue boxes) in the Commands swimlane
+    // Based on example.eventmodel commands and gold master layout
+    let commands = [
+        ("Create\nUser Account\nCredentials", 0), // slice 0 (Create Account)
+        ("Send Email\nVerification", 1),          // slice 1 (Send Email Verification)
+        ("Verify\nUser Email\nAddress", 2),       // slice 2 (Verify Email Address)
+    ];
+
+    // Command styling
+    let command_width = 120;
+    let command_height = 80;
+    let commands_swimlane_y = padding + swimlane_height; // Middle swimlane
+    let command_y = commands_swimlane_y + (swimlane_height - command_height) / 2;
+
+    for (command_name, slice_index) in &commands {
+        let slice_x = padding + (slice_index * slice_width);
+        let command_x = slice_x + 30; // Small offset from slice boundary
+
+        // Draw command box (blue with border)
+        svg_content.push_str(&format!(
+            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#5b8def\" stroke=\"#4a6bc7\" stroke-width=\"1\" rx=\"4\"/>",
+            command_x,
+            command_y,
+            command_width,
+            command_height
+        ));
+
+        // Add command text with fitting (white text on blue background)
+        let command_fitted_text =
+            fit_text_to_container(command_name, command_width, command_height);
+        svg_content.push_str(&command_fitted_text.render_svg_full(
+            command_x + command_width / 2,
+            command_y + command_height / 2,
+            "normal",
+            "white", // White text on blue background
+            None,
+        ));
+    }
+
+    // Step 5: Add Event entities (purple boxes) in the Events swimlane
+    // Based on example.eventmodel events and gold master layout
+    let events = [
+        ("User Account\nCredentials\nCreated", 0), // slice 0 (Create Account)
+        ("Email Verification\nMessage Sent", 1),   // slice 1 (Send Email Verification)
+        ("Email\nAddress\nVerified", 2),           // slice 2 (Verify Email Address)
+    ];
+
+    // Event styling
+    let event_width = 120;
+    let event_height = 80;
+    let events_swimlane_y = padding + (2 * swimlane_height); // Bottom swimlane
+    let event_y = events_swimlane_y + (swimlane_height - event_height) / 2;
+
+    for (event_name, slice_index) in &events {
+        let slice_x = padding + (slice_index * slice_width);
+        let event_x = slice_x + 30; // Small offset from slice boundary
+
+        // Draw event box (purple with border)
+        svg_content.push_str(&format!(
+            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#8b5cf6\" stroke=\"#7c3aed\" stroke-width=\"1\" rx=\"4\"/>",
+            event_x,
+            event_y,
+            event_width,
+            event_height
+        ));
+
+        // Add event text with fitting (white text on purple background)
+        let event_fitted_text = fit_text_to_container(event_name, event_width, event_height);
+        svg_content.push_str(&event_fitted_text.render_svg_full(
+            event_x + event_width / 2,
+            event_y + event_height / 2,
+            "normal",
+            "white", // White text on purple background
+            None,
+        ));
     }
 
     svg_content.push_str("</svg>");
