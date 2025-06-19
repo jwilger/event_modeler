@@ -1,0 +1,12 @@
+workflow: Minimal Model
+
+swimlanes:
+  - system: "System"
+
+events:
+  SystemStarted:
+    description: "System was started"
+    swimlane: system
+    data:
+      timestamp:
+        type: DateTime

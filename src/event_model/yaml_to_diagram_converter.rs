@@ -69,8 +69,9 @@ pub fn convert_yaml_to_diagram(
         &yaml_model.commands,
     );
 
-    // Build registry - for now we're returning an empty registry
-    // as the type system requires us to maintain Empty type parameters
+    // Build registry - For now we use an empty registry as the typestate pattern
+    // makes it difficult to add multiple entities of the same type.
+    // The node layout engine will fall back to inferring entity types from IDs.
     let registry = EntityRegistry::new();
 
     // TODO: Add other entity types when implemented

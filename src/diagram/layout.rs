@@ -939,6 +939,10 @@ pub enum LayoutError {
     /// Slice boundaries are invalid.
     #[error("Invalid slice boundaries")]
     InvalidSliceBoundaries,
+
+    /// Entity reference not found in registry.
+    #[error("Invalid entity reference: {0:?}")]
+    InvalidEntityReference(EntityId),
 }
 
 #[cfg(test)]

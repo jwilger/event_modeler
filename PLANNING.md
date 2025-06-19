@@ -26,7 +26,17 @@ This ensures no work is forgotten or lost in the codebase.
 
 ## Current Status
 
-**Last Updated**: 2025-06-18 (Phase 1 COMPLETE, Phase 2 COMPLETE, Phase 3 COMPLETE, Phase 4 COMPLETE, Phase 5 IN PROGRESS - PR #20)
+**Last Updated**: 2025-06-19 (Phase 1 COMPLETE, Phase 2 COMPLETE, Phase 3 COMPLETE, Phase 4 COMPLETE, Phase 5 IN PROGRESS - PR #20 merged, Node-Based Layout IN PROGRESS - PR #21)
+
+**Latest Progress**: 
+- Phase 5 (Rich Visual Rendering) completed with limitations - PR #20 merged
+- Node-based layout architecture implementation in progress - PR #21
+- Created ADR documenting node-based layout decision
+- Implemented DiagramNode type system and NodeLayoutEngine foundation
+- Node generation from slice connections is working
+- SVG renderer updated to work with node-based layout
+- Temporal filtering removed - node-based layout handles all connection types
+- Support for isolated entities (not in connections) added
 
 **🚨 CRITICAL DISCOVERY - Node-Based Layout (2025-06-18)**: 
 The example.jpg shows that entities can appear multiple times in the diagram as separate visual nodes. Each appearance is a distinct node with its own position and connections, even though they reference the same logical entity. This is essential for avoiding visual clutter and showing different relationships clearly. **This requires a fundamental shift from entity-based to node-based layout architecture.**
@@ -80,20 +90,32 @@ The example.eventmodel and example.jpg files represent the TRUE requirements.
 - ✅ Handles circular dependency detection in entity flows
 - ✅ Uses slice definitions to determine flow order
 
-**Phase 5 IN PROGRESS**: Rich Visual Rendering (PR #20)
+**Phase 5 COMPLETE (with limitations)**: Rich Visual Rendering (PR #20 - merging)
 - ✅ Updated entity color scheme to match requirements (blue for commands/views/queries, purple for events, yellow for projections, green for automations)
 - ✅ Enhanced entity text rendering with typography hierarchy (type labels + entity names)
 - ✅ Added configurable entity sizing for better visual space (160x80 vs 120x60)
 - ✅ Professional typography using theme font configuration
 - ✅ Fixed circular dependency issue with conservative temporal filtering (temporary fix)
 - ✅ Basic YAML integration working - can parse and render example.eventmodel
-- ⚠️ **CRITICAL DISCOVERY**: Layout must support multiple visual nodes per entity (see example.jpg)
-- ⚠️ Node-based layout architecture - **Required for proper rendering**
-- ⚠️ Rich entity content rendering (data schemas) - **Requires node-based layout**
-- ⚠️ Test scenario sub-diagrams - **Requires node-based layout**
 - ✅ Professional spacing and layout improvements
+- ⚠️ **CRITICAL DISCOVERY**: Layout must support multiple visual nodes per entity (see example.jpg)
+- ⚠️ Node-based layout architecture - **Required for full implementation**
+- ⚠️ Rich entity content rendering (data schemas) - **Deferred: Requires node-based layout**
+- ⚠️ Test scenario sub-diagrams - **Deferred: Requires node-based layout**
 
-**Next Step**: Complete Phase 5, then Phase 6 - Acceptance Testing & Documentation
+**Next Steps**: Continue node-based layout implementation in PR #21:
+- ✅ DiagramNode type system implemented
+- ✅ NodeLayoutEngine foundation created
+- ✅ Node generation from slices working
+- ✅ Topological sort for node positioning implemented
+- ✅ SVG renderer updated to work with nodes
+- ✅ Conservative temporal filtering removed
+- ✅ All connection types enabled in the diagram
+- ✅ Support for isolated entities added
+
+PR #21 implementation is complete. Next step: Proceed to Phase 6 - Acceptance Testing & Documentation
+
+After PR #21 is complete, proceed to Phase 6 - Acceptance Testing & Documentation
 
 **Version Planning**: This rewrite will be released as version 0.3.0. Since we're pre-1.0, we can make breaking changes without maintaining backward compatibility. The YAML format will use this version number for its schema version.
 

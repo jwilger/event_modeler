@@ -9,11 +9,15 @@
 //! visually to users.
 
 pub mod layout;
+pub mod node;
+pub mod node_layout;
 pub mod style;
 pub mod svg;
 pub mod theme;
 
 pub use layout::{Layout, LayoutConfig, LayoutEngine, LayoutError};
+pub use node::{DiagramNode, EntityReference, NodeConnection, NodeGenerator, NodeId, Position};
+pub use node_layout::{NodeLayout, NodeLayoutEngine, PositionedNode};
 pub use style::Theme;
 pub use svg::{SvgDocument, SvgRenderConfig, SvgRenderError, SvgRenderer};
 pub use theme::{GithubDark, GithubLight, ThemedRenderer};
