@@ -45,10 +45,11 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
         .clone();
     let _renderer = SvgRenderer::new(svg_config, theme);
 
-    // Step 2: Render horizontal swimlanes + slice boundaries
+    // Step 3: Render horizontal swimlanes + slice boundaries + Views
     // Based on the gold master, we need:
     // - 3 horizontal swimlanes: UX, Commands, Events
-    // - 3 vertical slices: CreateAccount, VerifyEmailAddress, (other)
+    // - 3 vertical slices: CreateAccount, SendEmailVerification, VerifyEmailAddress
+    // - View entities (white boxes) in the UX swimlane
 
     let canvas_width = 1200;
     let canvas_height = 400;
@@ -128,6 +129,43 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
             slice_x + (slice_width / 2),
             padding / 2 + 5, // Position above the swimlanes
             slice_name
+        ));
+    }
+
+    // Step 3: Add View entities (white boxes) in the UX swimlane
+    // Based on example.eventmodel views and gold master layout
+    let views = [
+        ("Login\nScreen", 0),                 // slice 0 (Create Account)
+        ("New\nAccount\nScreen", 0),          // slice 0 (Create Account)
+        ("Verify Email\nAddress\nScreen", 2), // slice 2 (Verify Email Address)
+        ("User\nProfile\nScreen", 2),         // slice 2 (Verify Email Address)
+    ];
+
+    // View styling
+    let view_width = 100;
+    let view_height = 60;
+    let ux_swimlane_y = padding; // Top swimlane
+    let view_y = ux_swimlane_y + (swimlane_height - view_height) / 2;
+
+    for (i, (view_name, slice_index)) in views.iter().enumerate() {
+        let slice_x = padding + (slice_index * slice_width);
+        let view_x = slice_x + 20 + (i % 2) * (view_width + 10); // Offset multiple views in same slice
+
+        // Draw view box (white with border)
+        svg_content.push_str(&format!(
+            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"white\" stroke=\"#d1d5da\" stroke-width=\"1\" rx=\"4\"/>",
+            view_x,
+            view_y,
+            view_width,
+            view_height
+        ));
+
+        // Add view text
+        svg_content.push_str(&format!(
+            "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"10\" fill=\"#24292e\">{}</text>",
+            view_x + view_width / 2,
+            view_y + view_height / 2,
+            view_name
         ));
     }
 
