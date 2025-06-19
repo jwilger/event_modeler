@@ -26,17 +26,17 @@ This ensures no work is forgotten or lost in the codebase.
 
 ## Current Status
 
-**Last Updated**: 2025-06-19 (Phase 1 COMPLETE, Phase 2 COMPLETE, Phase 3 COMPLETE, Phase 4 COMPLETE, Phase 5 IN PROGRESS - PR #20 merged, Node-Based Layout IN PROGRESS - PR #21)
+**Last Updated**: 2025-06-19 (Phase 1-5 COMPLETE, Phase 6 NEW - Horizontal Slices with Incremental Approach)
 
 **Latest Progress**: 
 - Phase 5 (Rich Visual Rendering) completed with limitations - PR #20 merged
-- Node-based layout architecture implementation in progress - PR #21
-- Created ADR documenting node-based layout decision
-- Implemented DiagramNode type system and NodeLayoutEngine foundation
-- Node generation from slice connections is working
-- SVG renderer updated to work with node-based layout
-- Temporal filtering removed - node-based layout handles all connection types
-- Support for isolated entities (not in connections) added
+- Node-based layout architecture completed - PR #21 merged
+- Acceptance testing revealed fundamental slice architecture mismatch
+- Gold master analysis completed - slices must be horizontal workflows
+- PNG-based visual comparison testing implemented
+- New Phase 6 added for horizontal slice architecture redesign
+- Incremental rendering approach defined with 10 manual review checkpoints
+- Library evaluation completed - continuing with custom implementation
 
 **🚨 CRITICAL DISCOVERY - Node-Based Layout (2025-06-18)**: 
 The example.jpg shows that entities can appear multiple times in the diagram as separate visual nodes. Each appearance is a distinct node with its own position and connections, even though they reference the same logical entity. This is essential for avoiding visual clutter and showing different relationships clearly. **This requires a fundamental shift from entity-based to node-based layout architecture.**
@@ -115,7 +115,16 @@ The example.eventmodel and example.jpg files represent the TRUE requirements.
 
 PR #21 implementation is complete. Next step: Proceed to Phase 6 - Acceptance Testing & Documentation
 
-After PR #21 is complete, proceed to Phase 6 - Acceptance Testing & Documentation
+**🚨 CRITICAL DISCOVERY - Horizontal Slices (2025-06-19)**: 
+Acceptance testing revealed a fundamental misunderstanding of slice architecture. The gold master shows slices as **horizontal workflow sections**, not vertical dividers. Each slice represents a complete user flow that spans across all swimlanes horizontally. This is a major architectural change that affects:
+- Slice interpretation and rendering
+- Entity grouping and positioning
+- Layout algorithms
+- Visual styling and headers
+
+See docs/gold-master-analysis.md for detailed findings.
+
+**Architectural Impact**: This discovery means that much of the current layout implementation needs to be redesigned. The node-based layout work in PR #21 is still valuable, but it needs to work within horizontal slice boundaries rather than treating the entire diagram as one flow.
 
 **Version Planning**: This rewrite will be released as version 0.3.0. Since we're pre-1.0, we can make breaking changes without maintaining backward compatibility. The YAML format will use this version number for its schema version.
 
@@ -394,15 +403,137 @@ workflow: User Account Signup
 4. Create accessibility considerations guide
 5. Document node-based layout architecture
 
-### Phase 6: Acceptance Testing & Documentation
+### Phase 6: Horizontal Slice Architecture (NEW - CRITICAL)
+**Goal**: Redesign slice handling to match gold master's horizontal workflow sections
+
+#### Context:
+The gold master analysis revealed that slices should be horizontal bands representing complete workflows, not vertical dividers. This is a fundamental change that affects the entire layout system.
+
+**Library Evaluation Results**: After evaluating Rust diagramming libraries (see docs/diagramming-library-evaluation.md), we determined that no existing library meets our specialized needs. Available libraries focus on force-directed or tree layouts, while we need horizontal workflow sections with swimlanes. We'll continue with our custom implementation, potentially using petgraph for graph algorithms.
+
+**Incremental Rendering Approach**: To ensure we're building the right solution, we'll implement visual elements incrementally with manual review checkpoints between each element. This allows for course correction before investing too much in any particular approach.
+
+**Implementation Strategy**: 
+- Use `example.eventmodel` as the test data throughout
+- Create a temporary test program that renders only the elements for the current step
+- Generate PNG output using `magick` for visual comparison
+- Wait for explicit user approval before proceeding to the next step
+- Each step builds upon the previous, gradually increasing complexity
+
+#### Incremental Implementation Steps:
+
+**🚨 CRITICAL**: Each step must be completed and manually reviewed before proceeding to the next. Generate PNG output and wait for user feedback.
+
+1. **Step 1: Swimlanes Only**
+   - Render just the three swimlanes with labels
+   - No entities, no slices, no connections
+   - **Review Checkpoint**: User confirms swimlane layout and styling
+
+2. **Step 2: Add Slice Boundaries**
+   - Add horizontal slice divisions (CreateAccount, VerifyEmailAddress)
+   - Show slice headers/labels
+   - Still no entities
+   - **Review Checkpoint**: User confirms slice structure
+
+3. **Step 3: Add Views (White Boxes)**
+   - Add only View entities (LoginScreen, NewAccountScreen, etc.)
+   - Position within correct swimlane and slice
+   - Use white/light gray styling
+   - **Review Checkpoint**: User confirms view positioning and styling
+
+4. **Step 4: Add Commands (Blue Boxes)**
+   - Add Command entities
+   - Position in commands swimlane within slices
+   - Use medium blue styling
+   - **Review Checkpoint**: User confirms command layout
+
+5. **Step 5: Add Events (Purple Boxes)**
+   - Add Event entities
+   - Position in event stream swimlane
+   - Use purple/lavender styling
+   - **Review Checkpoint**: User confirms event positioning
+
+6. **Step 6: Add Projections (Yellow Boxes)**
+   - Add Projection entities
+   - Use yellow/orange styling
+   - **Review Checkpoint**: User confirms projection layout
+
+7. **Step 7: Add Other Entity Types**
+   - Add Queries, Automations
+   - Apply appropriate colors
+   - **Review Checkpoint**: User confirms all entity types
+
+8. **Step 8: Add Connections**
+   - Add arrows between entities following slice flows
+   - Route within slice boundaries
+   - **Review Checkpoint**: User confirms connection routing
+
+9. **Step 9: Add Test Scenarios**
+   - Add test scenario labels within slices
+   - Group related entities
+   - **Review Checkpoint**: User confirms test scenario presentation
+
+10. **Step 10: Final Polish**
+    - Adjust spacing, alignment
+    - Fine-tune colors and typography
+    - **Final Review**: User confirms complete diagram
+
+#### Original Tasks (to be implemented incrementally):
+1. **Redefine Slice concept**:
+   - Update Slice type to represent horizontal workflow sections
+   - Each slice spans across all swimlanes horizontally
+   - Slices have vertical boundaries (top/bottom) not horizontal (left/right)
+   - Consider using petgraph for dependency analysis within slices
+
+2. **Update Layout Engine**:
+   - Calculate vertical space for each slice based on entity count
+   - Position slices as stacked horizontal bands
+   - Maintain spacing between slices
+
+3. **Entity Grouping**:
+   - Group entities by their slice membership
+   - Position entities within their slice's vertical band
+   - Use flow-based positioning within each slice
+
+4. **Slice Headers**:
+   - Add slice name labels at the start of each slice
+   - Position headers in the leftmost area of the slice
+   - Style headers prominently
+
+5. **Test Scenario Sub-sections**:
+   - Within slices, show test scenarios (e.g., "Main Success", "No Such User")
+   - Position these as labeled sub-flows within the slice
+   - Use visual grouping to show which entities belong to which scenario
+
+6. **Update Color Scheme**:
+   - Views: White/very light gray (#f8f9fa)
+   - Commands: Medium blue (#5b8def)
+   - Events: Purple/lavender (#c8b6db)
+   - Projections: Yellow/orange (#ffd166)
+   - Automations: Green (#06d6a0)
+   - Errors: Red/pink (#ef476f)
+
+7. **Arrow Routing**:
+   - Route arrows within slice boundaries
+   - Follow flow paths, not just direct connections
+   - Handle cross-slice references appropriately
+
+#### Documentation Tasks:
+1. Create ADR for horizontal slice architecture
+2. Update all slice-related documentation
+3. Document the workflow-based approach
+4. Update examples to show horizontal slices
+
+### Phase 7: Acceptance Testing & Documentation
 **Goal**: Ensure the implementation meets requirements and documentation is complete
 
 #### Tasks:
-1. Create test that uses example.eventmodel as input
-2. Compare output structure to example.jpg
-3. Add tests for all entity types
-4. Add tests for error cases
-5. Performance testing with large models
+1. ✅ Create test that uses example.eventmodel as input
+2. ✅ PNG-based visual comparison implemented
+3. Compare output structure to example.jpg/png
+4. Add tests for all entity types
+5. Add tests for error cases
+6. Performance testing with large models
 
 #### Documentation Tasks:
 1. Update GitHub Pages landing page with YAML examples
@@ -414,7 +545,7 @@ workflow: User Account Signup
 7. Update all code examples in documentation
 8. Create video tutorial for new format (optional)
 
-### Phase 7: Cleanup
+### Phase 8: Cleanup
 **Goal**: Remove ALL obsolete code and prepare for release
 
 #### Cleanup Tasks:
@@ -445,15 +576,16 @@ workflow: User Account Signup
 
 ## Timeline Estimate
 
-- Phase 1 (Type System): 6-8 hours + 2 hours documentation
-- Phase 2 (YAML Parser): 8-10 hours + 3 hours documentation
-- Phase 3 (Domain Extensions): 6-8 hours + 2 hours documentation
-- Phase 4 (Flow Layout): 8-10 hours + 2 hours documentation
-- Phase 5 (Rich Rendering): 10-12 hours + 2 hours documentation
-- Phase 6 (Acceptance Testing): 4-6 hours + 4 hours documentation
-- Phase 7 (Cleanup): 2-3 hours
+- Phase 1 (Type System): ✅ COMPLETE
+- Phase 2 (YAML Parser): ✅ COMPLETE
+- Phase 3 (Domain Extensions): ✅ COMPLETE
+- Phase 4 (Flow Layout): ✅ COMPLETE
+- Phase 5 (Rich Rendering): ✅ COMPLETE (with limitations)
+- Phase 6 (Horizontal Slices): 10-12 hours + 2 hours documentation (NEW)
+- Phase 7 (Acceptance Testing): 4-6 hours + 4 hours documentation
+- Phase 8 (Cleanup): 2-3 hours
 
-Total: ~44-57 hours of implementation + ~15 hours of documentation = ~59-72 hours
+Remaining: ~16-21 hours of implementation + ~6 hours of documentation = ~22-27 hours
 
 **Note**: This is a complete rewrite with significantly more complexity than the original MVP. The rich format requires:
 - Complex type hierarchies

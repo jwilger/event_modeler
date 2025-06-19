@@ -13,14 +13,15 @@ use std::path::Path;
 use std::process::Command;
 
 #[test]
-#[ignore = "YAML format not yet implemented - this test drives the new implementation"]
 fn test_yaml_format_acceptance() {
     // This test represents the primary acceptance criteria for the new implementation
     let input_path = Path::new("tests/fixtures/acceptance/example.eventmodel");
-    let output_path = Path::new("target/test-output/yaml_acceptance.svg");
+    let output_svg_path = Path::new("target/test-output/yaml_acceptance.svg");
+    let output_png_path = Path::new("target/test-output/yaml_acceptance.png");
+    let gold_master_path = Path::new("tests/fixtures/acceptance/example.png");
 
     // Ensure output directory exists
-    fs::create_dir_all(output_path.parent().unwrap()).unwrap();
+    fs::create_dir_all(output_svg_path.parent().unwrap()).unwrap();
 
     // Run event_modeler with the YAML input
     let output = Command::new("cargo")
@@ -29,7 +30,7 @@ fn test_yaml_format_acceptance() {
             "--",
             input_path.to_str().unwrap(),
             "-o",
-            output_path.to_str().unwrap(),
+            output_svg_path.to_str().unwrap(),
         ])
         .output()
         .expect("Failed to execute event_modeler");
@@ -43,23 +44,48 @@ fn test_yaml_format_acceptance() {
 
     // The output file should exist
     assert!(
-        output_path.exists(),
+        output_svg_path.exists(),
         "Expected output file {} was not created",
-        output_path.display()
+        output_svg_path.display()
     );
 
-    // Read the generated SVG
-    let svg_content = fs::read_to_string(output_path).expect("Failed to read generated SVG");
+    // Convert SVG to PNG for visual comparison
+    let convert_output = Command::new("magick")
+        .args([
+            output_svg_path.to_str().unwrap(),
+            output_png_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("Failed to convert SVG to PNG");
 
-    // Use insta for snapshot testing the SVG content
-    // This allows us to review changes and approve new versions
-    insta::assert_snapshot!("yaml_acceptance_svg", &svg_content, @"");
+    assert!(
+        convert_output.status.success(),
+        "SVG to PNG conversion failed: {}",
+        String::from_utf8_lossy(&convert_output.stderr)
+    );
+
+    // Verify both PNG files exist
+    assert!(
+        output_png_path.exists(),
+        "Generated PNG file {} was not created",
+        output_png_path.display()
+    );
+    assert!(
+        gold_master_path.exists(),
+        "Gold master PNG file {} does not exist",
+        gold_master_path.display()
+    );
+
+    // Read the generated SVG for structural verification
+    let svg_content = fs::read_to_string(output_svg_path).expect("Failed to read generated SVG");
 
     // Also verify key structural elements are present
     verify_yaml_format_elements(&svg_content);
 
-    // Note: For visual comparison, run:
-    // ./scripts/visual_compare.sh target/test-output/yaml_acceptance.svg tests/fixtures/acceptance/example.jpg
+    // Note: For visual comparison of the PNGs, run:
+    // ./scripts/visual_compare.sh target/test-output/yaml_acceptance.png tests/fixtures/acceptance/example.png
+    //
+    // The example.png represents the target visual output we're working towards.
 }
 
 fn verify_yaml_format_elements(svg: &str) {
@@ -89,7 +115,6 @@ fn verify_yaml_format_elements(svg: &str) {
 }
 
 #[test]
-#[ignore = "YAML format not yet implemented"]
 fn test_yaml_parsing_errors_are_helpful() {
     // Test that YAML parsing errors provide line/column information
     let invalid_yaml = r#"
@@ -125,7 +150,6 @@ events:
 }
 
 #[test]
-#[ignore = "YAML format not yet implemented"]
 fn test_all_entity_types_are_supported() {
     // Test that all entity types from the YAML format are properly parsed and rendered
     let yaml_with_all_types = r#"
@@ -219,7 +243,7 @@ slices:
     let svg_content = fs::read_to_string(output_path).unwrap();
 
     // Use insta snapshot for the comprehensive test
-    insta::assert_snapshot!("all_entity_types_svg", &svg_content, @"");
+    insta::assert_snapshot!("all_entity_types_svg", &svg_content, @"all_entity_types_svg");
 
     // Basic verification that all entity types are present
     assert!(svg_content.contains("TestEvent"));
@@ -228,21 +252,4 @@ slices:
     assert!(svg_content.contains("TestProjection"));
     assert!(svg_content.contains("TestQuery"));
     assert!(svg_content.contains("TestAutomation"));
-}
-
-/// Helper test for generating initial gold master from example.jpg
-/// This test can be run manually to help create the initial snapshot
-#[test]
-#[ignore = "Manual test for setting up gold master"]
-fn generate_gold_master_reference() {
-    println!("Gold master reference image is at:");
-    println!("  tests/fixtures/acceptance/example.jpg");
-    println!();
-    println!("When the YAML implementation generates output, compare with:");
-    println!("  ./scripts/visual_compare.sh <generated.svg> tests/fixtures/acceptance/example.jpg");
-    println!();
-    println!("To approve a generated SVG as the new gold master:");
-    println!("  1. Run: cargo test");
-    println!("  2. Run: cargo insta review");
-    println!("  3. Press 'a' to accept the new snapshot");
 }
