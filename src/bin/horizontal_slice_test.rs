@@ -1,6 +1,6 @@
 //! Temporary test program for incrementally implementing horizontal slice architecture.
 //!
-//! This binary is used to test Step 9: Adding Connections (Arrows) rendering with proper layout.
+//! This binary is used to test Step 10: Adding Test Scenarios rendering.
 
 use std::collections::HashMap;
 use std::env;
@@ -76,6 +76,21 @@ impl EntityType {
 struct Connection {
     from: String,
     to: String,
+}
+
+#[derive(Debug, Clone)]
+struct TestScenario {
+    command: String,
+    name: String,
+    given: Vec<TestEntry>,
+    when: Vec<TestEntry>,
+    then: Vec<TestEntry>,
+}
+
+#[derive(Debug, Clone)]
+struct TestEntry {
+    _entity_type: String,
+    text: String,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -315,6 +330,79 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
         },
     ];
 
+    // Define test scenarios
+    let test_scenarios = vec![
+        TestScenario {
+            command: "Create User Account Credentials".to_string(),
+            name: "Main Success".to_string(),
+            given: vec![TestEntry {
+                _entity_type: "Given".to_string(),
+                text: "Account Already Exists".to_string(),
+            }],
+            when: vec![TestEntry {
+                _entity_type: "When".to_string(),
+                text: "User\nAccount\nCredentials\nCreated".to_string(),
+            }],
+            then: vec![
+                TestEntry {
+                    _entity_type: "Then".to_string(),
+                    text: "User\nAccount\nCredentials\nCreated".to_string(),
+                },
+                TestEntry {
+                    _entity_type: "Then".to_string(),
+                    text: "Duplicate\nUser\nAccount\nError".to_string(),
+                },
+            ],
+        },
+        TestScenario {
+            command: "Send Email Verification".to_string(),
+            name: "Main Success".to_string(),
+            given: vec![TestEntry {
+                _entity_type: "Given".to_string(),
+                text: "User\nAccount\nCredentials\nCreated".to_string(),
+            }],
+            when: vec![
+                TestEntry {
+                    _entity_type: "When".to_string(),
+                    text: "Send Email\nVerification".to_string(),
+                },
+                TestEntry {
+                    _entity_type: "When".to_string(),
+                    text: "Send Email\nVerification".to_string(),
+                },
+            ],
+            then: vec![
+                TestEntry {
+                    _entity_type: "Then".to_string(),
+                    text: "Email\nVerification\nMessage\nSent".to_string(),
+                },
+                TestEntry {
+                    _entity_type: "Then".to_string(),
+                    text: "Unknown\nUser\nAccount\nError".to_string(),
+                },
+            ],
+        },
+        TestScenario {
+            command: "Send Email Verification".to_string(),
+            name: "No Such User".to_string(),
+            given: vec![],
+            when: vec![TestEntry {
+                _entity_type: "When".to_string(),
+                text: "User\nAccount\nCredentials\nCreated".to_string(),
+            }],
+            then: vec![
+                TestEntry {
+                    _entity_type: "Then".to_string(),
+                    text: "Verify\nUser Email\nAddress".to_string(),
+                },
+                TestEntry {
+                    _entity_type: "Then".to_string(),
+                    text: "Verify\nUser Email\nAddress".to_string(),
+                },
+            ],
+        },
+    ];
+
     // Define all connections based on the slices
     let connections = vec![
         // Slice 0: Create Account
@@ -407,7 +495,11 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
         max_y = max_y.max(entity.y + entity.height);
     }
     let canvas_width = max_x + 100; // Add padding
-    let canvas_height = max_y + 100; // Add padding
+
+    // Calculate test scenario space
+    let test_scenario_height = 250; // Height for test scenario section
+    let test_scenario_y_start = max_y + 150; // Start test scenarios below main diagram
+    let canvas_height = test_scenario_y_start + test_scenario_height + 50; // Add padding
 
     let padding = 40;
     let swimlane_height = 150;
@@ -547,6 +639,9 @@ fn render_swimlanes_and_slices() -> Result<String, Box<dyn std::error::Error>> {
         }
     }
 
+    // Draw test scenarios
+    render_test_scenarios(&mut svg_content, &test_scenarios, test_scenario_y_start);
+
     svg_content.push_str("</svg>");
 
     Ok(svg_content)
@@ -625,4 +720,106 @@ fn calculate_connection_points(from: &Entity, to: &Entity) -> (usize, usize, usi
     };
 
     (from_x, from_y, to_x, to_y)
+}
+
+fn render_test_scenarios(
+    svg_content: &mut String,
+    test_scenarios: &[TestScenario],
+    y_start: usize,
+) {
+    let scenario_width = 400;
+    let scenario_spacing = 50;
+    let row_height = 50;
+    let entry_width = 100;
+    let entry_height = 45;
+    let entry_spacing = 10;
+    let _padding = 20;
+
+    let mut x = 50;
+
+    for scenario in test_scenarios {
+        // Draw scenario container
+        svg_content.push_str(&format!(
+            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#f8f9fa\" stroke=\"#d1d5da\" stroke-width=\"1\"/>",
+            x, y_start, scenario_width, 200
+        ));
+
+        // Draw scenario title
+        svg_content.push_str(&format!(
+            "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"14\" font-weight=\"bold\" fill=\"#24292e\">{}</text>",
+            x + scenario_width / 2,
+            y_start + 20,
+            scenario.command
+        ));
+
+        // Draw scenario name
+        svg_content.push_str(&format!(
+            "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"12\" fill=\"#586069\">{}</text>",
+            x + scenario_width / 2,
+            y_start + 35,
+            scenario.name
+        ));
+
+        // Draw Given/When/Then labels
+        let labels = ["Given", "When", "Then"];
+        let entries = [&scenario.given, &scenario.when, &scenario.then];
+
+        for (row_idx, (label, entries)) in labels.iter().zip(entries.iter()).enumerate() {
+            let y = y_start + 50 + (row_idx * row_height);
+
+            // Draw row label
+            svg_content.push_str(&format!(
+                "<text x=\"{}\" y=\"{}\" font-family=\"Arial, sans-serif\" font-size=\"12\" fill=\"#586069\">{}</text>",
+                x + 10,
+                y + row_height / 2,
+                label
+            ));
+
+            // Draw entries in this row
+            let mut entry_x = x + 60;
+            for entry in entries.iter() {
+                // Determine colors based on content
+                let (bg_color, text_color, border_color) = if entry.text.contains("Created") {
+                    ("#5b8def", "white", "#4a6bc7") // Blue for commands/events
+                } else if entry.text.contains("Error") {
+                    ("#ff6b6b", "white", "#e74c3c") // Red for errors
+                } else if entry.text.contains("Verified") || entry.text.contains("Sent") {
+                    ("#8b5cf6", "white", "#7c3aed") // Purple for events
+                } else {
+                    ("#5b8def", "white", "#4a6bc7") // Default blue
+                };
+
+                // Draw entry box
+                svg_content.push_str(&format!(
+                    "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\" stroke=\"{}\" stroke-width=\"1\" rx=\"3\"/>",
+                    entry_x,
+                    y,
+                    entry_width,
+                    entry_height,
+                    bg_color,
+                    border_color
+                ));
+
+                // Draw entry text (handle multi-line)
+                let lines: Vec<&str> = entry.text.split('\n').collect();
+                let line_height = 12;
+                let total_height = (lines.len() as i32 - 1) * line_height;
+                let text_start_y = y as i32 + entry_height / 2 - total_height / 2;
+
+                for (i, line) in lines.iter().enumerate() {
+                    svg_content.push_str(&format!(
+                        "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"10\" fill=\"{}\">{}</text>",
+                        entry_x + entry_width / 2,
+                        text_start_y + (i as i32 * line_height),
+                        text_color,
+                        line
+                    ));
+                }
+
+                entry_x += entry_width + entry_spacing;
+            }
+        }
+
+        x += scenario_width + scenario_spacing;
+    }
 }
