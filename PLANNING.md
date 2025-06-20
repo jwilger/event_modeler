@@ -469,7 +469,17 @@ Each step follows this pattern:
 
 **Step-by-Step Implementation**:
 
-Note: While using "User Account Signup" example for visual validation, each step must build toward handling arbitrary event models.
+Note: While using "User Account Signup" example for visual validation, each step must build toward handling arbitrary event models. Order chosen to show meaningful progress and validate layout early.
+
+**Rationale for Order**:
+- Foundation first (canvas, swimlanes, slices) to establish layout grid
+- Then fill in slice-by-slice following the workflow narrative
+- Each slice completed before moving to next to see complete flows
+- Connections added after entities to validate positioning
+- Test scenarios last as they're a separate section
+- This order allows validating layout algorithms early and seeing the story emerge progressively
+
+**Foundation Steps (Canvas & Structure)**:
 
 1. **Step 0: Delete and Initialize**
    - Delete entire `src/diagram/` module
@@ -477,47 +487,151 @@ Note: While using "User Account Signup" example for visual validation, each step
    - Set up basic SVG generation infrastructure
    - Create test harness that can load ANY .eventmodel file
 
-2. **Step 1: Workflow Title Only**
-   - Create EventModelDiagram that takes title from loaded model
-   - For testing: Use "User Account Signup" from example
-   - Dynamic: Title positioning adjusts to text length
-   - Match font and styling from gold standard
+2. **Step 1: Canvas and Workflow Title**
+   - Create EventModelDiagram with canvas sizing
+   - Add workflow title from loaded model
+   - For testing: "User Account Signup"
+   - Dynamic: Canvas width adjusts to content, title centers
 
-3. **Step 2: Single Swimlane**
-   - Add swimlane support (start with first from model)
-   - For testing: "UX, Automations" 
-   - Dynamic: Swimlane height adjusts to content
-   - Implement swimlane type with label positioning
+3. **Step 2: All Swimlanes**
+   - Add all swimlanes from model at once
+   - For testing: "UX, Automations", "Commands, Projections, Queries", "User Account Event Stream"
+   - Dynamic: Height adjusts to number of swimlanes
+   - Rotated labels on left side
 
-4. **Step 3: Multiple Swimlanes**
-   - Support arbitrary number of swimlanes from model
-   - For testing: All 3 from example
-   - Dynamic: Calculate total height based on swimlane count
-   - Ensure proper spacing scales with content
+4. **Step 3: Slice Headers**
+   - Add slice dividers and headers
+   - For testing: "Create Account", "Send Email Verification", "Verify Email Address"
+   - Dynamic: Width adjusts to content in each slice
+   - Headers at top of canvas above swimlanes
 
-5. **Step 4: First View**
-   - Add view rendering from model data
-   - For testing: "Login Screen"
-   - Dynamic: Position based on slice connections
-   - Implement View type with proper styling
+**First Slice - Create Account**:
 
-6. **Step 5: First Command**
-   - Add command rendering from model data
-   - For testing: "Create User Account Credentials"
-   - Dynamic: Position in correct swimlane from model
-   - Implement Command type with blue styling
+5. **Step 4: Login Screen (View)**
+   - First view in first swimlane
+   - White box with "View" label and entity name
+   - Position in slice 0, swimlane 0
 
-7. **Step 6: First Connection**
-   - Implement connection rendering from slice definitions
-   - For testing: LoginScreen → CreateUserAccountCredentials
-   - Dynamic: Route based on entity positions
-   - Match arrow style from gold standard
+6. **Step 5: New Account Screen (View)**
+   - Second view showing navigation
+   - Position after Login Screen in same swimlane
 
-8. **Continue Incrementally**:
-   - Add remaining entity types (events, projections, queries, automations)
-   - Implement slice-based layout algorithm
-   - Add test scenario rendering
-   - Each step maintains dynamic capability
+7. **Step 6: Create User Account Credentials (Command)**
+   - First command in middle swimlane
+   - Blue box with proper styling
+   - Position in slice 0, swimlane 1
+
+8. **Step 7: User Account Credentials Created (Event)**
+   - First event in bottom swimlane
+   - Purple box with event styling
+   - Position in slice 0, swimlane 2
+
+9. **Step 8: User Credentials Projection**
+   - First projection (yellow box)
+   - Position in slice 0, swimlane 1
+
+10. **Step 9: First Slice Connections**
+    - LoginScreen → NewAccountScreen
+    - NewAccountScreen → CreateUserAccountCredentials
+    - CreateUserAccountCredentials → UserAccountCredentialsCreated
+    - UserAccountCredentialsCreated → UserCredentialsProjection
+    - UserAccountCredentialsCreated → next slice
+
+**Second Slice - Send Email Verification**:
+
+11. **Step 10: Email Verifier (Automation)**
+    - Special circular icon with envelope
+    - Position between swimlanes 0 and 1
+    - Green automation styling
+
+12. **Step 11: Verify Email Screen (View)**
+    - Position in slice 1, swimlane 0
+
+13. **Step 12: Send Email Verification (Command)**
+    - Position in slice 1, swimlane 1
+
+14. **Step 13: Email Verification Message Sent (Event)**
+    - Position in slice 1, swimlane 2
+
+15. **Step 14: User Email Verification Token Projection**
+    - Position in slice 1, swimlane 1
+
+16. **Step 15: Second Slice Connections**
+    - UserAccountCredentialsCreated → EmailVerifier
+    - EmailVerifier → SendEmailVerification
+    - SendEmailVerification → EmailVerificationMessageSent
+    - EmailVerificationMessageSent → UserEmailVerificationTokenProjection
+
+**Third Slice - Verify Email Address**:
+
+17. **Step 16: Get Account Id Query**
+    - First query (blue box like command)
+    - Position in slice 2, swimlane 1
+
+18. **Step 17: Verify User Email Address (Command)**
+    - Position in slice 2, swimlane 1
+
+19. **Step 18: Email Address Verified (Event)**
+    - Position in slice 2, swimlane 2
+
+20. **Step 19: Get User Profile (Query)**
+    - Position in slice 2, swimlane 1
+
+21. **Step 20: User Profile Screen (View)**
+    - Final view in the flow
+    - Position in slice 2, swimlane 0
+
+22. **Step 21: Duplicate Entities**
+    - Add second instances of projections where they appear again
+    - UserCredentialsProjection (slice 2)
+    - UserEmailVerificationTokenProjection (slice 2)
+    - VerifyEmailScreen appears twice
+
+23. **Step 22: Third Slice Connections**
+    - All remaining connections from slice definitions
+    - Cross-slice connection handling
+
+**Test Scenarios Section**:
+
+24. **Step 23: Test Scenario Layout Area**
+    - Add horizontal divider below main diagram
+    - Create test scenario section layout
+    - Three columns for the three commands
+
+25. **Step 24: Command Test Scenario Boxes**
+    - "Create User Account Credentials" scenarios
+    - "Send Email Verification" scenarios  
+    - "Verify Email Address" scenarios
+    - Headers for each command
+
+26. **Step 25: Given/When/Then Content**
+    - Add all test entries with proper coloring
+    - Error scenarios in red
+    - Success scenarios match entity colors
+    - Proper columnar layout
+
+**Final Polish**:
+
+27. **Step 26: Final Adjustments**
+    - Fine-tune all positions
+    - Verify arrow routing
+    - Adjust text sizes
+    - Ensure everything matches gold standard
+
+**Complete Element Coverage**:
+This plan covers every element visible in the gold standard:
+- 1 workflow title
+- 3 swimlanes  
+- 3 slice headers
+- 4 views (with 1 duplicate)
+- 3 commands
+- 3 events
+- 2 projections (with duplicates in slice 2)
+- 2 queries
+- 1 automation
+- All connections from slice definitions
+- 6 test scenarios across 3 commands
+- All styling (colors, fonts, borders, arrows)
 
 #### Technical Approach:
 
