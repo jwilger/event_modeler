@@ -21,7 +21,7 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y imagemagick
+        sudo apt-get install -y imagemagick fonts-liberation fonts-dejavu-core
     
     - name: Setup Rust
       uses: actions-rs/toolchain@v1
@@ -56,6 +56,10 @@ jobs:
         # Check if SVG was generated
         if [ -f example.svg ]; then
           echo "SVG generated successfully"
+          
+          # Debug: Check ImageMagick version and fonts
+          convert -version
+          convert -list font | grep -i arial || echo "No Arial font found"
           
           # Convert to PNG with white background
           convert -background white -alpha remove -alpha off example.svg example.png
