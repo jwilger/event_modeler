@@ -6,7 +6,8 @@
 //! This module handles the generation of Markdown documentation from
 //! Event Model diagrams, including SVG embedding and cross-referencing.
 
-use crate::diagram::svg::SvgDocument;
+// TODO: Re-enable when SvgDocument is available
+// use crate::diagram::svg::SvgDocument;
 use crate::event_model::diagram::EventModelDiagram;
 use crate::infrastructure::types::{NonEmptyString, PositiveInt};
 use nutype::nutype;
@@ -220,7 +221,9 @@ impl MarkdownExporter {
     pub fn export_diagram<W, C, E, P, Q, A>(
         &self,
         _diagram: &EventModelDiagram<W, C, E, P, Q, A>,
-        _svg: &SvgDocument,
+        // TODO: Re-enable when SvgDocument is available
+        // _svg: &SvgDocument,
+        _svg: &str,
     ) -> Result<MarkdownDocument, MarkdownExportError> {
         todo!()
     }

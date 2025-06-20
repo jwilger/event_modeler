@@ -33,7 +33,8 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub mod cli;
 pub mod diagram;
 pub mod event_model;
-pub mod export;
+// TODO: Re-enable when diagram module is complete
+// pub mod export;
 pub mod infrastructure;
 
 use cli::{Cli, Error};

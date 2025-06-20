@@ -26,17 +26,47 @@ This ensures no work is forgotten or lost in the codebase.
 
 ## Current Status
 
-**Last Updated**: 2025-06-19 (Phase 1 COMPLETE, Phase 2 COMPLETE, Phase 3 COMPLETE, Phase 4 COMPLETE, Phase 5 IN PROGRESS - PR #20 merged, Node-Based Layout IN PROGRESS - PR #21)
+**Last Updated**: 2025-06-20 (Phase 1-5 COMPLETE, Phase 6 RESTARTING)
 
 **Latest Progress**: 
 - Phase 5 (Rich Visual Rendering) completed with limitations - PR #20 merged
-- Node-based layout architecture implementation in progress - PR #21
-- Created ADR documenting node-based layout decision
-- Implemented DiagramNode type system and NodeLayoutEngine foundation
-- Node generation from slice connections is working
-- SVG renderer updated to work with node-based layout
-- Temporal filtering removed - node-based layout handles all connection types
-- Support for isolated entities (not in connections) added
+- Node-based layout architecture completed - PR #21 merged
+- Acceptance testing revealed fundamental slice architecture mismatch
+- Gold master analysis completed - slices must be horizontal workflows
+- PNG-based visual comparison testing implemented
+- Previous Phase 6 approach (11 steps) completed but produced wrong layout
+- **NEW APPROACH**: Complete diagram module rewrite using incremental development
+  - Each step adds one element type
+  - Visual validation at each step before proceeding
+  - Build proper event model diagramming library from scratch
+
+**🚨 CRITICAL ISSUES DISCOVERED (2025-06-19)**:
+Major discrepancies between current implementation and gold standard:
+
+1. **Layout Architecture Wrong**: 
+   - Current: Vertical stacking of slices
+   - Required: Horizontal main diagram with test scenarios below
+   
+2. **Missing Core Elements**: ✅ PARTIALLY FIXED
+   - Email Verifier entity (central icon in gold standard) - ✅ FIXED
+   - Several projections and proper entity type labels - ✅ FIXED
+   
+3. **Test Scenario Layout Wrong**: ✅ PARTIALLY FIXED
+   - Current: Vertical panels with Given/When/Then rows - Still vertical, needs columnar layout
+   - Required: Horizontal boxes below main diagram with columnar structure
+   - Test scenario order now correct
+   
+4. **Connection Routing Issues**: ✅ PARTIALLY FIXED
+   - Many connections missing or incorrectly routed - Some connections added
+   - Arrow styles don't match gold standard - Still needs work
+
+**Progress Update (2025-06-19)**:
+- Email Verifier now renders as circular icon with envelope
+- Test scenario boxes in correct order
+- Added missing connections in Verify Email Address slice
+- Entity names corrected (Get Account Id)
+
+**Still Required**: Complete layout restructure to match gold standard's two-part layout (main diagram + test scenarios)
 
 **🚨 CRITICAL DISCOVERY - Node-Based Layout (2025-06-18)**: 
 The example.jpg shows that entities can appear multiple times in the diagram as separate visual nodes. Each appearance is a distinct node with its own position and connections, even though they reference the same logical entity. This is essential for avoiding visual clutter and showing different relationships clearly. **This requires a fundamental shift from entity-based to node-based layout architecture.**
@@ -115,7 +145,16 @@ The example.eventmodel and example.jpg files represent the TRUE requirements.
 
 PR #21 implementation is complete. Next step: Proceed to Phase 6 - Acceptance Testing & Documentation
 
-After PR #21 is complete, proceed to Phase 6 - Acceptance Testing & Documentation
+**🚨 CRITICAL DISCOVERY - Horizontal Slices (2025-06-19)**: 
+Acceptance testing revealed a fundamental misunderstanding of slice architecture. The gold master shows slices as **horizontal workflow sections**, not vertical dividers. Each slice represents a complete user flow that spans across all swimlanes horizontally. This is a major architectural change that affects:
+- Slice interpretation and rendering
+- Entity grouping and positioning
+- Layout algorithms
+- Visual styling and headers
+
+See docs/gold-master-analysis.md for detailed findings.
+
+**Architectural Impact**: This discovery means that much of the current layout implementation needs to be redesigned. The node-based layout work in PR #21 is still valuable, but it needs to work within horizontal slice boundaries rather than treating the entire diagram as one flow.
 
 **Version Planning**: This rewrite will be released as version 0.3.0. Since we're pre-1.0, we can make breaking changes without maintaining backward compatibility. The YAML format will use this version number for its schema version.
 
@@ -394,15 +433,275 @@ workflow: User Account Signup
 4. Create accessibility considerations guide
 5. Document node-based layout architecture
 
-### Phase 6: Acceptance Testing & Documentation
+### Phase 6: Incremental Diagram Module Rewrite
+**Goal**: Build a proper event model diagramming library from scratch using incremental development
+
+**Previous Approaches Failed**: Both the initial implementation and the 11-step horizontal slice approach produced diagrams fundamentally different from the gold standard. We need a complete rewrite with a different methodology.
+
+#### Context:
+After multiple attempts, we've learned that trying to build the entire diagram at once leads to fundamental mismatches with the gold standard. Instead, we'll build incrementally, adding one element type at a time and validating each step visually before proceeding.
+
+**Critical Requirement**: While the gold standard (example.png) shows exactly how example.eventmodel should be rendered, the diagram module MUST be dynamic enough to handle ANY valid .eventmodel file that conforms to our schema. This means:
+- Variable number of swimlanes (not just 3)
+- Variable number of entities of each type
+- Different slice configurations
+- Different test scenario counts per command
+- Dynamic layout that adapts to content
+- Multiple instances of ANY entity type (not just views/projections) - the same command, event, query, or automation can appear in multiple places based on slice connections
+
+**New Approach**: Incremental development with visual validation at each step:
+1. Delete the existing diagram module completely
+2. Build from scratch, adding one element at a time
+3. After each element addition, generate SVG → PNG and review
+4. Compare against gold standard before proceeding
+5. Commit only when the current step is approved
+6. Ensure each step builds toward a dynamic, flexible system
+
+#### Implementation Steps:
+
+Each step follows this pattern:
+1. Add one diagram element type
+2. Generate an SVG
+3. Convert to PNG using existing infrastructure
+4. Show PNG using `xdg-open`
+5. Compare against gold standard
+6. Wait for feedback/approval
+7. Commit when approved, then proceed to next step
+
+**Step-by-Step Implementation**:
+
+Note: While using "User Account Signup" example for visual validation, each step must build toward handling arbitrary event models. Order chosen to show meaningful progress and validate layout early.
+
+**Rationale for Order**:
+- Foundation first (canvas, swimlanes, slices) to establish layout grid
+- Then fill in slice-by-slice following the workflow narrative
+- Each slice completed before moving to next to see complete flows
+- Connections added after entities to validate positioning
+- Test scenarios last as they're a separate section
+- This order allows validating layout algorithms early and seeing the story emerge progressively
+
+**Foundation Steps (Canvas & Structure)**:
+
+1. **Step 0: Delete and Initialize**
+   - Delete entire `src/diagram/` module
+   - Create new empty module structure
+   - Set up basic SVG generation infrastructure
+   - Create test harness that can load ANY .eventmodel file
+
+2. **Step 1: Canvas and Workflow Title**
+   - Create EventModelDiagram with canvas sizing
+   - Add workflow title from loaded model
+   - For testing: "User Account Signup"
+   - Dynamic: Canvas width adjusts to content, title centers
+
+3. **Step 2: All Swimlanes**
+   - Add all swimlanes from model at once
+   - For testing: "UX, Automations", "Commands, Projections, Queries", "User Account Event Stream"
+   - Dynamic: Height adjusts to number of swimlanes
+   - Rotated labels on left side
+
+4. **Step 3: Slice Headers**
+   - Add slice dividers and headers
+   - For testing: "Create Account", "Send Email Verification", "Verify Email Address"
+   - Dynamic: Width adjusts to content in each slice
+   - Headers at top of canvas above swimlanes
+
+**First Slice - Create Account**:
+
+5. **Step 4: Login Screen (View)**
+   - First view in first swimlane
+   - White box with "View" label and entity name
+   - Position in slice 0, swimlane 0
+
+6. **Step 5: New Account Screen (View)**
+   - Second view showing navigation
+   - Position after Login Screen in same swimlane
+
+7. **Step 6: Create User Account Credentials (Command)**
+   - First command in middle swimlane
+   - Blue box with proper styling
+   - Position in slice 0, swimlane 1
+
+8. **Step 7: User Account Credentials Created (Event)**
+   - First event in bottom swimlane
+   - Purple box with event styling
+   - Position in slice 0, swimlane 2
+
+9. **Step 8: User Credentials Projection**
+   - First projection (yellow box)
+   - Position in slice 0, swimlane 1
+
+10. **Step 9: First Slice Connections**
+    - LoginScreen → NewAccountScreen
+    - NewAccountScreen → CreateUserAccountCredentials
+    - CreateUserAccountCredentials → UserAccountCredentialsCreated
+    - UserAccountCredentialsCreated → UserCredentialsProjection
+    - UserAccountCredentialsCreated → next slice
+
+**Second Slice - Send Email Verification**:
+
+11. **Step 10: Email Verifier (Automation)**
+    - Special circular icon with envelope
+    - Position between swimlanes 0 and 1
+    - Green automation styling
+
+12. **Step 11: Verify Email Screen (View)**
+    - Position in slice 1, swimlane 0
+
+13. **Step 12: Send Email Verification (Command)**
+    - Position in slice 1, swimlane 1
+
+14. **Step 13: Email Verification Message Sent (Event)**
+    - Position in slice 1, swimlane 2
+
+15. **Step 14: User Email Verification Token Projection**
+    - Position in slice 1, swimlane 1
+
+16. **Step 15: Second Slice Connections**
+    - UserAccountCredentialsCreated → EmailVerifier
+    - EmailVerifier → SendEmailVerification
+    - SendEmailVerification → EmailVerificationMessageSent
+    - EmailVerificationMessageSent → UserEmailVerificationTokenProjection
+
+**Third Slice - Verify Email Address**:
+
+17. **Step 16: Get Account Id Query**
+    - First query (blue box like command)
+    - Position in slice 2, swimlane 1
+
+18. **Step 17: Verify User Email Address (Command)**
+    - Position in slice 2, swimlane 1
+
+19. **Step 18: Email Address Verified (Event)**
+    - Position in slice 2, swimlane 2
+
+20. **Step 19: Get User Profile (Query)**
+    - Position in slice 2, swimlane 1
+
+21. **Step 20: User Profile Screen (View)**
+    - Final view in the flow
+    - Position in slice 2, swimlane 0
+
+22. **Step 21: Duplicate Entities**
+    - Add second instances of projections where they appear again
+    - UserCredentialsProjection (slice 2)
+    - UserEmailVerificationTokenProjection (slice 2)
+    - VerifyEmailScreen appears twice
+
+23. **Step 22: Third Slice Connections**
+    - All remaining connections from slice definitions
+    - Cross-slice connection handling
+
+**Test Scenarios Section**:
+
+24. **Step 23: Test Scenario Layout Area**
+    - Add horizontal divider below main diagram
+    - Create test scenario section layout
+    - Three columns for the three commands
+
+25. **Step 24: Command Test Scenario Boxes**
+    - "Create User Account Credentials" scenarios
+    - "Send Email Verification" scenarios  
+    - "Verify Email Address" scenarios
+    - Headers for each command
+
+26. **Step 25: Given/When/Then Content**
+    - Add all test entries with proper coloring
+    - Error scenarios in red
+    - Success scenarios match entity colors
+    - Proper columnar layout
+
+**Final Polish**:
+
+27. **Step 26: Final Adjustments**
+    - Fine-tune all positions
+    - Verify arrow routing
+    - Adjust text sizes
+    - Ensure everything matches gold standard
+
+**Complete Element Coverage**:
+This plan covers every element visible in the gold standard:
+- 1 workflow title
+- 3 swimlanes  
+- 3 slice headers
+- 4 view instances (including duplicates - views can appear multiple times)
+- 3 command instances (commands can appear multiple times)
+- 3 event instances (events can appear multiple times)
+- 4 projection instances (2 unique projections, each appearing twice)
+- 2 query instances (queries can appear multiple times)
+- 1 automation instance (automations can appear multiple times)
+- All connections from slice definitions
+- 6 test scenarios across 3 commands
+- All styling (colors, fonts, borders, arrows)
+
+Note: ANY entity type (views, commands, events, projections, queries, automations) can have multiple instances in the diagram. The layout engine must support showing the same logical entity in multiple visual positions.
+
+#### Technical Approach:
+
+- **Builder Pattern**: Use immutable builder pattern for diagram construction
+- **Domain-Specific Types**: EventModelDiagram, Swimlane, View, Command, Event, etc.
+- **Type-Safe Layout**: Compile-time guarantees for valid layouts
+- **Functional Style**: Return new diagram instances, never mutate
+- **Event Model Focus**: API specifically for event modeling, not generic SVG
+- **Dynamic Layout Engine**: Must handle arbitrary numbers of elements
+- **Slice-Based Positioning**: Use slice definitions to determine entity positions
+
+Example API (conceptual):
+```rust
+// From parsed YAML model
+let model = parse_yaml(content)?;
+let domain_model = convert_yaml_to_domain(model)?;
+
+// Build diagram dynamically from model
+let mut diagram = EventModelDiagram::new(&domain_model.workflow);
+
+// Add all swimlanes from model
+for (id, label) in &domain_model.swimlanes {
+    diagram = diagram.add_swimlane(Swimlane::new(id, label));
+}
+
+// Add all entities from model
+for (name, view) in &domain_model.views {
+    diagram = diagram.add_view(View::from_model(name, view));
+}
+// ... same for commands, events, etc.
+
+// Process slices to determine layout
+diagram = diagram.layout_from_slices(&domain_model.slices);
+```
+
+#### Success Criteria:
+- Each incremental step produces output closer to gold standard
+- Final diagram matches example.png exactly when rendering example.eventmodel:
+  - Layout structure
+  - Entity positioning
+  - Colors and styling
+  - Test scenario presentation
+- **Dynamic Requirements Met**:
+  - Can handle event models with 1-100+ swimlanes
+  - Can handle models with any number of entities
+  - Layout adapts to different slice configurations
+  - Test scenarios scale with command count
+  - No hardcoded positions or counts
+- API is clean and domain-specific
+- Could be extracted as standalone event modeling diagram crate
+
+#### Documentation Tasks:
+1. Document new diagram module API
+2. Create examples showing incremental building
+3. Document visual style specifications
+4. Create guide for extending with new entity types
+
+### Phase 7: Acceptance Testing & Documentation
 **Goal**: Ensure the implementation meets requirements and documentation is complete
 
 #### Tasks:
-1. Create test that uses example.eventmodel as input
-2. Compare output structure to example.jpg
-3. Add tests for all entity types
-4. Add tests for error cases
-5. Performance testing with large models
+1. ✅ Create test that uses example.eventmodel as input
+2. ✅ PNG-based visual comparison implemented
+3. Compare output structure to example.jpg/png
+4. Add tests for all entity types
+5. Add tests for error cases
+6. Performance testing with large models
 
 #### Documentation Tasks:
 1. Update GitHub Pages landing page with YAML examples
@@ -414,7 +713,7 @@ workflow: User Account Signup
 7. Update all code examples in documentation
 8. Create video tutorial for new format (optional)
 
-### Phase 7: Cleanup
+### Phase 8: Cleanup
 **Goal**: Remove ALL obsolete code and prepare for release
 
 #### Cleanup Tasks:
@@ -445,15 +744,18 @@ workflow: User Account Signup
 
 ## Timeline Estimate
 
-- Phase 1 (Type System): 6-8 hours + 2 hours documentation
-- Phase 2 (YAML Parser): 8-10 hours + 3 hours documentation
-- Phase 3 (Domain Extensions): 6-8 hours + 2 hours documentation
-- Phase 4 (Flow Layout): 8-10 hours + 2 hours documentation
-- Phase 5 (Rich Rendering): 10-12 hours + 2 hours documentation
-- Phase 6 (Acceptance Testing): 4-6 hours + 4 hours documentation
-- Phase 7 (Cleanup): 2-3 hours
+- Phase 1 (Type System): ✅ COMPLETE
+- Phase 2 (YAML Parser): ✅ COMPLETE
+- Phase 3 (Domain Extensions): ✅ COMPLETE
+- Phase 4 (Flow Layout): ✅ COMPLETE
+- Phase 5 (Rich Rendering): ✅ COMPLETE (with limitations)
+- Phase 6 (Incremental Diagram Rewrite): 10-12 hours + 2 hours documentation (RESTARTING)
+  - Previous approach (11 steps): ❌ COMPLETE but wrong layout
+  - New approach: Incremental development with visual validation
+- Phase 7 (Acceptance Testing): 4-6 hours + 4 hours documentation
+- Phase 8 (Cleanup): 2-3 hours
 
-Total: ~44-57 hours of implementation + ~15 hours of documentation = ~59-72 hours
+Remaining: ~16-21 hours of implementation + ~6 hours of documentation = ~22-27 hours
 
 **Note**: This is a complete rewrite with significantly more complexity than the original MVP. The rich format requires:
 - Complex type hierarchies

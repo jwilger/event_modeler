@@ -9,6 +9,7 @@ repository = "https://github.com/jwilger/event_modeler"
 license = "MIT"
 keywords = ["event-modeling", "diagram", "visualization", "ddd", "event-sourcing"]
 categories = ["visualization", "development-tools"]
+default-run = "event_modeler"
 
 [dependencies]
 thiserror = "1"

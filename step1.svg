@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 520" width="420" height="520">
+  <g>
+    <rect id="swimlane-account_stream" class="swimlane" x="20" y="360" width="1160" height="140" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+    <text class="swimlane-label" x="30" y="385" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#1f2937" font-weight="bold" text-anchor="start">User Account Event Stream</text>
+  </g>
+  <g>
+    <rect id="swimlane-ux" class="swimlane" x="20" y="20" width="1160" height="140" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+    <text class="swimlane-label" x="30" y="45" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#1f2937" font-weight="bold" text-anchor="start">UX, Automations</text>
+  </g>
+  <g>
+    <rect id="swimlane-commands" class="swimlane" x="20" y="190" width="1160" height="140" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+    <text class="swimlane-label" x="30" y="215" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#1f2937" font-weight="bold" text-anchor="start">Commands, Projections, Queries</text>
+  </g>
+  <path id="connection-Event:event_UserAccountCredentialsCreated:VerifyEmailAddress_source_0-to-Automation:automation_UserEmailVerifier:VerifyEmailAddress_target_0" class="connector" d="M 180 460 L 240 96" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <path id="connection-Automation:automation_UserEmailVerifier:VerifyEmailAddress_source_1-to-Command:command_SendEmailVerification:VerifyEmailAddress_target_1" class="connector" d="M 180 90 L 240 281.4286" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <path id="connection-Command:command_SendEmailVerification:VerifyEmailAddress_source_2-to-Event:event_EmailVerificationMessageSent:VerifyEmailAddress_target_2" class="connector" d="M 180 290 L 240 460" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <path id="connection-Event:event_EmailVerificationMessageSent:VerifyEmailAddress_source_3-to-Projection:projection_UserEmailVerificationTokenProjection:VerifyEmailAddress_target_3" class="connector" d="M 180 450 L 240 264.2857" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <path id="connection-View:view_VerifyEmailAddressScreen:VerifyEmailAddress_source_4-to-Command:command_VerifyUserEmailAddress:VerifyEmailAddress_target_4" class="connector" d="M 180 110 L 240 290" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <path id="connection-Command:command_VerifyUserEmailAddress:VerifyEmailAddress_source_5-to-Event:event_EmailAddressVerified:VerifyEmailAddress_target_5" class="connector" d="M 180 270 L 240 430" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <path id="connection-Event:event_EmailAddressVerified:VerifyEmailAddress_source_6-to-Projection:projection_UserCredentialsProjection:VerifyEmailAddress_target_6" class="connector" d="M 180 410 L 240 230" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <path id="connection-Event:event_EmailAddressVerified:VerifyEmailAddress_source_7-to-Projection:projection_UserEmailVerificationTokenProjection:VerifyEmailAddress_target_7" class="connector" d="M 180 430 L 240 238.57143" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <path id="connection-Event:event_EmailAddressVerified:VerifyEmailAddress_source_8-to-View:view_VerifyEmailAddressScreen:VerifyEmailAddress_target_8" class="connector" d="M 180 420 L 240 72" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <path id="connection-View:view_VerifyEmailAddressScreen:VerifyEmailAddress_source_9-to-View:view_UserProfileScreen:VerifyEmailAddress_target_9" class="connector" d="M 180 80 L 240 84" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <path id="connection-View:view_UserProfileScreen:VerifyEmailAddress_source_10-to-Query:query_GetUserProfile:VerifyEmailAddress_target_10" class="connector" d="M 180 60 L 240 255.71428" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <path id="connection-View:view_LoginScreen:CreateAccount_source_0-to-View:view_NewAccountScreen:CreateAccount_target_0" class="connector" d="M 180 100 L 240 108" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <path id="connection-View:view_NewAccountScreen:CreateAccount_source_1-to-Command:command_CreateUserAccountCredentials:CreateAccount_target_1" class="connector" d="M 180 70 L 240 272.85715" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <path id="connection-Command:command_CreateUserAccountCredentials:CreateAccount_source_2-to-Event:event_UserAccountCredentialsCreated:CreateAccount_target_2" class="connector" d="M 180 250 L 240 400" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <path id="connection-Event:event_UserAccountCredentialsCreated:CreateAccount_source_3-to-Projection:projection_UserCredentialsProjection:CreateAccount_target_3" class="connector" d="M 180 440 L 240 247.14285" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <path id="connection-Event:event_UserAccountCredentialsCreated:CreateAccount_source_4-to-View:view_NewAccountScreen:CreateAccount_target_4" class="connector" d="M 180 400 L 240 60" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <path id="connection-View:view_NewAccountScreen:CreateAccount_source_5-to-View:view_VerifyEmailAddressScreen:CreateAccount_target_5" class="connector" d="M 180 120 L 240 120" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <g id="node-group-Event:event_EmailVerificationMessageSent:VerifyEmailAddress_source_3">
+    <rect id="node-Event:event_EmailVerificationMessageSent:VerifyEmailAddress_source_3" class="node" x="20" y="410" width="160" height="80" rx="8" ry="8" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+    <text class="entity-type-label" x="100" y="426" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Event</text>
+    <text class="entity-name" x="100" y="452" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">event_EmailVerificationMessageSent</text>
+  </g>
+  <g id="node-group-View:view_VerifyEmailAddressScreen:VerifyEmailAddress_source_9">
+    <rect id="node-View:view_VerifyEmailAddressScreen:VerifyEmailAddress_source_9" class="node" x="20" y="40" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="100" y="56" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">View</text>
+    <text class="entity-name" x="100" y="82" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">view_VerifyEmailAddressScreen</text>
+  </g>
+  <g id="node-group-Event:event_UserAccountCredentialsCreated:CreateAccount_source_3">
+    <rect id="node-Event:event_UserAccountCredentialsCreated:CreateAccount_source_3" class="node" x="20" y="400" width="160" height="80" rx="8" ry="8" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+    <text class="entity-type-label" x="100" y="416" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Event</text>
+    <text class="entity-name" x="100" y="442" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">event_UserAccountCredentialsCreated</text>
+  </g>
+  <g id="node-group-View:view_LoginScreen:CreateAccount_source_0">
+    <rect id="node-View:view_LoginScreen:CreateAccount_source_0" class="node" x="20" y="60" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="100" y="76" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">View</text>
+    <text class="entity-name" x="100" y="102" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">view_LoginScreen</text>
+  </g>
+  <g id="node-group-Query:query_GetUserProfile:VerifyEmailAddress_target_10">
+    <rect id="node-Query:query_GetUserProfile:VerifyEmailAddress_target_10" class="node" x="240" y="215.71428" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="320" y="231.71428" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Query</text>
+    <text class="entity-name" x="320" y="257.7143" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">query_GetUserProfile</text>
+  </g>
+  <g id="node-group-Event:event_UserAccountCredentialsCreated:CreateAccount_source_4">
+    <rect id="node-Event:event_UserAccountCredentialsCreated:CreateAccount_source_4" class="node" x="20" y="360" width="160" height="80" rx="8" ry="8" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+    <text class="entity-type-label" x="100" y="376" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Event</text>
+    <text class="entity-name" x="100" y="402" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">event_UserAccountCredentialsCreated</text>
+  </g>
+  <g id="node-group-Event:event_EmailAddressVerified:VerifyEmailAddress_target_5">
+    <rect id="node-Event:event_EmailAddressVerified:VerifyEmailAddress_target_5" class="node" x="240" y="390" width="160" height="80" rx="8" ry="8" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+    <text class="entity-type-label" x="320" y="406" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Event</text>
+    <text class="entity-name" x="320" y="432" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">event_EmailAddressVerified</text>
+  </g>
+  <g id="node-group-Command:command_VerifyUserEmailAddress:VerifyEmailAddress_target_4">
+    <rect id="node-Command:command_VerifyUserEmailAddress:VerifyEmailAddress_target_4" class="node" x="240" y="250" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="320" y="266" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Command</text>
+    <text class="entity-name" x="320" y="292" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">command_VerifyUserEmailAddress</text>
+  </g>
+  <g id="node-group-View:view_NewAccountScreen:CreateAccount_target_0">
+    <rect id="node-View:view_NewAccountScreen:CreateAccount_target_0" class="node" x="240" y="68" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="320" y="84" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">View</text>
+    <text class="entity-name" x="320" y="110" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">view_NewAccountScreen</text>
+  </g>
+  <g id="node-group-View:view_VerifyEmailAddressScreen:VerifyEmailAddress_source_4">
+    <rect id="node-View:view_VerifyEmailAddressScreen:VerifyEmailAddress_source_4" class="node" x="20" y="70" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="100" y="86" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">View</text>
+    <text class="entity-name" x="100" y="112" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">view_VerifyEmailAddressScreen</text>
+  </g>
+  <g id="node-group-Event:event_EmailAddressVerified:VerifyEmailAddress_source_7">
+    <rect id="node-Event:event_EmailAddressVerified:VerifyEmailAddress_source_7" class="node" x="20" y="390" width="160" height="80" rx="8" ry="8" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+    <text class="entity-type-label" x="100" y="406" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Event</text>
+    <text class="entity-name" x="100" y="432" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">event_EmailAddressVerified</text>
+  </g>
+  <g id="node-group-Event:event_UserAccountCredentialsCreated:CreateAccount_target_2">
+    <rect id="node-Event:event_UserAccountCredentialsCreated:CreateAccount_target_2" class="node" x="240" y="360" width="160" height="80" rx="8" ry="8" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+    <text class="entity-type-label" x="320" y="376" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Event</text>
+    <text class="entity-name" x="320" y="402" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">event_UserAccountCredentialsCreated</text>
+  </g>
+  <g id="node-group-Projection:projection_UserCredentialsProjection:VerifyEmailAddress_target_6">
+    <rect id="node-Projection:projection_UserCredentialsProjection:VerifyEmailAddress_target_6" class="node" x="240" y="190" width="160" height="80" rx="8" ry="8" fill="#fefce8" stroke="#eab308" stroke-width="2"/>
+    <text class="entity-type-label" x="320" y="206" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Projection</text>
+    <text class="entity-name" x="320" y="232" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">projection_UserCredentialsProjection</text>
+  </g>
+  <g id="node-group-Automation:automation_UserEmailVerifier:VerifyEmailAddress_target_0">
+    <rect id="node-Automation:automation_UserEmailVerifier:VerifyEmailAddress_target_0" class="node" x="240" y="56" width="160" height="80" rx="8" ry="8" fill="#f0fdf4" stroke="#22c55e" stroke-width="2"/>
+    <text class="entity-type-label" x="320" y="72" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Automation</text>
+    <text class="entity-name" x="320" y="98" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">automation_UserEmailVerifier</text>
+  </g>
+  <g id="node-group-View:view_NewAccountScreen:CreateAccount_target_4">
+    <rect id="node-View:view_NewAccountScreen:CreateAccount_target_4" class="node" x="240" y="20" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="320" y="36" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">View</text>
+    <text class="entity-name" x="320" y="62" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">view_NewAccountScreen</text>
+  </g>
+  <g id="node-group-Projection:projection_UserEmailVerificationTokenProjection:VerifyEmailAddress_target_7">
+    <rect id="node-Projection:projection_UserEmailVerificationTokenProjection:VerifyEmailAddress_target_7" class="node" x="240" y="198.57143" width="160" height="80" rx="8" ry="8" fill="#fefce8" stroke="#eab308" stroke-width="2"/>
+    <text class="entity-type-label" x="320" y="214.57143" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Projection</text>
+    <text class="entity-name" x="320" y="240.57143" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">projection_UserEmailVerificationTokenProjection</text>
+  </g>
+  <g id="node-group-Command:command_CreateUserAccountCredentials:CreateAccount_target_1">
+    <rect id="node-Command:command_CreateUserAccountCredentials:CreateAccount_target_1" class="node" x="240" y="232.85715" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="320" y="248.85715" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Command</text>
+    <text class="entity-name" x="320" y="274.85715" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">command_CreateUserAccountCredentials</text>
+  </g>
+  <g id="node-group-Command:command_CreateUserAccountCredentials:CreateAccount_source_2">
+    <rect id="node-Command:command_CreateUserAccountCredentials:CreateAccount_source_2" class="node" x="20" y="210" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="100" y="226" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Command</text>
+    <text class="entity-name" x="100" y="252" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">command_CreateUserAccountCredentials</text>
+  </g>
+  <g id="node-group-View:view_NewAccountScreen:CreateAccount_source_1">
+    <rect id="node-View:view_NewAccountScreen:CreateAccount_source_1" class="node" x="20" y="30" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="100" y="46" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">View</text>
+    <text class="entity-name" x="100" y="72" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">view_NewAccountScreen</text>
+  </g>
+  <g id="node-group-View:view_VerifyEmailAddressScreen:VerifyEmailAddress_target_8">
+    <rect id="node-View:view_VerifyEmailAddressScreen:VerifyEmailAddress_target_8" class="node" x="240" y="32" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="320" y="48" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">View</text>
+    <text class="entity-name" x="320" y="74" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">view_VerifyEmailAddressScreen</text>
+  </g>
+  <g id="node-group-View:view_VerifyEmailAddressScreen:CreateAccount_target_5">
+    <rect id="node-View:view_VerifyEmailAddressScreen:CreateAccount_target_5" class="node" x="240" y="80" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="320" y="96" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">View</text>
+    <text class="entity-name" x="320" y="122" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">view_VerifyEmailAddressScreen</text>
+  </g>
+  <g id="node-group-Command:command_VerifyUserEmailAddress:VerifyEmailAddress_source_5">
+    <rect id="node-Command:command_VerifyUserEmailAddress:VerifyEmailAddress_source_5" class="node" x="20" y="230" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="100" y="246" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Command</text>
+    <text class="entity-name" x="100" y="272" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">command_VerifyUserEmailAddress</text>
+  </g>
+  <g id="node-group-Projection:projection_UserEmailVerificationTokenProjection:VerifyEmailAddress_target_3">
+    <rect id="node-Projection:projection_UserEmailVerificationTokenProjection:VerifyEmailAddress_target_3" class="node" x="240" y="224.28572" width="160" height="80" rx="8" ry="8" fill="#fefce8" stroke="#eab308" stroke-width="2"/>
+    <text class="entity-type-label" x="320" y="240.28572" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Projection</text>
+    <text class="entity-name" x="320" y="266.2857" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">projection_UserEmailVerificationTokenProjection</text>
+  </g>
+  <g id="node-group-Event:event_EmailAddressVerified:VerifyEmailAddress_source_8">
+    <rect id="node-Event:event_EmailAddressVerified:VerifyEmailAddress_source_8" class="node" x="20" y="380" width="160" height="80" rx="8" ry="8" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+    <text class="entity-type-label" x="100" y="396" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Event</text>
+    <text class="entity-name" x="100" y="422" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">event_EmailAddressVerified</text>
+  </g>
+  <g id="node-group-View:view_UserProfileScreen:VerifyEmailAddress_source_10">
+    <rect id="node-View:view_UserProfileScreen:VerifyEmailAddress_source_10" class="node" x="20" y="20" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="100" y="36" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">View</text>
+    <text class="entity-name" x="100" y="62" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">view_UserProfileScreen</text>
+  </g>
+  <g id="node-group-Command:command_SendEmailVerification:VerifyEmailAddress_target_1">
+    <rect id="node-Command:command_SendEmailVerification:VerifyEmailAddress_target_1" class="node" x="240" y="241.42857" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="320" y="257.4286" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Command</text>
+    <text class="entity-name" x="320" y="283.4286" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">command_SendEmailVerification</text>
+  </g>
+  <g id="node-group-Query:query_GetAccountIdForEmailVerificationToken:isolated">
+    <rect id="node-Query:query_GetAccountIdForEmailVerificationToken:isolated" class="node" x="20" y="190" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="100" y="206" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Query</text>
+    <text class="entity-name" x="100" y="232" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">query_GetAccountIdForEmailVerificationToken</text>
+  </g>
+  <g id="node-group-Event:event_UserAccountCredentialsCreated:VerifyEmailAddress_source_0">
+    <rect id="node-Event:event_UserAccountCredentialsCreated:VerifyEmailAddress_source_0" class="node" x="20" y="420" width="160" height="80" rx="8" ry="8" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+    <text class="entity-type-label" x="100" y="436" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Event</text>
+    <text class="entity-name" x="100" y="462" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">event_UserAccountCredentialsCreated</text>
+  </g>
+  <g id="node-group-Automation:automation_UserEmailVerifier:VerifyEmailAddress_source_1">
+    <rect id="node-Automation:automation_UserEmailVerifier:VerifyEmailAddress_source_1" class="node" x="20" y="50" width="160" height="80" rx="8" ry="8" fill="#f0fdf4" stroke="#22c55e" stroke-width="2"/>
+    <text class="entity-type-label" x="100" y="66" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Automation</text>
+    <text class="entity-name" x="100" y="92" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">automation_UserEmailVerifier</text>
+  </g>
+  <g id="node-group-Event:event_EmailAddressVerified:VerifyEmailAddress_source_6">
+    <rect id="node-Event:event_EmailAddressVerified:VerifyEmailAddress_source_6" class="node" x="20" y="370" width="160" height="80" rx="8" ry="8" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+    <text class="entity-type-label" x="100" y="386" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Event</text>
+    <text class="entity-name" x="100" y="412" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">event_EmailAddressVerified</text>
+  </g>
+  <g id="node-group-View:view_NewAccountScreen:CreateAccount_source_5">
+    <rect id="node-View:view_NewAccountScreen:CreateAccount_source_5" class="node" x="20" y="80" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="100" y="96" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">View</text>
+    <text class="entity-name" x="100" y="122" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">view_NewAccountScreen</text>
+  </g>
+  <g id="node-group-Event:event_EmailVerificationMessageSent:VerifyEmailAddress_target_2">
+    <rect id="node-Event:event_EmailVerificationMessageSent:VerifyEmailAddress_target_2" class="node" x="240" y="420" width="160" height="80" rx="8" ry="8" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+    <text class="entity-type-label" x="320" y="436" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Event</text>
+    <text class="entity-name" x="320" y="462" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">event_EmailVerificationMessageSent</text>
+  </g>
+  <g id="node-group-Projection:projection_UserCredentialsProjection:CreateAccount_target_3">
+    <rect id="node-Projection:projection_UserCredentialsProjection:CreateAccount_target_3" class="node" x="240" y="207.14285" width="160" height="80" rx="8" ry="8" fill="#fefce8" stroke="#eab308" stroke-width="2"/>
+    <text class="entity-type-label" x="320" y="223.14285" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Projection</text>
+    <text class="entity-name" x="320" y="249.14285" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">projection_UserCredentialsProjection</text>
+  </g>
+  <g id="node-group-View:view_UserProfileScreen:VerifyEmailAddress_target_9">
+    <rect id="node-View:view_UserProfileScreen:VerifyEmailAddress_target_9" class="node" x="240" y="44" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="320" y="60" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">View</text>
+    <text class="entity-name" x="320" y="86" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">view_UserProfileScreen</text>
+  </g>
+  <g id="node-group-Command:command_SendEmailVerification:VerifyEmailAddress_source_2">
+    <rect id="node-Command:command_SendEmailVerification:VerifyEmailAddress_source_2" class="node" x="20" y="250" width="160" height="80" rx="8" ry="8" fill="#dbeafe" stroke="#0969da" stroke-width="2"/>
+    <text class="entity-type-label" x="100" y="266" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#666666" font-weight="normal" text-anchor="middle">Command</text>
+    <text class="entity-name" x="100" y="292" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#000000" font-weight="bold" text-anchor="middle">command_SendEmailVerification</text>
+  </g>
+</svg>

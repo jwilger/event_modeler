@@ -10,7 +10,9 @@ Event Modeler uses gold master testing (snapshot testing) to verify the visual o
 
 - **insta**: Rust snapshot testing library for comparing SVG text content
 - **cargo-insta**: CLI tool for reviewing and approving snapshot changes
-- **visual_compare.sh**: Custom script for side-by-side visual comparison
+- **visual_compare.sh**: Basic script for side-by-side visual comparison
+- **gold_master_compare.sh**: Interactive tool for choosing between generated and gold master versions
+- **test_gold_master.sh**: Workflow automation script for running tests and updating gold masters
 
 ## Workflow
 
@@ -26,32 +28,56 @@ cargo test yaml_acceptance
 
 ### Reviewing Changes
 
-When the generated output differs from the snapshot:
+When the generated output differs from the expected output, you have several options:
 
-1. **Review text differences**:
-   ```bash
-   cargo insta review
-   ```
-   - Press `a` to accept the new version
-   - Press `r` to reject and keep the old version
-   - Press `s` to skip
+#### Quick Visual Gold Master Update (Recommended)
 
-2. **Visual comparison**:
-   ```bash
-   # Compare generated SVG with the reference
-   ./scripts/visual_compare.sh target/test-output/yaml_acceptance.svg tests/fixtures/acceptance/example.jpg
-   
-   # Compare two SVG files side-by-side
-   ./scripts/visual_compare.sh old.svg new.svg
-   ```
+Use the interactive gold master comparison tool:
+
+```bash
+# Run tests and interactively update gold masters
+./scripts/test_gold_master.sh
+
+# Or run a specific test
+./scripts/test_gold_master.sh yaml_acceptance
+```
+
+This will:
+1. Run the acceptance test(s)
+2. Open a side-by-side comparison in your browser
+3. Let you choose which version to keep as the gold master
+
+#### Manual Comparison
+
+For manual comparison of specific files:
+
+```bash
+# Interactive comparison with choice
+./scripts/gold_master_compare.sh generated.svg goldmaster.svg
+
+# Simple side-by-side viewing
+./scripts/visual_compare.sh generated.svg goldmaster.svg
+```
+
+#### Text-Based Snapshot Review
+
+For reviewing the SVG text differences:
+
+```bash
+cargo insta review
+```
+- Press `a` to accept the new version
+- Press `r` to reject and keep the old version
+- Press `s` to skip
 
 ### Accepting New Gold Masters
 
 When you're satisfied with the generated output:
 
-1. Run `cargo insta review`
-2. Press `a` to accept the new snapshot
-3. Commit the updated snapshot files (`.snap` files)
+1. Use `./scripts/test_gold_master.sh` to interactively choose the new gold master
+2. OR use `./scripts/gold_master_compare.sh` to update specific files
+3. Run `cargo insta review` to update text snapshots
+4. Commit both the gold master SVG files and `.snap` files
 
 ## Test Structure
 
@@ -60,7 +86,7 @@ When you're satisfied with the generated output:
 `tests/yaml_acceptance.rs::test_yaml_format_acceptance`
 - Uses `example.eventmodel` as input
 - Compares generated SVG against snapshot
-- Reference image: `tests/fixtures/acceptance/example.jpg`
+- Reference image: `tests/fixtures/acceptance/example.png`
 
 ### Key Points
 
