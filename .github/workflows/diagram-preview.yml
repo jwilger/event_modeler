@@ -60,9 +60,6 @@ jobs:
           # Convert to PNG with white background
           convert -background white -alpha remove -alpha off example.svg example.png
           
-          # Also create a smaller preview version
-          convert example.png -resize 1200x800\> example-preview.png
-          
           # Save SVG content for the comment (escape for GitHub Actions)
           SVG_CONTENT=$(cat example.svg | head -100)
           echo "svg<<EOF" >> $GITHUB_OUTPUT
@@ -74,20 +71,12 @@ jobs:
           echo "success=false" >> $GITHUB_OUTPUT
         fi
     
-    - name: Upload full diagram
+    - name: Upload diagram
       if: steps.generate.outputs.success == 'true'
       uses: actions/upload-artifact@v4
       with:
-        name: diagram-full
+        name: diagram-png
         path: example.png
-        retention-days: 7
-        
-    - name: Upload preview diagram
-      if: steps.generate.outputs.success == 'true'
-      uses: actions/upload-artifact@v4
-      with:
-        name: diagram-preview
-        path: example-preview.png
         retention-days: 7
         
     - name: Upload SVG
@@ -102,7 +91,7 @@ jobs:
       if: steps.generate.outputs.success == 'true'
       uses: opengisch/comment-pr-with-images@main
       with:
-        images: "example-preview.png"
+        images: "example.png"
         github_token: ${{ secrets.GITHUB_TOKEN }}
         upload_to: github_branch
         
