@@ -26,7 +26,7 @@ This ensures no work is forgotten or lost in the codebase.
 
 ## Current Status
 
-**Last Updated**: 2025-06-19 (Phase 1-5 COMPLETE, Phase 6 IN PROGRESS)
+**Last Updated**: 2025-06-20 (Phase 1-5 COMPLETE, Phase 6 RESTARTING)
 
 **Latest Progress**: 
 - Phase 5 (Rich Visual Rendering) completed with limitations - PR #20 merged
@@ -34,22 +34,11 @@ This ensures no work is forgotten or lost in the codebase.
 - Acceptance testing revealed fundamental slice architecture mismatch
 - Gold master analysis completed - slices must be horizontal workflows
 - PNG-based visual comparison testing implemented
-- New Phase 6 added for horizontal slice architecture redesign
-- Incremental rendering approach defined with 10 manual review checkpoints
-- Library evaluation completed - continuing with custom implementation
-- Phase 6 Progress (PR #23 - feature/incremental-rendering-approach):
-  - ✅ Step 1: Swimlanes Only - Complete
-  - ✅ Step 2: Add Slice Boundaries - Complete  
-  - ✅ Step 3: Add Views (White Boxes) - Complete with text fitting
-  - ✅ Step 4: Add Commands (Blue Boxes) - Complete
-  - ✅ Step 5: Add Events (Purple Boxes) - Complete with corrected names
-  - ✅ Step 6: Add Projections (Yellow Boxes) - Complete
-  - ✅ Step 7: Add Queries (Blue Boxes) - Complete
-  - ✅ Step 8: Add Automations (Green Boxes) - Complete
-  - ✅ Step 9: Add Connections - Complete
-  - ✅ Step 10: Add Test Scenarios - Complete
-  - ✅ Step 11: Final Polish - Complete
-  - Note: Using temporary test binary `horizontal_slice_test.rs` with hardcoded entities
+- Previous Phase 6 approach (11 steps) completed but produced wrong layout
+- **NEW APPROACH**: Complete diagram module rewrite using incremental development
+  - Each step adds one element type
+  - Visual validation at each step before proceeding
+  - Build proper event model diagramming library from scratch
 
 **🚨 CRITICAL ISSUES DISCOVERED (2025-06-19)**:
 Major discrepancies between current implementation and gold standard:
@@ -444,123 +433,108 @@ workflow: User Account Signup
 4. Create accessibility considerations guide
 5. Document node-based layout architecture
 
-### Phase 6: Complete Layout Redesign (CRITICAL - REVISED)
-**Goal**: Completely redesign the layout to match the gold standard's structure
+### Phase 6: Incremental Diagram Module Rewrite
+**Goal**: Build a proper event model diagramming library from scratch using incremental development
 
-**Previous Approach Failed**: The incremental steps 1-11 produced a diagram that is fundamentally different from the gold standard. We need a complete redesign.
+**Previous Approaches Failed**: Both the initial implementation and the 11-step horizontal slice approach produced diagrams fundamentally different from the gold standard. We need a complete rewrite with a different methodology.
 
 #### Context:
-The gold master analysis revealed that slices should be horizontal bands representing complete workflows, not vertical dividers. This is a fundamental change that affects the entire layout system.
+After multiple attempts, we've learned that trying to build the entire diagram at once leads to fundamental mismatches with the gold standard. Instead, we'll build incrementally, adding one element type at a time and validating each step visually before proceeding.
 
-**Library Evaluation Results**: After evaluating Rust diagramming libraries (see docs/diagramming-library-evaluation.md), we determined that no existing library meets our specialized needs. Available libraries focus on force-directed or tree layouts, while we need horizontal workflow sections with swimlanes. We'll continue with our custom implementation, potentially using petgraph for graph algorithms.
+**New Approach**: Incremental development with visual validation at each step:
+1. Delete the existing diagram module completely
+2. Build from scratch, adding one element at a time
+3. After each element addition, generate SVG → PNG and review
+4. Compare against gold standard before proceeding
+5. Commit only when the current step is approved
 
-**Incremental Rendering Approach**: To ensure we're building the right solution, we'll implement visual elements incrementally with manual review checkpoints between each element. This allows for course correction before investing too much in any particular approach.
+#### Implementation Steps:
 
-**New Implementation Strategy**:
+Each step follows this pattern:
+1. Add one diagram element type
+2. Generate an SVG
+3. Convert to PNG using existing infrastructure
+4. Show PNG using `xdg-open`
+5. Compare against gold standard
+6. Wait for feedback/approval
+7. Commit when approved, then proceed to next step
 
-1. **Analyze Gold Standard Structure**:
-   - Main diagram area (top ~60% of image)
-   - Test scenario area (bottom ~40% of image)
-   - Horizontal flow within swimlanes
-   - Inline slice headers on the left
-   
-2. **Key Layout Requirements**:
-   - **Two-Part Layout**: Main diagram on top, test scenarios below
-   - **Swimlane Structure**: 3 horizontal swimlanes spanning full width
-   - **Entity Positioning**: Left-to-right flow within swimlanes
-   - **Email Verifier**: Central icon entity between swimlanes
-   - **Test Scenarios**: Horizontal boxes with columnar Given/When/Then
-   
-3. **Implementation Approach**:
-   - Start fresh with correct two-part layout
-   - Hardcode exact positions based on gold standard measurements
-   - Focus on matching the visual structure exactly
-   - Use the test binary for rapid iteration
+**Step-by-Step Implementation**:
 
-#### New Implementation Tasks:
+1. **Step 0: Delete and Initialize**
+   - Delete entire `src/diagram/` module
+   - Create new empty module structure
+   - Set up basic SVG generation infrastructure
 
-**RESTART FROM SCRATCH**: The previous 11 steps produced the wrong layout. We need to rebuild with the correct structure.
+2. **Step 1: Workflow Title Only**
+   - Create EventModelDiagram with just title "User Account Signup"
+   - Position at top of canvas
+   - Match font and styling from gold standard
 
-1. **Task 1: Create Two-Part Layout Structure**
-   - Top section: Main diagram area (height ~450px)
-   - Bottom section: Test scenarios area (height ~300px)
-   - Full width: 1200px
-   - Clear visual separation between sections
+3. **Step 2: Single Swimlane**
+   - Add first swimlane "UX, Automations"
+   - Implement swimlane type with label
+   - Position and style to match gold standard
 
-2. **Task 2: Implement Main Diagram Swimlanes**
-   - 3 horizontal swimlanes in top section
-   - Labels on left side (rotated text)
-   - Proper spacing and borders
-   - No slice divisions (they're conceptual, not visual)
+4. **Step 3: Multiple Swimlanes**
+   - Add remaining swimlanes:
+     - "Commands, Projections, Queries"
+     - "User Account Event Stream"
+   - Ensure proper spacing and alignment
 
-3. **Task 3: Position All Entities in Main Diagram**
-   - Use exact positions from gold standard
-   - Include Email Verifier central icon
-   - Add entity type labels (small text above entity name)
-   - Correct colors for each entity type
+5. **Step 4: First View**
+   - Add "Login Screen" view entity
+   - Implement View type with proper styling
+   - Position in correct swimlane
 
-4. **Task 4: Add All Connections**
-   - Route arrows between entities
-   - Use curved paths where needed
-   - Proper arrow heads
-   - Follow the flow shown in gold standard
+6. **Step 5: First Command**
+   - Add "Create User Account Credentials" command
+   - Implement Command type with blue styling
+   - Position in middle swimlane
 
-5. **Task 5: Implement Test Scenario Boxes**
-   - Three horizontal boxes below main diagram
-   - Each box has title header
-   - Given/When/Then in columns (not rows)
-   - Proper entity coloring within scenarios
+7. **Step 6: First Connection**
+   - Connect Login Screen view to Create User Account Credentials command
+   - Implement connection/arrow rendering
+   - Match arrow style from gold standard
 
-6. **Task 6: Final Adjustments**
-   - Fine-tune positions to match gold standard
-   - Adjust text sizes and fonts
-   - Ensure proper spacing throughout
+8. **Continue Incrementally**:
+   - Add entities one at a time
+   - Add connections as needed
+   - Eventually add test scenarios
+   - Each addition gets visual review
 
-#### Original Tasks (to be implemented incrementally):
-1. **Redefine Slice concept**:
-   - Update Slice type to represent horizontal workflow sections
-   - Each slice spans across all swimlanes horizontally
-   - Slices have vertical boundaries (top/bottom) not horizontal (left/right)
-   - Consider using petgraph for dependency analysis within slices
+#### Technical Approach:
 
-2. **Update Layout Engine**:
-   - Calculate vertical space for each slice based on entity count
-   - Position slices as stacked horizontal bands
-   - Maintain spacing between slices
+- **Builder Pattern**: Use immutable builder pattern for diagram construction
+- **Domain-Specific Types**: EventModelDiagram, Swimlane, View, Command, Event, etc.
+- **Type-Safe Layout**: Compile-time guarantees for valid layouts
+- **Functional Style**: Return new diagram instances, never mutate
+- **Event Model Focus**: API specifically for event modeling, not generic SVG
 
-3. **Entity Grouping**:
-   - Group entities by their slice membership
-   - Position entities within their slice's vertical band
-   - Use flow-based positioning within each slice
+Example API (conceptual):
+```rust
+let diagram = EventModelDiagram::new("User Account Signup")
+    .add_swimlane(Swimlane::new("UX, Automations"))
+    .add_view(View::new("Login Screen").in_swimlane(0).at_position(x, y))
+    .add_command(Command::new("Create User Account Credentials").in_swimlane(1))
+    .connect(view_id, command_id);
+```
 
-4. **Slice Headers**:
-   - Add slice name labels at the start of each slice
-   - Position headers in the leftmost area of the slice
-   - Style headers prominently
-
-5. **Test Scenario Sub-sections**:
-   - Within slices, show test scenarios (e.g., "Main Success", "No Such User")
-   - Position these as labeled sub-flows within the slice
-   - Use visual grouping to show which entities belong to which scenario
-
-6. **Update Color Scheme**:
-   - Views: White/very light gray (#f8f9fa)
-   - Commands: Medium blue (#5b8def)
-   - Events: Purple/lavender (#c8b6db)
-   - Projections: Yellow/orange (#ffd166)
-   - Automations: Green (#06d6a0)
-   - Errors: Red/pink (#ef476f)
-
-7. **Arrow Routing**:
-   - Route arrows within slice boundaries
-   - Follow flow paths, not just direct connections
-   - Handle cross-slice references appropriately
+#### Success Criteria:
+- Each incremental step produces output closer to gold standard
+- Final diagram matches example.png exactly in:
+  - Layout structure
+  - Entity positioning
+  - Colors and styling
+  - Test scenario presentation
+- API is clean and domain-specific
+- Could be extracted as standalone event modeling diagram crate
 
 #### Documentation Tasks:
-1. Create ADR for horizontal slice architecture
-2. Update all slice-related documentation
-3. Document the workflow-based approach
-4. Update examples to show horizontal slices
+1. Document new diagram module API
+2. Create examples showing incremental building
+3. Document visual style specifications
+4. Create guide for extending with new entity types
 
 ### Phase 7: Acceptance Testing & Documentation
 **Goal**: Ensure the implementation meets requirements and documentation is complete
@@ -619,13 +593,13 @@ The gold master analysis revealed that slices should be horizontal bands represe
 - Phase 3 (Domain Extensions): ✅ COMPLETE
 - Phase 4 (Flow Layout): ✅ COMPLETE
 - Phase 5 (Rich Rendering): ✅ COMPLETE (with limitations)
-- Phase 6 (Complete Layout Redesign): 8-10 hours + 2 hours documentation (REVISED - IN PROGRESS)
-  - Previous approach (Steps 1-11): ❌ FAILED - Wrong layout structure
-  - New approach (Tasks 1-6): Starting fresh with correct structure
+- Phase 6 (Incremental Diagram Rewrite): 10-12 hours + 2 hours documentation (RESTARTING)
+  - Previous approach (11 steps): ❌ COMPLETE but wrong layout
+  - New approach: Incremental development with visual validation
 - Phase 7 (Acceptance Testing): 4-6 hours + 4 hours documentation
 - Phase 8 (Cleanup): 2-3 hours
 
-Remaining: ~14-19 hours of implementation + ~6 hours of documentation = ~20-25 hours
+Remaining: ~16-21 hours of implementation + ~6 hours of documentation = ~22-27 hours
 
 **Note**: This is a complete rewrite with significantly more complexity than the original MVP. The rich format requires:
 - Complex type hierarchies
