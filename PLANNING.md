@@ -462,11 +462,11 @@ After multiple attempts, we've learned that trying to build the entire diagram a
 Each step follows this pattern:
 1. Add one diagram element type
 2. Generate an SVG
-3. Convert to PNG using existing infrastructure
-4. Show PNG using `xdg-open`
+3. Push changes to trigger GitHub Actions preview
+4. Review diagram in PR comment
 5. Compare against gold standard
 6. Wait for feedback/approval
-7. Commit when approved, then proceed to next step
+7. Proceed to next step when approved
 
 **Step-by-Step Implementation**:
 
@@ -482,13 +482,13 @@ Note: While using "User Account Signup" example for visual validation, each step
 
 **Foundation Steps (Canvas & Structure)**:
 
-1. **Step 0: Delete and Initialize**
+1. **Step 0: Delete and Initialize** ✅ DONE
    - Delete entire `src/diagram/` module
    - Create new empty module structure
    - Set up basic SVG generation infrastructure
    - Create test harness that can load ANY .eventmodel file
 
-2. **Step 1: Canvas and Workflow Title**
+2. **Step 1: Canvas and Workflow Title** ✅ DONE
    - Create EventModelDiagram with canvas sizing
    - Add workflow title from loaded model
    - For testing: "User Account Signup"
