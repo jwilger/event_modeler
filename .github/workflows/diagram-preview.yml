@@ -102,12 +102,12 @@ jobs:
       if: steps.generate.outputs.success == 'true'
       uses: opengisch/comment-pr-with-images@v1
       with:
-        images: |
-          example-preview.png
-          example.png
-        token: ${{ secrets.GITHUB_TOKEN }}
-        title: '📊 Event Model Diagram Preview'
-        message: |
+        images: "example-preview.png, example.png"
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        upload_to: github_branch
+        custom_attachment_msg: |
+          ## 📊 Event Model Diagram Preview
+          
           Generated from `tests/fixtures/acceptance/example.eventmodel`
           
           Compare with the [gold standard example](https://github.com/${{ github.repository }}/blob/${{ github.base_ref }}/tests/fixtures/acceptance/example.png).
