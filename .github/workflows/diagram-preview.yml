@@ -100,17 +100,11 @@ jobs:
     
     - name: Comment PR with Images
       if: steps.generate.outputs.success == 'true'
-      uses: opengisch/comment-pr-with-images@0.0.5
+      uses: opengisch/comment-pr-with-images@main
       with:
         images: "example-preview.png, example.png"
         github_token: ${{ secrets.GITHUB_TOKEN }}
         upload_to: github_branch
-        custom_attachment_msg: |
-          ## 📊 Event Model Diagram Preview
-          
-          Generated from `tests/fixtures/acceptance/example.eventmodel`
-          
-          Compare with the [gold standard example](https://github.com/${{ github.repository }}/blob/${{ github.base_ref }}/tests/fixtures/acceptance/example.png).
         
     - name: Comment PR (Failure)
       if: steps.generate.outputs.success == 'false'
