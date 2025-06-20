@@ -102,7 +102,7 @@ jobs:
       if: steps.generate.outputs.success == 'true'
       uses: opengisch/comment-pr-with-images@main
       with:
-        images: "example-preview.png, example.png"
+        images: "example-preview.png"
         github_token: ${{ secrets.GITHUB_TOKEN }}
         upload_to: github_branch
         
