@@ -441,12 +441,20 @@ workflow: User Account Signup
 #### Context:
 After multiple attempts, we've learned that trying to build the entire diagram at once leads to fundamental mismatches with the gold standard. Instead, we'll build incrementally, adding one element type at a time and validating each step visually before proceeding.
 
+**Critical Requirement**: While the gold standard (example.png) shows exactly how example.eventmodel should be rendered, the diagram module MUST be dynamic enough to handle ANY valid .eventmodel file that conforms to our schema. This means:
+- Variable number of swimlanes (not just 3)
+- Variable number of entities of each type
+- Different slice configurations
+- Different test scenario counts per command
+- Dynamic layout that adapts to content
+
 **New Approach**: Incremental development with visual validation at each step:
 1. Delete the existing diagram module completely
 2. Build from scratch, adding one element at a time
 3. After each element addition, generate SVG → PNG and review
 4. Compare against gold standard before proceeding
 5. Commit only when the current step is approved
+6. Ensure each step builds toward a dynamic, flexible system
 
 #### Implementation Steps:
 
@@ -461,47 +469,55 @@ Each step follows this pattern:
 
 **Step-by-Step Implementation**:
 
+Note: While using "User Account Signup" example for visual validation, each step must build toward handling arbitrary event models.
+
 1. **Step 0: Delete and Initialize**
    - Delete entire `src/diagram/` module
    - Create new empty module structure
    - Set up basic SVG generation infrastructure
+   - Create test harness that can load ANY .eventmodel file
 
 2. **Step 1: Workflow Title Only**
-   - Create EventModelDiagram with just title "User Account Signup"
-   - Position at top of canvas
+   - Create EventModelDiagram that takes title from loaded model
+   - For testing: Use "User Account Signup" from example
+   - Dynamic: Title positioning adjusts to text length
    - Match font and styling from gold standard
 
 3. **Step 2: Single Swimlane**
-   - Add first swimlane "UX, Automations"
-   - Implement swimlane type with label
-   - Position and style to match gold standard
+   - Add swimlane support (start with first from model)
+   - For testing: "UX, Automations" 
+   - Dynamic: Swimlane height adjusts to content
+   - Implement swimlane type with label positioning
 
 4. **Step 3: Multiple Swimlanes**
-   - Add remaining swimlanes:
-     - "Commands, Projections, Queries"
-     - "User Account Event Stream"
-   - Ensure proper spacing and alignment
+   - Support arbitrary number of swimlanes from model
+   - For testing: All 3 from example
+   - Dynamic: Calculate total height based on swimlane count
+   - Ensure proper spacing scales with content
 
 5. **Step 4: First View**
-   - Add "Login Screen" view entity
+   - Add view rendering from model data
+   - For testing: "Login Screen"
+   - Dynamic: Position based on slice connections
    - Implement View type with proper styling
-   - Position in correct swimlane
 
 6. **Step 5: First Command**
-   - Add "Create User Account Credentials" command
+   - Add command rendering from model data
+   - For testing: "Create User Account Credentials"
+   - Dynamic: Position in correct swimlane from model
    - Implement Command type with blue styling
-   - Position in middle swimlane
 
 7. **Step 6: First Connection**
-   - Connect Login Screen view to Create User Account Credentials command
-   - Implement connection/arrow rendering
+   - Implement connection rendering from slice definitions
+   - For testing: LoginScreen → CreateUserAccountCredentials
+   - Dynamic: Route based on entity positions
    - Match arrow style from gold standard
 
 8. **Continue Incrementally**:
-   - Add entities one at a time
-   - Add connections as needed
-   - Eventually add test scenarios
-   - Each addition gets visual review
+   - Add remaining entity types (events, projections, queries, automations)
+   - Implement slice-based layout algorithm
+   - Add test scenario rendering
+   - Each step maintains dynamic capability
 
 #### Technical Approach:
 
@@ -510,23 +526,46 @@ Each step follows this pattern:
 - **Type-Safe Layout**: Compile-time guarantees for valid layouts
 - **Functional Style**: Return new diagram instances, never mutate
 - **Event Model Focus**: API specifically for event modeling, not generic SVG
+- **Dynamic Layout Engine**: Must handle arbitrary numbers of elements
+- **Slice-Based Positioning**: Use slice definitions to determine entity positions
 
 Example API (conceptual):
 ```rust
-let diagram = EventModelDiagram::new("User Account Signup")
-    .add_swimlane(Swimlane::new("UX, Automations"))
-    .add_view(View::new("Login Screen").in_swimlane(0).at_position(x, y))
-    .add_command(Command::new("Create User Account Credentials").in_swimlane(1))
-    .connect(view_id, command_id);
+// From parsed YAML model
+let model = parse_yaml(content)?;
+let domain_model = convert_yaml_to_domain(model)?;
+
+// Build diagram dynamically from model
+let mut diagram = EventModelDiagram::new(&domain_model.workflow);
+
+// Add all swimlanes from model
+for (id, label) in &domain_model.swimlanes {
+    diagram = diagram.add_swimlane(Swimlane::new(id, label));
+}
+
+// Add all entities from model
+for (name, view) in &domain_model.views {
+    diagram = diagram.add_view(View::from_model(name, view));
+}
+// ... same for commands, events, etc.
+
+// Process slices to determine layout
+diagram = diagram.layout_from_slices(&domain_model.slices);
 ```
 
 #### Success Criteria:
 - Each incremental step produces output closer to gold standard
-- Final diagram matches example.png exactly in:
+- Final diagram matches example.png exactly when rendering example.eventmodel:
   - Layout structure
   - Entity positioning
   - Colors and styling
   - Test scenario presentation
+- **Dynamic Requirements Met**:
+  - Can handle event models with 1-100+ swimlanes
+  - Can handle models with any number of entities
+  - Layout adapts to different slice configurations
+  - Test scenarios scale with command count
+  - No hardcoded positions or counts
 - API is clean and domain-specific
 - Could be extracted as standalone event modeling diagram crate
 
