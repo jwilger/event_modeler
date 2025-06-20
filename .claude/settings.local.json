@@ -5,7 +5,9 @@
       "Bash(rm:*)",
       "Bash(mkdir:*)",
       "Bash(cargo:*)",
-      "Bash(cargo test:*)"
+      "Bash(cargo test:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)"
     ],
     "deny": []
   }

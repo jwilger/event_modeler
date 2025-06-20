@@ -100,7 +100,7 @@ jobs:
     
     - name: Comment PR with Images
       if: steps.generate.outputs.success == 'true'
-      uses: opengisch/comment-pr-with-images@v1
+      uses: opengisch/comment-pr-with-images@0.0.5
       with:
         images: "example-preview.png, example.png"
         github_token: ${{ secrets.GITHUB_TOKEN }}
