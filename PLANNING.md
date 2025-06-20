@@ -447,6 +447,7 @@ After multiple attempts, we've learned that trying to build the entire diagram a
 - Different slice configurations
 - Different test scenario counts per command
 - Dynamic layout that adapts to content
+- Multiple instances of ANY entity type (not just views/projections) - the same command, event, query, or automation can appear in multiple places based on slice connections
 
 **New Approach**: Incremental development with visual validation at each step:
 1. Delete the existing diagram module completely
@@ -623,15 +624,17 @@ This plan covers every element visible in the gold standard:
 - 1 workflow title
 - 3 swimlanes  
 - 3 slice headers
-- 4 views (with 1 duplicate)
-- 3 commands
-- 3 events
-- 2 projections (with duplicates in slice 2)
-- 2 queries
-- 1 automation
+- 4 view instances (including duplicates - views can appear multiple times)
+- 3 command instances (commands can appear multiple times)
+- 3 event instances (events can appear multiple times)
+- 4 projection instances (2 unique projections, each appearing twice)
+- 2 query instances (queries can appear multiple times)
+- 1 automation instance (automations can appear multiple times)
 - All connections from slice definitions
 - 6 test scenarios across 3 commands
 - All styling (colors, fonts, borders, arrows)
+
+Note: ANY entity type (views, commands, events, projections, queries, automations) can have multiple instances in the diagram. The layout engine must support showing the same logical entity in multiple visual positions.
 
 #### Technical Approach:
 
