@@ -1,0 +1,15 @@
+<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="300" height="300" fill="white" />
+    
+    <!-- Gray background -->
+    <rect x="50" y="50" width="200" height="200" fill="#f6f8fa" stroke="black" />
+    
+    <!-- Center point marker -->
+    <circle cx="150" cy="150" r="3" fill="red" />
+    
+    <!-- Text before rotation -->
+    <text x="150" y="150" text-anchor="middle" font-size="20" fill="blue">Before</text>
+    
+    <!-- Rotated text -->
+    <text x="150" y="150" transform="rotate(-90 150 150)" text-anchor="middle" font-size="20" fill="black">Rotated Text</text>
+</svg>

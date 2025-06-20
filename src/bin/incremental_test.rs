@@ -80,7 +80,7 @@ fn render_and_show(
 
     // Convert to PNG with white background
     let png_path = svg_path.with_extension("png");
-    let status = Command::new("convert")
+    let status = Command::new("magick")
         .arg("-background")
         .arg("white")
         .arg("-alpha")
