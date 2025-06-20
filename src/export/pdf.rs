@@ -6,7 +6,8 @@
 //! This module handles the conversion of SVG diagrams to PDF format,
 //! including page layout, metadata, and font embedding.
 
-use crate::diagram::svg::SvgDocument;
+// TODO: Re-enable when SvgDocument is available
+// use crate::diagram::svg::SvgDocument;
 use crate::infrastructure::types::{NonEmptyString, NonNegativeFloat, PositiveFloat};
 use nutype::nutype;
 use std::path::Path;
@@ -91,7 +92,9 @@ pub struct PageMargins {
 #[derive(Debug, Clone)]
 pub enum PageContent {
     /// SVG diagram content.
-    Svg(SvgDocument),
+    // TODO: Re-enable when SvgDocument is available
+    // Svg(SvgDocument),
+    Svg(String),
     /// Text content.
     Text(PdfText),
 }
@@ -224,12 +227,16 @@ impl PdfExporter {
     }
 
     /// Export an SVG document to a PDF file.
-    pub fn export(&self, _svg: &SvgDocument, _path: &Path) -> Result<(), PdfExportError> {
+    // TODO: Re-enable when SvgDocument is available
+    // pub fn export(&self, _svg: &SvgDocument, _path: &Path) -> Result<(), PdfExportError> {
+    pub fn export(&self, _svg: &str, _path: &Path) -> Result<(), PdfExportError> {
         todo!()
     }
 
     /// Export an SVG document to a PDF byte buffer.
-    pub fn export_to_buffer(&self, _svg: &SvgDocument) -> Result<Vec<u8>, PdfExportError> {
+    // TODO: Re-enable when SvgDocument is available
+    // pub fn export_to_buffer(&self, _svg: &SvgDocument) -> Result<Vec<u8>, PdfExportError> {
+    pub fn export_to_buffer(&self, _svg: &str) -> Result<Vec<u8>, PdfExportError> {
         todo!()
     }
 

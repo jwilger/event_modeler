@@ -1,0 +1,150 @@
+name: Diagram Preview
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'tests/fixtures/acceptance/**'
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y imagemagick
+    
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        
+    - name: Cache cargo build
+      uses: actions/cache@v4
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/*.rs') }}
+    
+    - name: Build event_modeler
+      run: cargo build --release
+    
+    - name: Generate diagram
+      id: generate
+      run: |
+        # Generate SVG
+        ./target/release/event_modeler tests/fixtures/acceptance/example.eventmodel -o example.svg || true
+        
+        # Check if SVG was generated
+        if [ -f example.svg ]; then
+          echo "SVG generated successfully"
+          
+          # Convert to PNG with white background
+          convert -background white -alpha remove -alpha off example.svg example.png
+          
+          # Also create a smaller preview version
+          convert example.png -resize 1200x800\> example-preview.png
+          
+          # Save SVG content for the comment (escape for GitHub Actions)
+          SVG_CONTENT=$(cat example.svg | head -100)
+          echo "svg<<EOF" >> $GITHUB_OUTPUT
+          echo "$SVG_CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "success=true" >> $GITHUB_OUTPUT
+        else
+          echo "Failed to generate SVG"
+          echo "success=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Upload full diagram
+      if: steps.generate.outputs.success == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: diagram-full
+        path: example.png
+        retention-days: 7
+        
+    - name: Upload preview diagram
+      if: steps.generate.outputs.success == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: diagram-preview
+        path: example-preview.png
+        retention-days: 7
+        
+    - name: Upload SVG
+      if: steps.generate.outputs.success == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: diagram-svg
+        path: example.svg
+        retention-days: 7
+    
+    - name: Comment PR (Success)
+      if: steps.generate.outputs.success == 'true'
+      uses: thollander/actions-comment-pull-request@v2
+      with:
+        message: |
+          ## 📊 Event Model Diagram Preview
+          
+          Generated from `tests/fixtures/acceptance/example.eventmodel`:
+          
+          > ⚠️ **Note**: GitHub doesn't display images from artifacts directly. Please click the "Download artifacts" link below to view the generated diagram.
+          
+          ### 📥 Download Links
+          - [Download PNG](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts) (see `diagram-preview` artifact)
+          - [Download full resolution PNG](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts) (see `diagram-full` artifact)
+          - [Download SVG](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts) (see `diagram-svg` artifact)
+          
+          ### 🎯 Gold Standard Comparison
+          Compare your generated diagram with the [gold standard example](https://github.com/${{ github.repository }}/blob/${{ github.base_ref }}/tests/fixtures/acceptance/example.png).
+          
+          <details>
+          <summary>📝 SVG Preview (first 100 lines)</summary>
+          
+          ```svg
+          ${{ steps.generate.outputs.svg }}
+          ```
+          </details>
+          
+          ---
+          🤖 *This comment is automatically updated on each push to the PR.*
+        comment_tag: diagram-preview
+        
+    - name: Comment PR (Failure)
+      if: steps.generate.outputs.success == 'false'
+      uses: thollander/actions-comment-pull-request@v2
+      with:
+        message: |
+          ## ⚠️ Diagram Generation Failed
+          
+          The event_modeler tool failed to generate a diagram from `tests/fixtures/acceptance/example.eventmodel`.
+          
+          This might be expected if you're still implementing the diagram functionality.
+          
+          ### 🔍 Debugging Steps
+          1. Check the build logs for compilation errors
+          2. Ensure the example.eventmodel file is valid
+          3. Verify that the diagram module is properly implemented
+          
+          ---
+          🤖 *This comment is automatically updated on each push to the PR.*
+        comment_tag: diagram-preview

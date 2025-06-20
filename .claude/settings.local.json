@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(rm:*)",
+      "Bash(mkdir:*)",
+      "Bash(cargo:*)",
+      "Bash(cargo test:*)"
     ],
     "deny": []
   }
