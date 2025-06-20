@@ -64,7 +64,7 @@ impl EventModelDiagram {
                 label_y,
                 label_x,
                 label_y,
-                "#24292e",
+                "#000000",
                 xml_escape(&swimlane.label())
             ));
         }
