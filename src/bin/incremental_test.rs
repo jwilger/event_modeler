@@ -33,13 +33,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Step 1: Create diagram with just workflow title
     println!("\n=== Step 1: Workflow Title Only ===");
     let workflow_title = domain_model.workflow.clone().into_inner();
-    let diagram = EventModelDiagram::new(workflow_title);
+    let mut diagram = EventModelDiagram::new(workflow_title);
 
     // Render and show
     render_and_show(&diagram, &output_dir, "step_01_title.svg")?;
 
     println!("\nPress Enter to continue to next step...");
     let mut input = String::new();
+    std::io::stdin().read_line(&mut input)?;
+
+    // Step 2: Add all swimlanes
+    println!("\n=== Step 2: All Swimlanes ===");
+
+    // Add swimlanes from the domain model
+    for swimlane in domain_model.swimlanes.iter() {
+        let id = swimlane.id.clone();
+        let label = swimlane.name.clone();
+
+        diagram = diagram.with_swimlane(id, label);
+    }
+
+    // Render and show
+    render_and_show(&diagram, &output_dir, "step_02_swimlanes.svg")?;
+
+    println!("\nPress Enter to continue to next step...");
     std::io::stdin().read_line(&mut input)?;
 
     // Future steps will be added here incrementally

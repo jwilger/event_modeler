@@ -245,8 +245,10 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
 
     // 4. Convert domain model to EventModelDiagram
     let event_model_diagram =
-        crate::event_model::yaml_to_diagram_converter::convert_yaml_to_diagram(domain_model)
-            .map_err(|e| Error::InvalidArguments(format!("Diagram conversion error: {:?}", e)))?;
+        crate::event_model::yaml_to_diagram_converter::convert_yaml_to_diagram(
+            domain_model.clone(),
+        )
+        .map_err(|e| Error::InvalidArguments(format!("Diagram conversion error: {:?}", e)))?;
 
     println!(
         "Successfully converted event model: {}",
@@ -269,7 +271,15 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
     // 5. Create new diagram using incremental approach
     use crate::diagram::EventModelDiagram;
 
-    let diagram = EventModelDiagram::new(workflow_title);
+    let mut diagram = EventModelDiagram::new(workflow_title);
+
+    // Add swimlanes
+    for swimlane in domain_model.swimlanes.iter() {
+        let id = swimlane.id.clone();
+        let label = swimlane.name.clone();
+
+        diagram = diagram.with_swimlane(id, label);
+    }
 
     // 6. Render to requested formats
     for format in cmd.options.formats.iter() {
