@@ -63,11 +63,6 @@ jobs:
           # Also create a smaller preview version
           convert example.png -resize 1200x800\> example-preview.png
           
-          # Create output directory for the action
-          mkdir -p target/test-output
-          cp example.png target/test-output/
-          cp example-preview.png target/test-output/
-          
           # Save SVG content for the comment (escape for GitHub Actions)
           SVG_CONTENT=$(cat example.svg | head -100)
           echo "svg<<EOF" >> $GITHUB_OUTPUT
@@ -105,13 +100,17 @@ jobs:
     
     - name: Comment PR with Images
       if: steps.generate.outputs.success == 'true'
-      uses: BaconographyPortfolio/comment-pr-with-images@v1.1.0
+      uses: opengisch/comment-pr-with-images@v1
       with:
         images: |
-          target/test-output/example-preview.png
-          target/test-output/example.png
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        comment-title: '📊 Event Model Diagram Preview'
+          example-preview.png
+          example.png
+        token: ${{ secrets.GITHUB_TOKEN }}
+        title: '📊 Event Model Diagram Preview'
+        message: |
+          Generated from `tests/fixtures/acceptance/example.eventmodel`
+          
+          Compare with the [gold standard example](https://github.com/${{ github.repository }}/blob/${{ github.base_ref }}/tests/fixtures/acceptance/example.png).
         
     - name: Comment PR (Failure)
       if: steps.generate.outputs.success == 'false'
