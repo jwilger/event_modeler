@@ -1,4 +1,4 @@
-name: Diagram Preview
+name: Comment PR with Images
 
 on:
   pull_request:
@@ -63,6 +63,11 @@ jobs:
           # Also create a smaller preview version
           convert example.png -resize 1200x800\> example-preview.png
           
+          # Create output directory for the action
+          mkdir -p target/test-output
+          cp example.png target/test-output/
+          cp example-preview.png target/test-output/
+          
           # Save SVG content for the comment (escape for GitHub Actions)
           SVG_CONTENT=$(cat example.svg | head -100)
           echo "svg<<EOF" >> $GITHUB_OUTPUT
@@ -98,36 +103,15 @@ jobs:
         path: example.svg
         retention-days: 7
     
-    - name: Comment PR (Success)
+    - name: Comment PR with Images
       if: steps.generate.outputs.success == 'true'
-      uses: thollander/actions-comment-pull-request@v2
+      uses: BaconographyPortfolio/comment-pr-with-images@v1.1.0
       with:
-        message: |
-          ## 📊 Event Model Diagram Preview
-          
-          Generated from `tests/fixtures/acceptance/example.eventmodel`:
-          
-          > ⚠️ **Note**: GitHub doesn't display images from artifacts directly. Please click the "Download artifacts" link below to view the generated diagram.
-          
-          ### 📥 Download Links
-          - [Download PNG](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts) (see `diagram-preview` artifact)
-          - [Download full resolution PNG](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts) (see `diagram-full` artifact)
-          - [Download SVG](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts) (see `diagram-svg` artifact)
-          
-          ### 🎯 Gold Standard Comparison
-          Compare your generated diagram with the [gold standard example](https://github.com/${{ github.repository }}/blob/${{ github.base_ref }}/tests/fixtures/acceptance/example.png).
-          
-          <details>
-          <summary>📝 SVG Preview (first 100 lines)</summary>
-          
-          ```svg
-          ${{ steps.generate.outputs.svg }}
-          ```
-          </details>
-          
-          ---
-          🤖 *This comment is automatically updated on each push to the PR.*
-        comment_tag: diagram-preview
+        images: |
+          target/test-output/example-preview.png
+          target/test-output/example.png
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        comment-title: '📊 Event Model Diagram Preview'
         
     - name: Comment PR (Failure)
       if: steps.generate.outputs.success == 'false'
