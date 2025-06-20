@@ -26,7 +26,7 @@ impl EventModelDiagram {
         let mut svg = format!(
             r#"<svg width="{}" height="{}" xmlns="http://www.w3.org/2000/svg">
     <rect width="{}" height="{}" fill="white" />
-    <text x="600" y="40" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="{}">{}</text>"#,
+    <text x="600" y="40" text-anchor="middle" font-family="sans-serif" font-size="24" font-weight="bold" fill="{}">{}</text>"#,
             CANVAS_WIDTH,
             canvas_height,
             CANVAS_WIDTH,
@@ -59,9 +59,9 @@ impl EventModelDiagram {
 
             svg.push_str(&format!(
                 r#"
-    <text x="{}" y="{}" transform="rotate(-90 {} {})" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="{}">{}</text>"#,
-                label_x,
-                label_y,
+    <g transform="translate({},{}) rotate(-90)">
+        <text x="0" y="0" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="bold" fill="{}">{}</text>
+    </g>"#,
                 label_x,
                 label_y,
                 "#000000",
