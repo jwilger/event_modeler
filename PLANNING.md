@@ -55,7 +55,142 @@ This ensures no work is forgotten or lost in the codebase.
 - Some SVG rendering primitives (will need significant extension)
 - Project structure and build configuration
 
-## Overview
+## MCP Workflow Server Development
+
+**Status**: Starting Phase 1
+
+**Goal**: Create an MCP (Model Context Protocol) server that manages our development workflow, providing deterministic guidance and automated GitHub/Git operations. This will eventually replace the manual process rules in this document.
+
+### Overview
+
+The MCP Workflow Server will:
+- Provide proactive monitoring of PR status, CI checks, and review feedback
+- Automate PR chain management and rebasing
+- Give deterministic next-step instructions
+- Handle GitHub API interactions directly (no LLM interpretation)
+- Run comprehensive checks with every interaction
+
+### Development Approach
+
+1. **Location**: Develop in `mcp-workflow-server/` subdirectory
+2. **Structure**: Independent npm package for future extraction
+3. **Dogfooding**: Replace manual processes incrementally as each feature is completed
+4. **Process**: Follow same PR-driven workflow as main application
+
+### Proactive Monitoring Architecture
+
+Every MCP tool response will include:
+```typescript
+{
+  requestedData: {...},      // What was asked for
+  automaticActions: [...],   // What MCP did automatically  
+  issuesFound: [...],        // Problems detected
+  suggestedActions: [...],   // What LLM should do
+  allPRStatus: [...]        // Always include PR overview
+}
+```
+
+### Implementation Phases
+
+#### Phase 1: Project Setup & Smart Status
+**Branch**: `feature/mcp-project-setup`
+**Goal**: Create foundation and intelligent status monitoring
+
+Tasks:
+- Create `mcp-workflow-server/` directory structure
+- Initialize TypeScript project with MCP SDK
+- Configure build system and dependencies
+- Implement `workflow/status` tool that checks:
+  - Current branch and git status
+  - Whether current branch is based on latest main
+  - All open PRs and their CI status
+  - PRs needing rebase after merges
+  - Uncommitted changes warning
+  - Stale branch detection (branch created before recent merges)
+- Add persistent state management
+- **Dogfood**: Replace manual `gh pr list` checks with MCP tool
+
+#### Phase 2: Intelligent Next Step
+**Branch**: `feature/mcp-next-step`
+**Goal**: Context-aware guidance for what to do next
+
+Tasks:
+- Implement `workflow/next-step` tool that:
+  - Runs full status check first
+  - Detects current context (PR created? Reviews pending? CI failing?)
+  - Prioritizes urgent issues (failing CI, needed rebases)
+  - Provides specific commands to run
+- Add workflow state tracking
+- Create configuration for workflow rules
+- **Dogfood**: Replace "check PLANNING.md for next task" with MCP tool
+
+#### Phase 3: Smart PR Creation
+**Branch**: `feature/mcp-pr-creation`
+**Goal**: Automated PR creation with monitoring
+
+Tasks:
+- Implement `workflow/create-pr` tool that:
+  - Verifies PR doesn't already exist
+  - Checks base branch is up-to-date
+  - Creates PR with proper template
+  - Immediately starts review monitoring
+  - Returns PR URL and initial status
+- Add PR template configuration
+- **Dogfood**: Replace manual `gh pr create` commands with MCP tool
+
+#### Phase 4: Active Review Monitoring
+**Branch**: `feature/mcp-review-monitoring`
+**Goal**: Proactive review and CI monitoring
+
+Tasks:
+- Implement `workflow/monitor-reviews` tool that:
+  - Checks ALL open PRs (not just current)
+  - Detects new reviews/comments from any reviewer
+  - Formats feedback for LLM action
+  - Tracks which comments need responses
+  - Monitors CI status changes
+- Add review comment threading support
+- **Dogfood**: Replace manual review checking with MCP tool
+
+#### Phase 5: Automated Merge & Rebase
+**Branch**: `feature/mcp-merge-handling`
+**Goal**: Automatic PR chain management
+
+Tasks:
+- Implement `workflow/handle-merge` tool that:
+  - Detects when base PRs merge
+  - Automatically rebases downstream PRs
+  - Handles conflicts with clear instructions
+  - Updates PR base branches via API
+  - Reports all actions taken
+- Add PR chain dependency tracking
+- **Dogfood**: Replace manual rebase instructions with MCP tool
+
+### Success Criteria
+
+1. Each phase successfully replaces its manual counterpart
+2. Workflow becomes more efficient with each phase
+3. No workflow disruption during migration
+4. 90% of process rules moved from PLANNING.md to MCP
+5. Can be extracted to separate repository with minimal changes
+6. All workflow decisions are deterministic and consistent
+
+### Testing Strategy
+
+- Mock GitHub API for unit tests
+- Integration tests with real GitHub API (test repo)
+- Dogfood each feature on actual Event Modeler PRs
+- Document any gaps discovered during real usage
+
+### Future Enhancements
+
+- VS Code extension integration
+- Slack/Discord notifications
+- Multi-repo support
+- Custom workflow definitions
+- Analytics and metrics tracking
+
+## Development Process Overview
 
 **CRITICAL**: The VERY FIRST step when starting any work session is to create a todo list using the TodoWrite tool. Even if the only item is "Review PLANNING.md to determine next tasks", you MUST create this todo list before doing anything else. This ensures work is always tracked and organized.
 
@@ -88,6 +223,15 @@ git checkout main
 git pull origin main
 git checkout -b feature/your-branch-name
 ```
+
+**Common Mistake Prevention**:
+- NEVER reuse old branches that were created before recent merges
+- If you accidentally work on a stale branch:
+  1. Stash your changes: `git stash`
+  2. Switch to main and update: `git checkout main && git pull origin main`
+  3. Create new branch: `git checkout -b feature/new-branch-name`
+  4. Apply stashed changes: `git stash pop`
+- The MCP server will detect and warn about stale branches automatically
 
 ### Commit Practice Rule
 **IMPORTANT**: When addressing multiple review comments or making different types of changes:
