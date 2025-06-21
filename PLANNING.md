@@ -308,12 +308,13 @@ For Phase 6 only, due to the incremental visual development approach:
    - Compare with `tests/fixtures/acceptance/example.png`
    - Refine implementation to match style as closely as possible
    - Do NOT commit generated SVG/PNG files
-4. Once satisfied with visual output, commit code changes and push
-5. Create a PR (NOT draft) for just that element
-6. Monitor for Copilot review and address feedback
-7. **Wait for PR to be merged** - merge indicates approval to proceed
-8. Once merged, immediately proceed to next step
-9. The merged PR serves as user approval of the visual output
+4. **IMPORTANT**: Do NOT commit and push until you are satisfied with your comparison between the generated diagram and example.png
+5. Once satisfied with visual output, THEN commit code changes and push
+6. Create a PR (NOT draft) for just that element
+7. Monitor for Copilot review and address feedback
+8. **Wait for PR to be merged** - merge indicates approval to proceed
+9. Once merged, immediately proceed to next step
+10. The merged PR serves as user approval of the visual output
 
 This ensures each visual element matches expectations before building on it.
 
@@ -344,8 +345,8 @@ This ensures each visual element matches expectations before building on it.
 - Do NOT wait for explicit approval comments
 
 **Current Progress**:
-- ✅ Step 0: Delete and Initialize (COMPLETE - PR #28 created, awaiting approval)
-- ⏸️ Step 1: Canvas and Workflow Title (not started - awaiting Step 0 approval)
+- ✅ Step 0: Delete and Initialize (COMPLETE - PR #28 merged)
+- 🔄 Step 1: Canvas and Workflow Title (IN PROGRESS)
 - ⏸️ Step 2: Swimlanes (not started)
 - ⏸️ Step 3: Slice Headers (not started)
 
@@ -703,9 +704,14 @@ Following our type-driven testing ADR:
 **For Phase 6 Incremental Steps**:
 12. Review PLANNING.md, update with current status, and await approval before proceeding to next step
 
+**EXCEPTION for Phase 6 Visual Development**: 
+- The normal "commit after every small task" rule is SUSPENDED for Phase 6
+- Instead, only commit AFTER you are satisfied with the visual comparison to example.png
+- This ensures commits only contain visually correct implementations
+
 This ensures:
-1. **Extremely frequent verification** that code compiles and tests pass
-2. **Incremental commits** capturing each small working change
+1. **Visual correctness** before committing any changes
+2. **Clean commits** that represent visually verified implementations
 3. **Early detection** of any breaking changes
 4. **Clean commit history** with each commit representing buildable code
 5. **Early PR creation** for visibility and CI feedback
