@@ -1,0 +1,37 @@
+name: Claude
+
+on:
+  issues:
+    types: [opened, edited, closed]
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  pull_request_review:
+    types: [submitted]
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  claude:
+    runs-on: ubuntu-latest
+    # Only run if @claude is mentioned
+    if: |
+      contains(github.event.issue.body || '', '@claude') ||
+      contains(github.event.comment.body || '', '@claude') ||
+      contains(github.event.pull_request.body || '', '@claude') ||
+      contains(github.event.review.body || '', '@claude')
+    
+    steps:
+      - name: Run Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          api-key: ${{ secrets.CLAUDE_API_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Claude will read CLAUDE.md for project-specific instructions
+          # It will understand our workflow from the documentation we added
