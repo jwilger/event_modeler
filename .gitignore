@@ -4,3 +4,9 @@ node_modules
 # Added by cargo
 
 /target
+
+# Generated output files
+/*.png
+/*.svg
+# But keep example SVGs
+!/examples/*.svg
