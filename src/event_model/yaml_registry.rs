@@ -14,6 +14,7 @@ use super::yaml_types::{
     QueryDefinition, QueryName, SliceName, ViewDefinition, ViewName, YamlEventModel,
 };
 use crate::infrastructure::types::NonEmpty;
+use indexmap::IndexMap;
 use std::collections::HashMap;
 
 /// Registry for YAML event model entities.
@@ -35,7 +36,7 @@ pub struct YamlEntityRegistry {
     /// Automations indexed by name.
     pub automations: HashMap<AutomationName, AutomationDefinition>,
     /// Slices defining connections between entities.
-    pub slices: HashMap<SliceName, NonEmpty<Connection>>,
+    pub slices: IndexMap<SliceName, NonEmpty<Connection>>,
 }
 
 impl YamlEntityRegistry {

@@ -31,6 +31,7 @@
 //!    ensure all cases are handled at compile time.
 
 use crate::infrastructure::types::{NonEmpty, NonEmptyString};
+use indexmap::IndexMap;
 use nutype::nutype;
 use std::collections::HashMap;
 
@@ -62,7 +63,8 @@ pub struct YamlEventModel {
     /// Automations that trigger based on events.
     pub automations: HashMap<AutomationName, AutomationDefinition>,
     /// Slices that define connections between entities.
-    pub slices: HashMap<SliceName, NonEmpty<Connection>>,
+    /// Uses IndexMap to preserve YAML file order for proper left-to-right display.
+    pub slices: IndexMap<SliceName, NonEmpty<Connection>>,
 }
 
 /// Schema version following semantic versioning.

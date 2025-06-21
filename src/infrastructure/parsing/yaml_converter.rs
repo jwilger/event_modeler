@@ -9,6 +9,7 @@
 use crate::event_model::yaml_types as domain;
 use crate::infrastructure::parsing::yaml_parser as parsing;
 use crate::infrastructure::types::{NonEmpty, NonEmptyString, ParseError};
+use indexmap::IndexMap;
 use std::collections::HashMap;
 
 /// Helper function to convert a Vec to NonEmpty.
@@ -665,9 +666,9 @@ fn convert_automations(
 
 /// Converts slice definitions.
 fn convert_slices(
-    slices: HashMap<String, Vec<String>>,
-) -> Result<HashMap<domain::SliceName, NonEmpty<domain::Connection>>, ConversionError> {
-    let mut result = HashMap::new();
+    slices: IndexMap<String, Vec<String>>,
+) -> Result<IndexMap<domain::SliceName, NonEmpty<domain::Connection>>, ConversionError> {
+    let mut result = IndexMap::new();
 
     for (name_str, connections) in slices {
         let name = domain::SliceName::new(

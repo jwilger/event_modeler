@@ -510,7 +510,7 @@ fn convert_commands(
 
 /// Convert YAML slices to diagram slices with their connections.
 fn convert_yaml_slices_to_diagram_slices(
-    yaml_slices: &std::collections::HashMap<
+    yaml_slices: &indexmap::IndexMap<
         yaml::SliceName,
         crate::infrastructure::types::NonEmpty<yaml::Connection>,
     >,
@@ -731,6 +731,7 @@ mod tests {
     use super::*;
     use crate::event_model::yaml_types::*;
     use crate::infrastructure::types::NonEmpty;
+    use indexmap::IndexMap;
     use std::collections::HashMap;
 
     #[test]
@@ -770,7 +771,7 @@ mod tests {
             projections: HashMap::new(),
             queries: HashMap::new(),
             automations: HashMap::new(),
-            slices: HashMap::new(),
+            slices: IndexMap::new(),
         };
 
         // Convert to diagram
@@ -836,7 +837,7 @@ mod tests {
         let mut events = HashMap::new();
         events.insert(event_name, event);
 
-        let mut slices = HashMap::new();
+        let mut slices = IndexMap::new();
         slices.insert(slice_name, connections);
 
         let yaml_model = YamlEventModel {
@@ -977,7 +978,7 @@ mod tests {
             projections: HashMap::new(),
             queries: HashMap::new(),
             automations: HashMap::new(),
-            slices: HashMap::new(),
+            slices: IndexMap::new(),
         };
 
         // Convert to diagram

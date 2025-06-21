@@ -8,6 +8,7 @@
 //! before conversion to domain types.
 
 use crate::VERSION;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -50,7 +51,7 @@ pub struct YamlEventModel {
 
     /// Slice definitions
     #[serde(default)]
-    pub slices: HashMap<String, Vec<String>>,
+    pub slices: IndexMap<String, Vec<String>>,
 }
 
 /// Swimlane definition.

@@ -5,7 +5,7 @@
 use super::{EventModelDiagram, Result};
 use crate::event_model::yaml_types;
 use crate::infrastructure::types::NonEmpty;
-use std::collections::HashMap;
+use indexmap::IndexMap;
 
 // Constants for SVG dimensions and text coordinates
 const MIN_WIDTH: u32 = 1200; // Minimum reasonable width
@@ -177,7 +177,7 @@ fn render_swimlanes(
 
 /// Renders the slice headers with dividers.
 fn render_slice_headers(
-    slices: &HashMap<yaml_types::SliceName, NonEmpty<yaml_types::Connection>>,
+    slices: &IndexMap<yaml_types::SliceName, NonEmpty<yaml_types::Connection>>,
     start_x: u32,
     total_width: u32,
     total_height: u32,
@@ -186,13 +186,8 @@ fn render_slice_headers(
 
     svg.push_str("  <!-- Slice headers -->\n");
 
-    // Get slice names in a consistent order
-    let mut slice_names: Vec<_> = slices.keys().collect();
-    slice_names.sort_by(|a, b| {
-        let a_str = (*a).clone().into_inner();
-        let b_str = (*b).clone().into_inner();
-        a_str.as_str().cmp(b_str.as_str())
-    });
+    // Get slice names in YAML file order (preserved by IndexMap)
+    let slice_names: Vec<_> = slices.keys().collect();
 
     let slice_width = (total_width - start_x) / slice_names.len() as u32;
 
