@@ -26,12 +26,12 @@ This ensures no work is forgotten or lost in the codebase.
 
 ## Current Status
 
-**Last Updated**: 2025-06-21 (Phase 6 RESTARTED - proper implementation approach)
+**Last Updated**: 2025-06-21 (Phase 6 Step 1 COMPLETE - Canvas and Workflow Title)
 
 **Latest Progress**: 
-- Phase 6 (Incremental Diagram Module Rewrite) RESTARTED
-- Previous attempt failed due to improper implementation approach
-- Starting over with Step 0: Delete and Initialize
+- Phase 6 (Incremental Diagram Module Rewrite) IN PROGRESS
+- Step 0: Delete and Initialize (COMPLETE - PR #28 merged)
+- Step 1: Canvas and Workflow Title (COMPLETE - PR #29 created, Copilot reviewed, awaiting merge)
 - **CRITICAL**: All code must be in the library, not in test binaries or CLI hacks
 
 **Current Approach**: Building diagram module incrementally:
@@ -65,6 +65,34 @@ The implementation will follow a PR-driven workflow with feature branch chaining
 4. Branch the next feature off the previous feature branch
 5. Monitor PR status and fix any CI failures
 6. Handle rebasing when base branches are merged
+
+## 🔴 CRITICAL Development Rules 🔴
+
+These rules apply to ALL development work, not just specific phases:
+
+### Visual Development Rule
+**IMPORTANT**: When working on visual output (diagrams, UI, etc.):
+1. Do NOT commit and push until you are satisfied with your comparison between the generated output and the expected result
+2. Test locally first:
+   - Generate the output (e.g., SVG, PNG)
+   - Compare with gold standard examples
+   - Refine implementation to match expected output
+3. Only after you're satisfied with the visual output, THEN commit code changes and push
+4. This ensures each visual element matches expectations before building on it
+
+### Branch Management Rule
+**CRITICAL**: Always update main before creating new branches:
+```bash
+git checkout main
+git pull origin main
+git checkout -b feature/your-branch-name
+```
+
+### PR Process Rule
+1. Create PRs as ready (not draft) to trigger Copilot review
+2. Monitor for Copilot review and address ALL feedback
+3. PR merge = approval to proceed to next task
+4. Once PR is merged, immediately proceed to next step
 
 ## ADRs to Create
 
@@ -298,55 +326,29 @@ workflow: User Account Signup
 
 #### Implementation Steps:
 
-**⚠️ IMPORTANT: Automated Approval Process for Phase 6**
-For Phase 6 only, due to the incremental visual development approach:
+**⚠️ Phase 6 Visual Development Process**
+Phase 6 follows the general Visual Development Rule (see above) with these specific details:
 1. Create a new feature branch for each step (e.g., `feature/diagram-step-3-slice-headers`)
-2. Implement one diagram element
+2. Implement one diagram element at a time
 3. Test locally:
    - Generate SVG: `cargo run -- tests/fixtures/acceptance/example.eventmodel -o test.svg`
    - Convert to PNG: `magick test.svg test.png`
    - Compare with `tests/fixtures/acceptance/example.png`
    - Refine implementation to match style as closely as possible
    - Do NOT commit generated SVG/PNG files
-4. **IMPORTANT**: Do NOT commit and push until you are satisfied with your comparison between the generated diagram and example.png
-5. Once satisfied with visual output, THEN commit code changes and push
-6. Create a PR (NOT draft) for just that element
-7. Monitor for Copilot review and address feedback
-8. **Wait for PR to be merged** - merge indicates approval to proceed
-9. Once merged, immediately proceed to next step
-10. The merged PR serves as user approval of the visual output
+4. Follow the general Visual Development Rule for committing
+5. Create a PR for just that element (following general PR Process Rule)
+6. Once merged, immediately proceed to next step
 
-This ensures each visual element matches expectations before building on it.
-
-**Branch/PR Strategy for Phase 6**:
-- **CRITICAL**: Always update main before creating new branches:
-  ```bash
-  git checkout main
-  git pull origin main
-  git checkout -b feature/diagram-step-{number}-{element-name}
-  ```
-- Each step gets its own feature branch from main
+**Branch Naming for Phase 6**:
 - Branch naming: `feature/diagram-step-{number}-{element-name}`
-  - Example: `feature/diagram-step-3-slice-headers`
-  - Example: `feature/diagram-step-4-login-screen-view`
-- Each PR focuses on ONE visual element only
+- Example: `feature/diagram-step-3-slice-headers`
+- Example: `feature/diagram-step-4-login-screen-view`
 - PR title format: "Add diagram element: {element description}"
-- After approval and merge, immediately create next branch from updated main
-
-**Approval Process for Phase 6**:
-- After implementing each step, commit and push to trigger GitHub Actions
-- Create PR (not draft) to trigger Copilot review
-- Monitor for and address Copilot feedback
-- The CI will generate a PNG preview and post it as a PR comment
-- User will review the visual output against the gold standard
-- **PR merge = approval to proceed to next step**
-- If user wants changes, they will comment directly
-- Once PR is merged, immediately start next step
-- Do NOT wait for explicit approval comments
 
 **Current Progress**:
 - ✅ Step 0: Delete and Initialize (COMPLETE - PR #28 merged)
-- 🔄 Step 1: Canvas and Workflow Title (IN PROGRESS)
+- ✅ Step 1: Canvas and Workflow Title (COMPLETE - PR #29 created, Copilot reviewed, awaiting merge)
 - ⏸️ Step 2: Swimlanes (not started)
 - ⏸️ Step 3: Slice Headers (not started)
 
