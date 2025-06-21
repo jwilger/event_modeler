@@ -41,5 +41,6 @@ jobs:
           claude_access_token: ${{ secrets.CLAUDE_ACCESS_TOKEN }}
           claude_refresh_token: ${{ secrets.CLAUDE_REFRESH_TOKEN }}
           claude_expires_at: ${{ secrets.CLAUDE_EXPIRES_AT }}
+          allowed_tools: "bash,write,read,edit"
           # Claude will read CLAUDE.md for project-specific instructions
           # It will understand our workflow from the documentation we added
