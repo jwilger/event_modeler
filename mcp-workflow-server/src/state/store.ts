@@ -53,9 +53,27 @@ export class StateStore {
     };
   }
 
+  /**
+   * Migrates the state from an older version to the current version.
+   * 
+   * This method is called when the loaded state version does not match the current
+   * `STATE_VERSION`. The migration logic should transform the old state into a format
+   * compatible with the current version. Each version upgrade should be handled explicitly
+   * to ensure data integrity and compatibility.
+   * 
+   * TODO: Implement migration logic for future state version updates.
+   * Example:
+   * if (_oldState.version === 1) {
+   *   // Perform migration from version 1 to version 2
+   * }
+   * 
+   * @param _oldState - The state object from a previous version.
+   * @returns The migrated state object compatible with the current version.
+   */
   private migrateState(_oldState: any): WorkflowState {
-    // Handle future migrations here
-    console.error('State migration needed but not implemented');
+    // For now, we start fresh when version mismatch occurs
+    // In the future, implement specific migration logic based on version
+    console.error('State migration needed but not implemented - starting with fresh state');
     return {
       lastCheckedPRs: {},
       branchCreationDates: {},

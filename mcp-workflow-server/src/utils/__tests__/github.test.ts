@@ -97,15 +97,26 @@ describe('GitHub Utilities', () => {
   });
 
   describe('PR retrieval', () => {
-    it('should handle missing gh auth gracefully', async () => {
+    it('should handle empty PR list', async () => {
       vi.mocked(execSync).mockImplementation((cmd: any) => {
         if (cmd === 'gh auth token') {
-          throw new Error('gh not authenticated');
+          return 'mock-token';
+        }
+        if (cmd === 'git config --get remote.origin.url') {
+          return 'git@github.com:owner/repository.git\n';
         }
         return '';
       });
 
-      await expect(getAllPRs()).rejects.toThrow('Failed to get GitHub token');
+      const mockOctokit = {
+        pulls: {
+          list: vi.fn().mockResolvedValue({ data: [] }),
+        },
+      };
+      vi.mocked(Octokit).mockImplementation(() => mockOctokit as any);
+
+      const result = await getAllPRs();
+      expect(result).toEqual([]);
     });
   });
 });
