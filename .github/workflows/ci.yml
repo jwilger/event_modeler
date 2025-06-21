@@ -88,11 +88,20 @@ jobs:
               export GH_TOKEN="${{ secrets.GIST_TOKEN }}"
               
               # Create a gist with the SVG using PAT
-              GIST_OUTPUT=$(gh gist create example.svg --desc "Event Model Diagram for PR #${{ github.event.pull_request.number }}" --public)
+              GIST_OUTPUT=$(gh gist create example.svg --desc "Event Model Diagram for PR #${{ github.event.pull_request.number }} (Build ${{ github.run_number }})" --public)
+              # Extract gist ID from the URL output
               GIST_ID=$(echo "$GIST_OUTPUT" | grep -oE '[a-f0-9]{32}' | head -1)
               
-              # Get the raw URL for the SVG file
-              SVG_URL="https://gist.githubusercontent.com/${{ github.actor }}/${GIST_ID}/raw/example.svg"
+              # If the above doesn't work, try extracting from the gist URL format
+              if [ -z "$GIST_ID" ]; then
+                GIST_ID=$(echo "$GIST_OUTPUT" | sed -n 's|.*/\([a-f0-9]\{32\}\).*|\1|p')
+              fi
+              
+              echo "Created gist with ID: ${GIST_ID}"
+              
+              # Get the raw URL for the SVG file with cache busting
+              TIMESTAMP=$(date +%s)
+              SVG_URL="https://gist.githubusercontent.com/${{ github.actor }}/${GIST_ID}/raw/example.svg?t=${TIMESTAMP}"
               
               # Create the diagram section using template
               sed -e "s|{{SVG_URL}}|${SVG_URL}|g" \
