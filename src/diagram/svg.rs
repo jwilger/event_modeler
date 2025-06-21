@@ -93,8 +93,15 @@ fn render_swimlanes(
 
     let mut current_y = start_y;
 
+    // Draw top border of first swimlane
+    svg.push_str(&format!(
+        r#"  <line x1="{}" y1="{}" x2="{}" y2="{}" stroke="{}" stroke-width="1"/>
+"#,
+        0, current_y, total_width, current_y, SWIMLANE_BORDER_COLOR
+    ));
+
     for (index, (swimlane, &height)) in swimlanes.iter().zip(swimlane_heights.iter()).enumerate() {
-        // Draw horizontal line (except for the first swimlane)
+        // Draw horizontal line between swimlanes (not before the first one)
         if index > 0 {
             svg.push_str(&format!(
                 r#"  <line x1="{}" y1="{}" x2="{}" y2="{}" stroke="{}" stroke-width="1"/>
