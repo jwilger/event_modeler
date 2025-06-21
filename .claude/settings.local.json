@@ -16,10 +16,10 @@
       "Bash(gh issue list:*)",
       "Bash(gh label create:*)",
       "Bash(gh issue close:*)",
-      "Bash(for issue in 37 38 39 40)",
-      "Bash(do gh issue close $issue --comment \"Closing to recreate without milestones - will use epic tracking instead\")",
-      "Bash(done)",
-      "Bash(gh issue edit:*)"
+      "Bash(gh issue edit:*)",
+      "Bash(for:*)",
+      "Bash(do:*)",
+      "Bash(done:*)"
     ],
     "deny": []
   }
