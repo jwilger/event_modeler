@@ -15,8 +15,8 @@
 //! ## Module Overview
 //!
 //! - [`event_model`] - Core Event Modeling concepts (Commands, Events, etc.)
-//! - [`diagram`] - Visual representation and rendering
-//! - [`export`] - Output formats (PDF, Markdown)
+//! - `diagram` - Visual representation and rendering (TODO: reimplement)
+//! - `export` - Output formats (PDF, Markdown) (TODO: reimplement)
 //! - [`infrastructure`] - Type safety and parsing utilities
 //! - [`cli`] - Command-line interface
 //!
@@ -31,7 +31,8 @@
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod cli;
-pub mod diagram;
+// TODO: Re-enable when diagram module is complete
+// pub mod diagram;
 pub mod event_model;
 // TODO: Re-enable when diagram module is complete
 // pub mod export;
