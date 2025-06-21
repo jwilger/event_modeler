@@ -101,11 +101,12 @@ impl EventModelDiagram {
         let mut svg = format!(
             r#"<svg width="{}" height="{}" xmlns="http://www.w3.org/2000/svg">
     <rect width="{}" height="{}" fill="white" />
-    <text x="600" y="40" text-anchor="middle" font-family="Liberation Sans, Arial, sans-serif" font-size="24" font-weight="bold" fill="{}">{}</text>"#,
+    <text x="{}" y="40" text-anchor="start" font-family="Liberation Sans, Arial, sans-serif" font-size="24" font-weight="bold" fill="{}">{}</text>"#,
             CANVAS_WIDTH,
             canvas_height,
             CANVAS_WIDTH,
             canvas_height,
+            PADDING, // Use same padding as other elements
             "#24292e",
             xml_escape(self.workflow_title())
         );
