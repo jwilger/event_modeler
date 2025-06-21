@@ -266,12 +266,15 @@ slices:
     - UserAccountCredentialsCreated -> NewAccountScreen
     - NewAccountScreen -> VerifyEmailAddressScreen
 
-  VerifyEmailAddress:
+  SendEmailVerification:
     - UserAccountCredentialsCreated -> UserEmailVerifier
     - UserEmailVerifier -> SendEmailVerification
     - SendEmailVerification -> EmailVerificationMessageSent
     - EmailVerificationMessageSent -> UserEmailVerificationTokenProjection
-    - VerifyEmailAddressScreen.VerificationForm.Submit -> VerifyUserEmailAddress
+
+  VerifyEmailAddress:
+    - VerifyEmailAddressScreen.VerificationForm.Submit -> GetAccountIdForEmailVerificationToken
+    - GetAccountIdForEmailVerificationToken -> VerifyUserEmailAddress
     - VerifyUserEmailAddress -> EmailAddressVerified
     - EmailAddressVerified -> UserCredentialsProjection
     - EmailAddressVerified -> UserEmailVerificationTokenProjection

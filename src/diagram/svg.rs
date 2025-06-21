@@ -13,6 +13,25 @@ fn xml_escape(text: &str) -> String {
         .replace('\'', "&apos;")
 }
 
+/// Converts a CamelCase slice name to "Title Case" for display.
+/// Examples:
+/// - "CreateAccount" -> "Create Account"
+/// - "SendEmailVerification" -> "Send Email Verification"
+/// - "VerifyEmailAddress" -> "Verify Email Address"
+fn convert_slice_name_to_display(name: &str) -> String {
+    let mut result = String::new();
+    let chars = name.chars();
+
+    for ch in chars {
+        if ch.is_uppercase() && !result.is_empty() {
+            result.push(' ');
+        }
+        result.push(ch);
+    }
+
+    result
+}
+
 /// Wraps text to fit within a given width when rotated.
 /// Returns a vector of lines.
 fn wrap_text(text: &str, max_chars: usize) -> Vec<String> {
@@ -59,6 +78,7 @@ impl EventModelDiagram {
     /// Renders the diagram to SVG.
     pub fn to_svg(&self) -> String {
         const TITLE_HEIGHT: f64 = 60.0;
+        const SLICE_HEADER_HEIGHT: f64 = 40.0;
         const SWIMLANE_HEIGHT: f64 = 200.0;
         const CANVAS_WIDTH: f64 = 1200.0;
         const FONT_SIZE: f64 = 16.0;
@@ -96,7 +116,10 @@ impl EventModelDiagram {
             }
         }
 
-        let canvas_height = TITLE_HEIGHT + (self.swimlanes().len() as f64 * SWIMLANE_HEIGHT) + 50.0;
+        let canvas_height = TITLE_HEIGHT
+            + SLICE_HEADER_HEIGHT
+            + (self.swimlanes().len() as f64 * SWIMLANE_HEIGHT)
+            + 50.0;
 
         let mut svg = format!(
             r#"<svg width="{}" height="{}" xmlns="http://www.w3.org/2000/svg">
@@ -111,9 +134,39 @@ impl EventModelDiagram {
             xml_escape(self.workflow_title())
         );
 
+        // Draw slice headers
+        if !self.slices().is_empty() {
+            let slice_width = (CANVAS_WIDTH - max_label_width) / self.slices().len() as f64;
+
+            for (index, slice) in self.slices().iter().enumerate() {
+                let x = max_label_width + (index as f64 * slice_width);
+                let y = TITLE_HEIGHT;
+
+                // Draw slice header background
+                svg.push_str(&format!(
+                    r#"
+    <rect x="{}" y="{}" width="{}" height="{}" fill="{}" stroke="{}" stroke-width="1" />"#,
+                    x, y, slice_width, SLICE_HEADER_HEIGHT, "#f6f8fa", "#e1e4e8"
+                ));
+
+                // Draw slice header text (convert from CamelCase to "Title Case")
+                let slice_name = slice.name();
+                let display_name = convert_slice_name_to_display(&slice_name);
+                svg.push_str(&format!(
+                    r#"
+    <text x="{}" y="{}" text-anchor="middle" font-family="Liberation Sans, Arial, sans-serif" font-size="{}" font-weight="bold" fill="{}">{}</text>"#,
+                    x + (slice_width / 2.0),
+                    y + (SLICE_HEADER_HEIGHT / 2.0) + 5.0, // Vertically center text
+                    FONT_SIZE,
+                    "#24292e",
+                    xml_escape(&display_name)
+                ));
+            }
+        }
+
         // Draw swimlanes
         for (index, swimlane) in self.swimlanes().iter().enumerate() {
-            let y = TITLE_HEIGHT + (index as f64 * SWIMLANE_HEIGHT);
+            let y = TITLE_HEIGHT + SLICE_HEADER_HEIGHT + (index as f64 * SWIMLANE_HEIGHT);
 
             // Draw swimlane background
             svg.push_str(&format!(

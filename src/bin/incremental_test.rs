@@ -59,6 +59,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nPress Enter to continue to next step...");
     std::io::stdin().read_line(&mut input)?;
 
+    // Step 3: Add slice headers
+    println!("\n=== Step 3: Slice Headers ===");
+
+    // Add slices from the domain model
+    for slice_name in domain_model.slices.keys() {
+        diagram = diagram.with_slice(slice_name.clone());
+    }
+
+    // Render and show
+    render_and_show(&diagram, &output_dir, "step_03_slice_headers.svg")?;
+
+    println!("\nPress Enter to continue to next step...");
+    std::io::stdin().read_line(&mut input)?;
+
     // Future steps will be added here incrementally
 
     Ok(())
