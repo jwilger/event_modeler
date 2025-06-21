@@ -89,6 +89,13 @@ git pull origin main
 git checkout -b feature/your-branch-name
 ```
 
+### Commit Practice Rule
+**IMPORTANT**: When addressing multiple review comments or making different types of changes:
+1. Commit each logical change separately for easier review
+2. Each commit should address one concern or piece of feedback
+3. Use clear commit messages that explain what specific issue is being addressed
+4. This makes the review process clearer and allows for better discussion of individual changes
+
 ### PR Process Rule
 1. Create PRs as ready (not draft) to trigger automated reviews
 2. Monitor for ALL reviews (Copilot, user, or any other reviewer) using a sleep/check cycle:
