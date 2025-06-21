@@ -1,0 +1,148 @@
+name: Claude Issue Handler
+
+on:
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  handle-claude-mention:
+    if: |
+      (github.event_name == 'issues' && contains(github.event.issue.body, '@claude')) ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Check issue dependencies
+        id: check-deps
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            
+            // Check if issue has unmet dependencies
+            const dependsOnMatch = body.match(/Depends on #(\d+)/);
+            if (dependsOnMatch) {
+              const depNumber = dependsOnMatch[1];
+              const depIssue = await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: parseInt(depNumber)
+              });
+              
+              if (depIssue.data.state === 'open') {
+                console.log(`Issue depends on #${depNumber} which is still open`);
+                return { canWork: false, reason: `Waiting for #${depNumber} to be completed` };
+              }
+            }
+            
+            return { canWork: true };
+      
+      - name: Claude works on issue
+        if: steps.check-deps.outputs.canWork == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          api-key: ${{ secrets.CLAUDE_API_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  find-next-issue:
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Find next issue in epic
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get all open issues with 'epic' label
+            const epics = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'epic',
+              state: 'open'
+            });
+            
+            for (const epic of epics.data) {
+              // Get sub-issues of this epic
+              const subIssues = await github.graphql(`
+                query($epicId: ID!) {
+                  node(id: $epicId) {
+                    ... on Issue {
+                      id
+                      trackedIssues(first: 100) {
+                        nodes {
+                          id
+                          number
+                          title
+                          state
+                          body
+                        }
+                      }
+                    }
+                  }
+                }
+              `, {
+                epicId: epic.node_id
+              });
+              
+              // Find first open sub-issue without dependencies or with met dependencies
+              const openSubIssues = subIssues.node.trackedIssues.nodes
+                .filter(issue => issue.state === 'OPEN')
+                .sort((a, b) => a.number - b.number); // Work in order
+              
+              for (const subIssue of openSubIssues) {
+                // Check dependencies
+                const dependsOnMatch = subIssue.body?.match(/Depends on #(\d+)/);
+                if (!dependsOnMatch) {
+                  // No dependencies, this is our next issue
+                  console.log(`Next issue to work on: #${subIssue.number} - ${subIssue.title}`);
+                  
+                  // Add a comment mentioning @claude
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: subIssue.number,
+                    body: `The dependency for this issue has been resolved. @claude, please begin work on this issue.`
+                  });
+                  
+                  return;
+                }
+                
+                // Check if dependency is closed
+                const depNumber = parseInt(dependsOnMatch[1]);
+                const depIssue = await github.rest.issues.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: depNumber
+                });
+                
+                if (depIssue.data.state === 'closed') {
+                  // Dependency is met, this is our next issue
+                  console.log(`Next issue to work on: #${subIssue.number} - ${subIssue.title}`);
+                  
+                  // Add a comment mentioning @claude
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: subIssue.number,
+                    body: `The dependency for this issue has been resolved. @claude, please begin work on this issue.`
+                  });
+                  
+                  return;
+                }
+              }
+            }
+            
+            console.log('No available issues found to work on');
