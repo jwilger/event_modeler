@@ -4,6 +4,7 @@
 
 use crate::event_model::yaml_types;
 use crate::infrastructure::types::{NonEmpty, NonEmptyString};
+use std::collections::HashMap;
 
 use super::Result;
 
@@ -17,6 +18,8 @@ pub struct EventModelDiagram {
     workflow_title: NonEmptyString,
     /// The swimlanes defined in the model.
     swimlanes: NonEmpty<yaml_types::Swimlane>,
+    /// The slices defined in the model.
+    slices: HashMap<yaml_types::SliceName, NonEmpty<yaml_types::Connection>>,
 }
 
 impl EventModelDiagram {
@@ -25,6 +28,7 @@ impl EventModelDiagram {
         Ok(EventModelDiagram {
             workflow_title: model.workflow.clone().into_inner(),
             swimlanes: model.swimlanes.clone(),
+            slices: model.slices.clone(),
         })
     }
 
@@ -36,5 +40,10 @@ impl EventModelDiagram {
     /// Gets the swimlanes.
     pub fn swimlanes(&self) -> &NonEmpty<yaml_types::Swimlane> {
         &self.swimlanes
+    }
+
+    /// Gets the slices.
+    pub fn slices(&self) -> &HashMap<yaml_types::SliceName, NonEmpty<yaml_types::Connection>> {
+        &self.slices
     }
 }
