@@ -327,12 +327,20 @@ workflow: User Account Signup
    - Review the actual rendered diagram in the PR
 
 **Dynamic Requirements**: The diagram module MUST be dynamic enough to handle ANY valid .eventmodel file:
-- Variable number of swimlanes
+- Variable number of swimlanes (defined by the input .eventmodel file, not hardcoded)
+- Swimlane names/titles come from the .eventmodel file (e.g., "UX, Automations", "Commands, Projections, Queries")
 - Variable number of entities of each type
 - Different slice configurations
 - Different test scenario counts per command
 - Dynamic layout that adapts to content
 - Multiple instances of ANY entity type based on slice connections
+
+**Visual Style Requirements**: When comparing with example.png:
+- Match the STYLE and RELATIVE POSITIONING, not exact pixel dimensions
+- All sizes should be DYNAMIC to best fit their contents
+- Elements should have reasonable minimum dimensions when empty
+- Maintain similar padding/spacing between elements and containers
+- The goal is visual consistency and readability, not pixel-perfect matching
 
 #### Implementation Steps:
 
