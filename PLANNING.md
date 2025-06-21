@@ -98,8 +98,18 @@ git checkout -b feature/your-branch-name
    - Continue monitoring until PR is merged
 3. Before PR can be merged:
    - ALL review comments must be addressed (even if marked as "low confidence")
-   - Add a comment explaining how each piece of feedback was addressed
-   - Resolve/dismiss review comments as appropriate
+   - Reply directly to each review comment with either:
+     - How you fixed the issue (with commit reference if applicable)
+     - Why you're not addressing it (with clear reasoning)
+   - Resolve review threads using GraphQL API:
+     ```bash
+     gh api graphql -H "Accept: application/vnd.github.merge-info-preview+json" -f query='
+     mutation {
+       resolveReviewThread(input: {threadId: "THREAD_ID"}) {
+         thread { isResolved }
+       }
+     }'
+     ```
 4. PR merge = approval to proceed to next task
 5. Once PR is merged, immediately proceed to next step
 
