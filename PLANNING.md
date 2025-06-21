@@ -788,16 +788,23 @@ This ensures:
      --jq '.[] | select(.user.login | contains("copilot")) | {state: .state, body: .body}'
    ```
    - Once Copilot review appears, read and analyze the feedback
+   - **IMPORTANT**: Also check for specific code suggestions:
+   ```bash
+   gh api repos/jwilger/event_modeler/pulls/<PR-number>/reviews/<REVIEW-ID>/comments \
+     --jq '.[] | {path: .path, line: .line, body: .body}'
+   ```
 
 6. **Address Copilot Feedback**
-   - Attempt to address any issues raised by Copilot
+   - Attempt to address ALL code suggestions and issues raised by Copilot
    - **IMPORTANT**: User instructions supersede Copilot suggestions
    - If Copilot feedback contradicts user instructions, follow user instructions
+   - Implement reasonable improvements (constants, performance, clarity)
    - Make necessary changes and commit/push them
    - Reply to Copilot review explaining any feedback not addressed:
    ```bash
    gh pr review <PR-number> --comment --body "Thank you for the review. [Explanation of what was addressed and why certain suggestions were not followed]"
    ```
+   - Ensure ALL review comments are either implemented or explicitly dismissed with reasoning
 
 7. **Wait for PR Merge**
    - After addressing feedback, wait for user to merge the PR
