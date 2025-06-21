@@ -298,19 +298,32 @@ workflow: User Account Signup
 
 #### Implementation Steps:
 
-**⚠️ IMPORTANT: Approval Required Between Steps**
+**⚠️ IMPORTANT: Automated Approval Process for Phase 6**
 For Phase 6 only, due to the incremental visual development approach:
 1. Create a new feature branch for each step (e.g., `feature/diagram-step-3-slice-headers`)
 2. Implement one diagram element
-3. Generate SVG and commit/push changes
-4. Create a focused PR for just that element
-5. **STOP and wait for user approval** before proceeding to next step
-6. User will review the visual output and provide feedback
-7. After approval, merge PR and create next feature branch from main
+3. Test locally:
+   - Generate SVG: `cargo run -- tests/fixtures/acceptance/example.eventmodel -o test.svg`
+   - Convert to PNG: `magick test.svg test.png`
+   - Compare with `tests/fixtures/acceptance/example.png`
+   - Refine implementation to match style as closely as possible
+   - Do NOT commit generated SVG/PNG files
+4. Once satisfied with visual output, commit code changes and push
+5. Create a PR (NOT draft) for just that element
+6. Monitor for Copilot review and address feedback
+7. **Wait for PR to be merged** - merge indicates approval to proceed
+8. Once merged, immediately proceed to next step
+9. The merged PR serves as user approval of the visual output
 
 This ensures each visual element matches expectations before building on it.
 
 **Branch/PR Strategy for Phase 6**:
+- **CRITICAL**: Always update main before creating new branches:
+  ```bash
+  git checkout main
+  git pull origin main
+  git checkout -b feature/diagram-step-{number}-{element-name}
+  ```
 - Each step gets its own feature branch from main
 - Branch naming: `feature/diagram-step-{number}-{element-name}`
   - Example: `feature/diagram-step-3-slice-headers`
@@ -321,19 +334,18 @@ This ensures each visual element matches expectations before building on it.
 
 **Approval Process for Phase 6**:
 - After implementing each step, commit and push to trigger GitHub Actions
+- Create PR (not draft) to trigger Copilot review
+- Monitor for and address Copilot feedback
 - The CI will generate a PNG preview and post it as a PR comment
 - User will review the visual output against the gold standard
-- User will provide one of:
-  - ✅ "Approved, proceed to next step"
-  - 🔄 "Changes needed: [specific feedback]"
-  - ❌ "Revert and try different approach: [guidance]"
-- Only proceed when you receive explicit approval
-- If changes are requested, implement them and push again for re-review
-- After approval, merge the PR before starting next step
+- **PR merge = approval to proceed to next step**
+- If user wants changes, they will comment directly
+- Once PR is merged, immediately start next step
+- Do NOT wait for explicit approval comments
 
 **Current Progress**:
-- 🔄 Step 0: Delete and Initialize (restarting with proper approach)
-- ⏸️ Step 1: Canvas and Workflow Title (not started)
+- ✅ Step 0: Delete and Initialize (COMPLETE - PR #28 created, awaiting approval)
+- ⏸️ Step 1: Canvas and Workflow Title (not started - awaiting Step 0 approval)
 - ⏸️ Step 2: Swimlanes (not started)
 - ⏸️ Step 3: Slice Headers (not started)
 
@@ -711,6 +723,11 @@ This ensures:
 ### For Each Feature Implementation:
 
 1. **Create Feature Branch**
+   - **ALWAYS start by updating main**:
+     ```bash
+     git checkout main
+     git pull origin main
+     ```
    - First feature: `git checkout -b feature/yaml-type-system`
    - Subsequent features: `git checkout -b feature/<name> feature/<previous-feature>`
    - This creates a chain: main → yaml-type-system → yaml-parser → domain-extensions → flow-layout → rich-rendering
@@ -741,12 +758,11 @@ This ensures:
    - Subsequent pushes: `git push`
    - **Remember**: The todo list structure enforces this frequency - every implementation task is followed by a build/test/commit task
 
-4. **Create Draft Pull Request (IMMEDIATELY after first push)**
+4. **Create Pull Request (IMMEDIATELY after first push - NOT as draft)**
    - **CRITICAL**: This must be the VERY NEXT task in your todo list after the first push
-   - Creating the draft PR early ensures visibility and CI feedback throughout development
+   - Creating the PR as "ready" (not draft) triggers automatic Copilot review
    ```bash
    gh pr create \
-     --draft \
      --title "Implement <feature description>" \
      --body "$(cat <<'EOF'
    ## Summary
@@ -764,23 +780,45 @@ This ensures:
      --base <previous-feature-branch-or-main>
    ```
 
-5. **Continue Development**
-   - Keep making incremental commits as you implement
-   - Push regularly to update the draft PR
-   - Each push updates the PR with your latest changes
-
-6. **Mark PR Ready and Enable Auto-Merge (when feature complete)**
+5. **Monitor for Copilot Review**
+   - After creating PR, immediately begin monitoring for Copilot review
+   - Check every 30 seconds for up to 5 minutes:
    ```bash
-   # Mark as ready for review
-   gh pr ready <PR-number>
-   
-   # Enable auto-merge
-   gh pr merge <PR-number> --auto --squash
+   gh api repos/jwilger/event_modeler/pulls/<PR-number>/reviews \
+     --jq '.[] | select(.user.login | contains("copilot")) | {state: .state, body: .body}'
+   ```
+   - Once Copilot review appears, read and analyze the feedback
+   - **IMPORTANT**: Also check for specific code suggestions:
+   ```bash
+   gh api repos/jwilger/event_modeler/pulls/<PR-number>/reviews/<REVIEW-ID>/comments \
+     --jq '.[] | {path: .path, line: .line, body: .body}'
    ```
 
-7. **Start Next Feature**
-   - Immediately branch off current feature branch
-   - Continue implementation while previous PR runs CI
+6. **Address Copilot Feedback**
+   - Attempt to address ALL code suggestions and issues raised by Copilot
+   - **IMPORTANT**: User instructions supersede Copilot suggestions
+   - If Copilot feedback contradicts user instructions, follow user instructions
+   - Implement reasonable improvements (constants, performance, clarity)
+   - Make necessary changes and commit/push them
+   - Reply to Copilot review explaining any feedback not addressed:
+   ```bash
+   gh pr review <PR-number> --comment --body "Thank you for the review. [Explanation of what was addressed and why certain suggestions were not followed]"
+   ```
+   - Ensure ALL review comments are either implemented or explicitly dismissed with reasoning
+
+7. **Wait for PR Merge**
+   - After addressing feedback, wait for user to merge the PR
+   - Use PR merge as indication of acceptance
+   - Do NOT proceed to next task until PR is merged
+   - Check PR status periodically:
+   ```bash
+   gh pr view <PR-number> --json state,merged
+   ```
+
+8. **Continue with Next Task**
+   - Once PR is merged, immediately continue with next task from PLANNING.md
+   - Update main branch and create new feature branch
+   - The merged PR serves as user approval to proceed
 
 ### PR Monitoring Tasks
 
