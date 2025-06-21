@@ -190,7 +190,7 @@ Tasks:
 - Custom workflow definitions
 - Analytics and metrics tracking
 
-## Overview
+## Development Process Overview
 
 **CRITICAL**: The VERY FIRST step when starting any work session is to create a todo list using the TodoWrite tool. Even if the only item is "Review PLANNING.md to determine next tasks", you MUST create this todo list before doing anything else. This ensures work is always tracked and organized.
 
