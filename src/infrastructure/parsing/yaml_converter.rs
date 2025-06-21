@@ -664,26 +664,27 @@ fn convert_automations(
 }
 
 /// Converts slice definitions.
-fn convert_slices(
-    slices: HashMap<String, Vec<String>>,
-) -> Result<HashMap<domain::SliceName, NonEmpty<domain::Connection>>, ConversionError> {
-    let mut result = HashMap::new();
+fn convert_slices(slices: Vec<parsing::YamlSlice>) -> Result<Vec<domain::Slice>, ConversionError> {
+    let mut result = Vec::new();
 
-    for (name_str, connections) in slices {
+    for yaml_slice in slices {
         let name = domain::SliceName::new(
-            NonEmptyString::parse(name_str)
+            NonEmptyString::parse(yaml_slice.name)
                 .map_err(|_| ConversionError::EmptyField("slice name".to_string()))?,
         );
 
         let mut converted_connections = Vec::new();
-        for conn_str in connections {
+        for conn_str in yaml_slice.connections {
             let connection = parse_connection(&conn_str)?;
             converted_connections.push(connection);
         }
 
         let non_empty_connections = vec_to_non_empty(converted_connections, "slice connections")?;
 
-        result.insert(name, non_empty_connections);
+        result.push(domain::Slice {
+            name,
+            connections: non_empty_connections,
+        });
     }
 
     Ok(result)
@@ -998,9 +999,10 @@ workflow: Test
 swimlanes:
   - ui: "UI"
 slices:
-  UserRegistration:
-    - "LoginScreen.CreateAccountLink -> CreateAccount"
-    - "CreateAccount -> UserCreated"
+  - name: UserRegistration
+    connections:
+      - "LoginScreen.CreateAccountLink -> CreateAccount"
+      - "CreateAccount -> UserCreated"
 "#;
         let parsed = yaml_parser::parse_yaml(yaml).unwrap();
         let result = convert_yaml_to_domain(parsed);
@@ -1009,12 +1011,9 @@ slices:
         let model = result.unwrap();
         assert_eq!(model.slices.len(), 1);
 
-        let slice = model.slices.iter().next().unwrap();
-        assert_eq!(
-            slice.0.clone().into_inner().into_inner(),
-            "UserRegistration"
-        );
-        assert_eq!(slice.1.len(), 2);
+        let slice = &model.slices[0];
+        assert_eq!(slice.name.clone().into_inner().as_str(), "UserRegistration");
+        assert_eq!(slice.connections.len(), 2);
     }
 
     #[test]

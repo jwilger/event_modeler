@@ -510,10 +510,7 @@ fn convert_commands(
 
 /// Convert YAML slices to diagram slices with their connections.
 fn convert_yaml_slices_to_diagram_slices(
-    yaml_slices: &std::collections::HashMap<
-        yaml::SliceName,
-        crate::infrastructure::types::NonEmpty<yaml::Connection>,
-    >,
+    yaml_slices: &[yaml::Slice],
     entity_ids: &[crate::event_model::entities::EntityId],
 ) -> Result<
     crate::infrastructure::types::NonEmpty<crate::event_model::diagram::Slice>,
@@ -554,17 +551,17 @@ fn convert_yaml_slices_to_diagram_slices(
 
     let mut slices = Vec::new();
 
-    for (slice_index, (yaml_slice_name, yaml_connections)) in yaml_slices.iter().enumerate() {
+    for (slice_index, yaml_slice) in yaml_slices.iter().enumerate() {
         // Convert connections for this slice
-        let connections = convert_yaml_connections_to_connectors(yaml_connections)?;
+        let connections = convert_yaml_connections_to_connectors(&yaml_slice.connections)?;
 
         // Calculate slice boundaries (spread slices horizontally)
         let start_x = slice_index * 300; // 300 pixels per slice
         let end_x = start_x + 280; // 280 pixel wide slices with 20px gap
 
         let slice = Slice {
-            id: SliceId::new(yaml_slice_name.clone().into_inner()),
-            name: SliceName::new(yaml_slice_name.clone().into_inner()),
+            id: SliceId::new(yaml_slice.name.clone().into_inner()),
+            name: SliceName::new(yaml_slice.name.clone().into_inner()),
             boundaries: SliceBoundaries {
                 start_x: HorizontalPosition::new(
                     crate::infrastructure::types::NonNegativeInt::new(start_x as u32),
@@ -770,7 +767,7 @@ mod tests {
             projections: HashMap::new(),
             queries: HashMap::new(),
             automations: HashMap::new(),
-            slices: HashMap::new(),
+            slices: Vec::new(),
         };
 
         // Convert to diagram
@@ -836,8 +833,11 @@ mod tests {
         let mut events = HashMap::new();
         events.insert(event_name, event);
 
-        let mut slices = HashMap::new();
-        slices.insert(slice_name, connections);
+        let slice = yaml::Slice {
+            name: slice_name,
+            connections,
+        };
+        let slices = vec![slice];
 
         let yaml_model = YamlEventModel {
             version: None,
@@ -977,7 +977,7 @@ mod tests {
             projections: HashMap::new(),
             queries: HashMap::new(),
             automations: HashMap::new(),
-            slices: HashMap::new(),
+            slices: Vec::new(),
         };
 
         // Convert to diagram

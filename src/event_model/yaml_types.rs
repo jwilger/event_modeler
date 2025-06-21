@@ -62,7 +62,8 @@ pub struct YamlEventModel {
     /// Automations that trigger based on events.
     pub automations: HashMap<AutomationName, AutomationDefinition>,
     /// Slices that define connections between entities.
-    pub slices: HashMap<SliceName, NonEmpty<Connection>>,
+    /// Now uses a Vec to preserve order explicitly with named slices.
+    pub slices: Vec<Slice>,
 }
 
 /// Schema version following semantic versioning.
@@ -244,6 +245,19 @@ pub struct AutomationName(NonEmptyString);
 /// Slice name.
 #[nutype(derive(Debug, Clone, PartialEq, Eq, Hash))]
 pub struct SliceName(NonEmptyString);
+
+/// A slice containing a name and connections between entities.
+///
+/// # Type Safety
+/// - `name` guaranteed non-empty via `SliceName(NonEmptyString)`
+/// - `connections` guaranteed non-empty via `NonEmpty<Connection>`
+#[derive(Debug, Clone)]
+pub struct Slice {
+    /// Display name of the slice.
+    pub name: SliceName,
+    /// Connections within this slice.
+    pub connections: NonEmpty<Connection>,
+}
 
 /// Test scenario name.
 #[nutype(derive(Debug, Clone, PartialEq, Eq, Hash))]

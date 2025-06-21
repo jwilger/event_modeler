@@ -7,6 +7,7 @@ use crate::event_model::yaml_types;
 use thiserror::Error;
 
 mod builder;
+mod layout_types;
 mod svg;
 
 pub use self::builder::EventModelDiagram;

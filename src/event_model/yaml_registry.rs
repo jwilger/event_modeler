@@ -13,7 +13,6 @@ use super::yaml_types::{
     EntityReference, EventDefinition, EventName, ProjectionDefinition, ProjectionName,
     QueryDefinition, QueryName, SliceName, ViewDefinition, ViewName, YamlEventModel,
 };
-use crate::infrastructure::types::NonEmpty;
 use std::collections::HashMap;
 
 /// Registry for YAML event model entities.
@@ -35,7 +34,7 @@ pub struct YamlEntityRegistry {
     /// Automations indexed by name.
     pub automations: HashMap<AutomationName, AutomationDefinition>,
     /// Slices defining connections between entities.
-    pub slices: HashMap<SliceName, NonEmpty<Connection>>,
+    pub slices: Vec<super::yaml_types::Slice>,
 }
 
 impl YamlEntityRegistry {
@@ -55,8 +54,8 @@ impl YamlEntityRegistry {
     /// Finds all entities that are sources in connections.
     pub fn find_source_entities(&self) -> Vec<EntityReference> {
         let mut sources = Vec::new();
-        for connections in self.slices.values() {
-            for connection in connections.iter() {
+        for slice in &self.slices {
+            for connection in slice.connections.iter() {
                 if !sources.contains(&connection.from) {
                     sources.push(connection.from.clone());
                 }
@@ -68,8 +67,8 @@ impl YamlEntityRegistry {
     /// Finds all entities that are targets in connections.
     pub fn find_target_entities(&self) -> Vec<EntityReference> {
         let mut targets = Vec::new();
-        for connections in self.slices.values() {
-            for connection in connections.iter() {
+        for slice in &self.slices {
+            for connection in slice.connections.iter() {
                 if !targets.contains(&connection.to) {
                     targets.push(connection.to.clone());
                 }
@@ -81,8 +80,8 @@ impl YamlEntityRegistry {
     /// Finds all connections from a specific entity.
     pub fn find_connections_from(&self, entity: &EntityReference) -> Vec<Connection> {
         let mut result = Vec::new();
-        for connections in self.slices.values() {
-            for connection in connections.iter() {
+        for slice in &self.slices {
+            for connection in slice.connections.iter() {
                 if &connection.from == entity {
                     result.push(connection.clone());
                 }
@@ -94,8 +93,8 @@ impl YamlEntityRegistry {
     /// Finds all connections to a specific entity.
     pub fn find_connections_to(&self, entity: &EntityReference) -> Vec<Connection> {
         let mut result = Vec::new();
-        for connections in self.slices.values() {
-            for connection in connections.iter() {
+        for slice in &self.slices {
+            for connection in slice.connections.iter() {
                 if &connection.to == entity {
                     result.push(connection.clone());
                 }
@@ -108,18 +107,18 @@ impl YamlEntityRegistry {
     pub fn validate_connections(&self) -> Result<(), Vec<ValidationError>> {
         let mut errors = Vec::new();
 
-        for (slice_name, connections) in &self.slices {
-            for connection in connections.iter() {
+        for slice in &self.slices {
+            for connection in slice.connections.iter() {
                 if let Err(e) = self.validate_entity_reference(&connection.from) {
                     errors.push(ValidationError::InvalidSource {
-                        slice: slice_name.clone(),
+                        slice: slice.name.clone(),
                         reference: connection.from.clone(),
                         reason: e,
                     });
                 }
                 if let Err(e) = self.validate_entity_reference(&connection.to) {
                     errors.push(ValidationError::InvalidTarget {
-                        slice: slice_name.clone(),
+                        slice: slice.name.clone(),
                         reference: connection.to.clone(),
                         reason: e,
                     });

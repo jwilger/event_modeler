@@ -50,7 +50,7 @@ pub struct YamlEventModel {
 
     /// Slice definitions
     #[serde(default)]
-    pub slices: HashMap<String, Vec<String>>,
+    pub slices: Vec<YamlSlice>,
 }
 
 /// Swimlane definition.
@@ -229,6 +229,16 @@ pub struct YamlComplexComponent {
     pub fields: HashMap<String, String>,
     #[serde(default)]
     pub actions: Vec<String>,
+}
+
+/// Slice definition with name and connections.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct YamlSlice {
+    /// Display name of the slice
+    pub name: String,
+
+    /// Connections in this slice
+    pub connections: Vec<String>,
 }
 
 /// Errors that can occur during YAML parsing.

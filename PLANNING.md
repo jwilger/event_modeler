@@ -26,12 +26,13 @@ This ensures no work is forgotten or lost in the codebase.
 
 ## Current Status
 
-**Last Updated**: 2025-06-21 (Phase 6 Step 1 COMPLETE - Canvas and Workflow Title)
+**Last Updated**: 2025-06-21 (Phase 6 Step 2 COMPLETE - All Swimlanes)
 
 **Latest Progress**: 
 - Phase 6 (Incremental Diagram Module Rewrite) IN PROGRESS
 - Step 0: Delete and Initialize (COMPLETE - PR #28 merged)
-- Step 1: Canvas and Workflow Title (COMPLETE - PR #29 created, Copilot reviewed, awaiting merge)
+- Step 1: Canvas and Workflow Title (COMPLETE - PR #29 merged)
+- Step 2: All Swimlanes (COMPLETE - PR #30 merged)
 - **CRITICAL**: All code must be in the library, not in test binaries or CLI hacks
 
 **Current Approach**: Building diagram module incrementally:
@@ -88,6 +89,13 @@ git pull origin main
 git checkout -b feature/your-branch-name
 ```
 
+### Commit Practice Rule
+**IMPORTANT**: When addressing multiple review comments or making different types of changes:
+1. Commit each logical change separately for easier review
+2. Each commit should address one concern or piece of feedback
+3. Use clear commit messages that explain what specific issue is being addressed
+4. This makes the review process clearer and allows for better discussion of individual changes
+
 ### PR Process Rule
 1. Create PRs as ready (not draft) to trigger automated reviews
 2. Monitor for ALL reviews (Copilot, user, or any other reviewer) using a sleep/check cycle:
@@ -95,8 +103,28 @@ git checkout -b feature/your-branch-name
    - Check for ANY review comments from ANY reviewer
    - Address ALL feedback from ALL reviewers before merge
    - Continue monitoring until PR is merged
-3. PR merge = approval to proceed to next task
-4. Once PR is merged, immediately proceed to next step
+3. Before PR can be merged:
+   - ALL review comments must be addressed (even if marked as "low confidence")
+   - Reply directly to each review comment thread (not as top-level comments) with either:
+     - How you fixed the issue (with commit reference if applicable)
+     - Why you're not addressing it (with clear reasoning)
+   - **IMPORTANT**: All replies must begin with `[Response from Claude Code]` to clarify attribution
+   - Use GraphQL API to reply within review threads:
+     ```bash
+     gh api graphql -f query='
+     mutation {
+       addPullRequestReviewThreadReply(input: {
+         pullRequestReviewThreadId: "THREAD_ID"
+         body: "Your reply here"
+       }) {
+         comment { id }
+       }
+     }'
+     ```
+   - NEVER resolve review threads - the user will read and resolve all review comments manually
+   - Always leave threads unresolved after replying, regardless of whether you made changes or provided reasoning
+4. PR merge = approval to proceed to next task
+5. Once PR is merged, immediately proceed to next step
 
 ### Todo List Management Rule
 **CRITICAL**: The VERY LAST task on your todo list must ALWAYS be:
@@ -366,9 +394,10 @@ Phase 6 follows the general Visual Development Rule (see above) with these speci
 
 **Current Progress**:
 - ✅ Step 0: Delete and Initialize (COMPLETE - PR #28 merged)
-- ✅ Step 1: Canvas and Workflow Title (COMPLETE - PR #29 created, Copilot reviewed, awaiting merge)
-- ⏸️ Step 2: Swimlanes (not started)
-- ⏸️ Step 3: Slice Headers (not started)
+- ✅ Step 1: Canvas and Workflow Title (COMPLETE - PR #29 merged)
+- ✅ Step 2: All Swimlanes (COMPLETE - PR #30 merged)
+- 🔄 Step 3: Slice Headers (IN PROGRESS)
+- ⏸️ Step 4: View Entities (not started)
 
 **Foundation Steps (Canvas & Structure)**:
 
@@ -397,91 +426,49 @@ Phase 6 follows the general Visual Development Rule (see above) with these speci
    - Dynamic: Width adjusts to content in each slice
    - Headers at top of canvas above swimlanes
 
-**First Slice - Create Account**:
-
-5. **Step 4: Login Screen (View)**
-   - First view in first swimlane
+5. **Step 4: View Entities**
+   - Implement rendering for View entity type
    - White box with "View" label and entity name
-   - Position in slice 0, swimlane 0
+   - Position views in their assigned swimlanes and slices
+   - Handle multiple views in same location
 
-6. **Step 5: New Account Screen (View)**
-   - Second view showing navigation
-   - Position after Login Screen in same swimlane
-
-7. **Step 6: Create User Account Credentials (Command)**
-   - First command in middle swimlane
+6. **Step 5: Command Entities**
+   - Implement rendering for Command entity type
    - Blue box with proper styling
-   - Position in slice 0, swimlane 1
+   - Position commands in their assigned swimlanes
 
-8. **Step 7: User Account Credentials Created (Event)**
-   - First event in bottom swimlane
+7. **Step 6: Event Entities**
+   - Implement rendering for Event entity type
    - Purple box with event styling
-   - Position in slice 0, swimlane 2
+   - Position events in their assigned swimlanes
 
-9. **Step 8: User Credentials Projection**
-   - First projection (yellow box)
-   - Position in slice 0, swimlane 1
+8. **Step 7: Projection Entities**
+   - Implement rendering for Projection entity type
+   - Yellow box styling
+   - Position projections in their assigned swimlanes
 
-10. **Step 9: First Slice Connections**
-    - LoginScreen → NewAccountScreen
-    - NewAccountScreen → CreateUserAccountCredentials
-    - CreateUserAccountCredentials → UserAccountCredentialsCreated
-    - UserAccountCredentialsCreated → UserCredentialsProjection
-    - UserAccountCredentialsCreated → next slice
+9. **Step 8: Query Entities**
+   - Implement rendering for Query entity type
+   - Blue box styling (similar to commands)
+   - Position queries in their assigned swimlanes
 
-**Second Slice - Send Email Verification**:
+10. **Step 9: Automation Entities**
+    - Implement rendering for Automation entity type
+    - Special circular icon with automation symbol
+    - Position between swimlanes as specified
 
-11. **Step 10: Email Verifier (Automation)**
-    - Special circular icon with envelope
-    - Position between swimlanes 0 and 1
-    - Green automation styling
+11. **Step 10: Entity Connections**
+    - Draw arrows between entities as defined in slice connections
+    - Handle connections across swimlanes and slices
+    - Proper arrow styling and routing
 
-12. **Step 11: Verify Email Screen (View)**
-    - Position in slice 1, swimlane 0
+12. **Step 11: Layout Algorithm**
+    - Implement proper entity positioning within slices
+    - Handle multiple entities in same swimlane/slice
+    - Ensure proper spacing and alignment
+    - Support dynamic canvas sizing based on content
 
-13. **Step 12: Send Email Verification (Command)**
-    - Position in slice 1, swimlane 1
 
-14. **Step 13: Email Verification Message Sent (Event)**
-    - Position in slice 1, swimlane 2
-
-15. **Step 14: User Email Verification Token Projection**
-    - Position in slice 1, swimlane 1
-
-16. **Step 15: Second Slice Connections**
-    - UserAccountCredentialsCreated → EmailVerifier
-    - EmailVerifier → SendEmailVerification
-    - SendEmailVerification → EmailVerificationMessageSent
-    - EmailVerificationMessageSent → UserEmailVerificationTokenProjection
-
-**Third Slice - Verify Email Address**:
-
-17. **Step 16: Get Account Id Query**
-    - First query (blue box like command)
-    - Position in slice 2, swimlane 1
-
-18. **Step 17: Verify User Email Address (Command)**
-    - Position in slice 2, swimlane 1
-
-19. **Step 18: Email Address Verified (Event)**
-    - Position in slice 2, swimlane 2
-
-20. **Step 19: Get User Profile (Query)**
-    - Position in slice 2, swimlane 1
-
-21. **Step 20: User Profile Screen (View)**
-    - Final view in the flow
-    - Position in slice 2, swimlane 0
-
-22. **Step 21: Duplicate Entities**
-    - Add second instances of projections where they appear again
-    - UserCredentialsProjection (slice 2)
-    - UserEmailVerificationTokenProjection (slice 2)
-    - VerifyEmailScreen appears twice
-
-23. **Step 22: Third Slice Connections**
-    - All remaining connections from slice definitions
-    - Cross-slice connection handling
 
 **Test Scenarios Section**:
 

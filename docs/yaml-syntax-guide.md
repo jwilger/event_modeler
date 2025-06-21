@@ -76,9 +76,10 @@ automations:
   # ... more automations
 
 slices:
-  SliceName:
-    - Connection1
-    - Connection2
+  - name: Slice Name
+    connections:
+      - Connection1
+      - Connection2
   # ... more slices
 ```
 
@@ -389,13 +390,14 @@ Slices define the connections between entities:
 
 ```yaml
 slices:
-  RegistrationFlow:
-    - LoginScreen.RegisterLink -> RegistrationForm
-    - RegistrationForm.RegistrationFields.Submit -> RegisterUser
-    - RegisterUser -> UserRegistered
-    - UserRegistered -> UserList
-    - UserRegistered -> EmailVerificationSender
-    - EmailVerificationSender -> SendVerificationEmail
+  - name: Registration Flow
+    connections:
+      - LoginScreen.RegisterLink -> RegistrationForm
+      - RegistrationForm.RegistrationFields.Submit -> RegisterUser
+      - RegisterUser -> UserRegistered
+      - UserRegistered -> UserList
+      - UserRegistered -> EmailVerificationSender
+      - EmailVerificationSender -> SendVerificationEmail
 ```
 
 ### Connection Formats
@@ -576,8 +578,9 @@ commands:
       initial_deposit: Money
 
 slices:
-  AccountCreation:
-    - OpenAccount -> AccountOpened
+  - name: Account Creation
+    connections:
+      - OpenAccount -> AccountOpened
 ```
 
 ### CQRS Pattern
@@ -617,13 +620,14 @@ automations:
     swimlane: sagas
 
 slices:
-  OrderFulfillment:
-    - OrderPlaced -> OrderSaga
-    - OrderSaga -> ReserveInventory
-    - InventoryReserved -> OrderSaga
-    - OrderSaga -> ProcessPayment
-    - PaymentProcessed -> OrderSaga
-    - OrderSaga -> ShipOrder
+  - name: Order Fulfillment
+    connections:
+      - OrderPlaced -> OrderSaga
+      - OrderSaga -> ReserveInventory
+      - InventoryReserved -> OrderSaga
+      - OrderSaga -> ProcessPayment
+      - PaymentProcessed -> OrderSaga
+      - OrderSaga -> ShipOrder
 ```
 
 ## Error Messages
@@ -739,8 +743,9 @@ events:
     swimlane: orders
 
 slices:
-  OrderFlow:
-    - PlaceOrder -> OrderPlaced
+  - name: Order Flow
+    connections:
+      - PlaceOrder -> OrderPlaced
 ```
 
 ## Further Reading
