@@ -52,10 +52,13 @@ jobs:
       
       - name: Claude works on issue
         if: steps.check-deps.outputs.canWork == 'true'
-        uses: anthropics/claude-code-action@v1
+        uses: grll/claude-code-action@main
         with:
-          api-key: ${{ secrets.CLAUDE_API_KEY }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          oauth: true
+          access-token: ${{ secrets.CLAUDE_ACCESS_TOKEN }}
+          refresh-token: ${{ secrets.CLAUDE_REFRESH_TOKEN }}
+          expires-at: ${{ secrets.CLAUDE_EXPIRES_AT }}
 
   find-next-issue:
     if: github.event_name == 'pull_request' && github.event.pull_request.merged == true

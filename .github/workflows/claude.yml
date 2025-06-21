@@ -29,9 +29,12 @@ jobs:
     
     steps:
       - name: Run Claude
-        uses: anthropics/claude-code-action@v1
+        uses: grll/claude-code-action@main
         with:
-          api-key: ${{ secrets.CLAUDE_API_KEY }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          oauth: true
+          access-token: ${{ secrets.CLAUDE_ACCESS_TOKEN }}
+          refresh-token: ${{ secrets.CLAUDE_REFRESH_TOKEN }}
+          expires-at: ${{ secrets.CLAUDE_EXPIRES_AT }}
           # Claude will read CLAUDE.md for project-specific instructions
           # It will understand our workflow from the documentation we added
