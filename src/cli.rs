@@ -240,44 +240,22 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
         crate::infrastructure::parsing::yaml_converter::convert_yaml_to_domain(yaml_model)
             .map_err(|e| Error::InvalidArguments(format!("YAML conversion error: {}", e)))?;
 
-    // Extract workflow title before domain_model is moved
-    let _workflow_title = domain_model.workflow.clone().into_inner();
-
-    // 4. Convert domain model to EventModelDiagram
-    let event_model_diagram =
-        crate::event_model::yaml_to_diagram_converter::convert_yaml_to_diagram(
-            domain_model.clone(),
-        )
-        .map_err(|e| Error::InvalidArguments(format!("Diagram conversion error: {:?}", e)))?;
+    // 4. Build diagram from domain model
+    let diagram = crate::diagram::build_diagram_from_domain(&domain_model)
+        .map_err(|e| Error::InvalidArguments(format!("Diagram building error: {}", e)))?;
 
     println!(
         "Successfully converted event model: {}",
-        event_model_diagram
-            .metadata
-            .title
-            .clone()
-            .into_inner()
-            .as_str()
+        domain_model.workflow.clone().into_inner().as_str()
     );
-    println!("Found {} swimlanes", event_model_diagram.swimlanes.len());
-    // Count entities from the diagram
-    let total_entities: usize = event_model_diagram
-        .swimlanes
-        .iter()
-        .map(|swimlane| swimlane.entities.len())
-        .sum();
-    println!("Found {} entities total", total_entities);
 
-    // 5. TODO: Convert domain model to diagram and render
-    // This is where we'll call the new diagram module once it's implemented properly
-
-    // For now, just output a placeholder
+    // 5. Render to requested formats
     for format in cmd.options.formats.iter() {
         match format {
             OutputFormat::Svg => {
-                let svg_doc = r#"<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
-                    <text x="50" y="50" text-anchor="middle">TODO: Implement diagram module</text>
-                </svg>"#;
+                // Render diagram to SVG
+                let svg_doc = crate::diagram::render_to_svg(&diagram)
+                    .map_err(|e| Error::InvalidArguments(format!("SVG rendering error: {}", e)))?;
 
                 // Generate output filename
                 let output_filename = if let Some(filename) = &cmd.options.output_filename {
