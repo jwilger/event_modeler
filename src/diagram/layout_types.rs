@@ -52,6 +52,13 @@ pub struct FontSize(u32);
 pub struct HexColor(String);
 
 /// Layout constants for the diagram.
+///
+/// These constants define the visual layout parameters for diagram rendering.
+/// The typed fields ensure compile-time validation of layout values.
+///
+/// TODO: Consider creating more specific domain types (e.g., DiagramWidth,
+/// SwimlaneHeight) instead of generic Width/Height types for better
+/// semantic clarity.
 #[allow(dead_code)]
 pub struct LayoutConstants {
     /// Minimum width of the entire canvas.
