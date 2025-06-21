@@ -89,10 +89,20 @@ git checkout -b feature/your-branch-name
 ```
 
 ### PR Process Rule
-1. Create PRs as ready (not draft) to trigger Copilot review
-2. Monitor for Copilot review and address ALL feedback
+1. Create PRs as ready (not draft) to trigger automated reviews
+2. Monitor for ALL reviews (Copilot, user, or any other reviewer) using a sleep/check cycle:
+   - Check PR for new reviews every 30 seconds
+   - Check for ANY review comments from ANY reviewer
+   - Address ALL feedback from ALL reviewers before merge
+   - Continue monitoring until PR is merged
 3. PR merge = approval to proceed to next task
 4. Once PR is merged, immediately proceed to next step
+
+### Todo List Management Rule
+**CRITICAL**: The VERY LAST task on your todo list must ALWAYS be:
+"Review PLANNING.md, update with current status, and await approval before proceeding"
+
+This ensures continuous alignment with project planning and prevents drift from intended workflow.
 
 ## ADRs to Create
 
