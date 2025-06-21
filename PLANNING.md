@@ -96,8 +96,12 @@ git checkout -b feature/your-branch-name
    - Check for ANY review comments from ANY reviewer
    - Address ALL feedback from ALL reviewers before merge
    - Continue monitoring until PR is merged
-3. PR merge = approval to proceed to next task
-4. Once PR is merged, immediately proceed to next step
+3. Before PR can be merged:
+   - ALL review comments must be addressed (even if marked as "low confidence")
+   - Add a comment explaining how each piece of feedback was addressed
+   - Resolve/dismiss review comments as appropriate
+4. PR merge = approval to proceed to next task
+5. Once PR is merged, immediately proceed to next step
 
 ### Todo List Management Rule
 **CRITICAL**: The VERY LAST task on your todo list must ALWAYS be:
