@@ -258,27 +258,30 @@ automations:
     swimlane: ux
 
 slices:
-  CreateUserAccountCredentials:
-    - LoginScreen.CreateAccountLink -> NewAccountScreen
-    - NewAccountScreen.AccountCredentials.Submit -> CreateUserAccountCredentials
-    - CreateUserAccountCredentials -> UserAccountCredentialsCreated
-    - UserAccountCredentialsCreated -> UserCredentialsProjection
-    - UserAccountCredentialsCreated -> NewAccountScreen
-    - NewAccountScreen -> VerifyEmailAddressScreen
+  - name: Create User Account Credentials
+    connections:
+      - LoginScreen.CreateAccountLink -> NewAccountScreen
+      - NewAccountScreen.AccountCredentials.Submit -> CreateUserAccountCredentials
+      - CreateUserAccountCredentials -> UserAccountCredentialsCreated
+      - UserAccountCredentialsCreated -> UserCredentialsProjection
+      - UserAccountCredentialsCreated -> NewAccountScreen
+      - NewAccountScreen -> VerifyEmailAddressScreen
 
-  SendEmailVerification:
-    - UserAccountCredentialsCreated -> UserEmailVerifier
-    - UserEmailVerifier -> SendEmailVerification
-    - SendEmailVerification -> EmailVerificationMessageSent
-    - EmailVerificationMessageSent -> UserEmailVerificationTokenProjection
+  - name: Send Email Verification
+    connections:
+      - UserAccountCredentialsCreated -> UserEmailVerifier
+      - UserEmailVerifier -> SendEmailVerification
+      - SendEmailVerification -> EmailVerificationMessageSent
+      - EmailVerificationMessageSent -> UserEmailVerificationTokenProjection
 
-  VerifyEmailAddress:
-    - VerifyEmailAddressScreen.VerificationForm.Submit -> GetAccountIdForEmailVerificationToken
-    - GetAccountIdForEmailVerificationToken -> VerifyUserEmailAddress
-    - VerifyUserEmailAddress -> EmailAddressVerified
-    - EmailAddressVerified -> UserCredentialsProjection
-    - EmailAddressVerified -> UserEmailVerificationTokenProjection
-    - EmailAddressVerified -> VerifyEmailAddressScreen
-    - VerifyEmailAddressScreen -> UserProfileScreen
-    - UserProfileScreen -> GetUserProfile
-    - UserProfileScreen.EmailAddress -> GetUserProfile
+  - name: Verify Email Address
+    connections:
+      - VerifyEmailAddressScreen.VerificationForm.Submit -> GetAccountIdForEmailVerificationToken
+      - GetAccountIdForEmailVerificationToken -> VerifyUserEmailAddress
+      - VerifyUserEmailAddress -> EmailAddressVerified
+      - EmailAddressVerified -> UserCredentialsProjection
+      - EmailAddressVerified -> UserEmailVerificationTokenProjection
+      - EmailAddressVerified -> VerifyEmailAddressScreen
+      - VerifyEmailAddressScreen -> UserProfileScreen
+      - UserProfileScreen -> GetUserProfile
+      - UserProfileScreen.EmailAddress -> GetUserProfile

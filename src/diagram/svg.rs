@@ -5,7 +5,6 @@
 use super::{EventModelDiagram, Result};
 use crate::event_model::yaml_types;
 use crate::infrastructure::types::NonEmpty;
-use indexmap::IndexMap;
 
 // Constants for SVG dimensions and text coordinates
 const MIN_WIDTH: u32 = 1200; // Minimum reasonable width
@@ -177,7 +176,7 @@ fn render_swimlanes(
 
 /// Renders the slice headers with dividers.
 fn render_slice_headers(
-    slices: &IndexMap<yaml_types::SliceName, NonEmpty<yaml_types::Connection>>,
+    slices: &[yaml_types::Slice],
     start_x: u32,
     total_width: u32,
     total_height: u32,
@@ -186,12 +185,10 @@ fn render_slice_headers(
 
     svg.push_str("  <!-- Slice headers -->\n");
 
-    // Get slice names in YAML file order (preserved by IndexMap)
-    let slice_names: Vec<_> = slices.keys().collect();
+    // Slices are now in a Vec, so order is preserved
+    let slice_width = (total_width - start_x) / slices.len() as u32;
 
-    let slice_width = (total_width - start_x) / slice_names.len() as u32;
-
-    for (index, slice_name) in slice_names.iter().enumerate() {
+    for (index, slice) in slices.iter().enumerate() {
         let x_position = start_x + (index as u32 * slice_width);
 
         // Draw vertical divider through all swimlanes (except before the first slice)
@@ -220,22 +217,8 @@ fn render_slice_headers(
             text_y,
             SLICE_HEADER_FONT_SIZE,
             TEXT_COLOR,
-            // Convert slice name to display format (space-separated words)
-            {
-                let name_str = (*slice_name).clone().into_inner();
-                name_str
-                    .as_str()
-                    .chars()
-                    .enumerate()
-                    .map(|(i, c)| {
-                        if i > 0 && c.is_uppercase() {
-                            format!(" {}", c)
-                        } else {
-                            c.to_string()
-                        }
-                    })
-                    .collect::<String>()
-            }
+            // The slice name is already in display format from the YAML
+            slice.name.clone().into_inner().as_str()
         ));
     }
 

@@ -4,7 +4,6 @@
 
 use crate::event_model::yaml_types;
 use crate::infrastructure::types::{NonEmpty, NonEmptyString};
-use indexmap::IndexMap;
 
 use super::Result;
 
@@ -19,7 +18,7 @@ pub struct EventModelDiagram {
     /// The swimlanes defined in the model.
     swimlanes: NonEmpty<yaml_types::Swimlane>,
     /// The slices defined in the model.
-    slices: IndexMap<yaml_types::SliceName, NonEmpty<yaml_types::Connection>>,
+    slices: Vec<yaml_types::Slice>,
 }
 
 impl EventModelDiagram {
@@ -43,7 +42,7 @@ impl EventModelDiagram {
     }
 
     /// Gets the slices.
-    pub fn slices(&self) -> &IndexMap<yaml_types::SliceName, NonEmpty<yaml_types::Connection>> {
+    pub fn slices(&self) -> &[yaml_types::Slice] {
         &self.slices
     }
 }
