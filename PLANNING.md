@@ -303,7 +303,7 @@ For Phase 6 only, due to the incremental visual development approach:
 1. Create a new feature branch for each step (e.g., `feature/diagram-step-3-slice-headers`)
 2. Implement one diagram element
 3. Test locally:
-   - Generate SVG: `cargo run -- example.eventmodel -o test.svg`
+   - Generate SVG: `cargo run -- tests/fixtures/acceptance/example.eventmodel -o test.svg`
    - Convert to PNG: `magick test.svg test.png`
    - Compare with `tests/fixtures/acceptance/example.png`
    - Refine implementation to match style as closely as possible
