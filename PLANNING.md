@@ -384,7 +384,7 @@ Phase 6 follows the general Visual Development Rule (see above) with these speci
 - ✅ Step 1: Canvas and Workflow Title (COMPLETE - PR #29 merged)
 - ✅ Step 2: All Swimlanes (COMPLETE - PR #30 merged)
 - 🔄 Step 3: Slice Headers (IN PROGRESS)
-- ⏸️ Step 4: Login Screen (View) (not started)
+- ⏸️ Step 4: View Entities (not started)
 
 **Foundation Steps (Canvas & Structure)**:
 
@@ -413,91 +413,49 @@ Phase 6 follows the general Visual Development Rule (see above) with these speci
    - Dynamic: Width adjusts to content in each slice
    - Headers at top of canvas above swimlanes
 
-**First Slice - Create Account**:
-
-5. **Step 4: Login Screen (View)**
-   - First view in first swimlane
+5. **Step 4: View Entities**
+   - Implement rendering for View entity type
    - White box with "View" label and entity name
-   - Position in slice 0, swimlane 0
+   - Position views in their assigned swimlanes and slices
+   - Handle multiple views in same location
 
-6. **Step 5: New Account Screen (View)**
-   - Second view showing navigation
-   - Position after Login Screen in same swimlane
-
-7. **Step 6: Create User Account Credentials (Command)**
-   - First command in middle swimlane
+6. **Step 5: Command Entities**
+   - Implement rendering for Command entity type
    - Blue box with proper styling
-   - Position in slice 0, swimlane 1
+   - Position commands in their assigned swimlanes
 
-8. **Step 7: User Account Credentials Created (Event)**
-   - First event in bottom swimlane
+7. **Step 6: Event Entities**
+   - Implement rendering for Event entity type
    - Purple box with event styling
-   - Position in slice 0, swimlane 2
+   - Position events in their assigned swimlanes
 
-9. **Step 8: User Credentials Projection**
-   - First projection (yellow box)
-   - Position in slice 0, swimlane 1
+8. **Step 7: Projection Entities**
+   - Implement rendering for Projection entity type
+   - Yellow box styling
+   - Position projections in their assigned swimlanes
 
-10. **Step 9: First Slice Connections**
-    - LoginScreen → NewAccountScreen
-    - NewAccountScreen → CreateUserAccountCredentials
-    - CreateUserAccountCredentials → UserAccountCredentialsCreated
-    - UserAccountCredentialsCreated → UserCredentialsProjection
-    - UserAccountCredentialsCreated → next slice
+9. **Step 8: Query Entities**
+   - Implement rendering for Query entity type
+   - Blue box styling (similar to commands)
+   - Position queries in their assigned swimlanes
 
-**Second Slice - Send Email Verification**:
+10. **Step 9: Automation Entities**
+    - Implement rendering for Automation entity type
+    - Special circular icon with automation symbol
+    - Position between swimlanes as specified
 
-11. **Step 10: Email Verifier (Automation)**
-    - Special circular icon with envelope
-    - Position between swimlanes 0 and 1
-    - Green automation styling
+11. **Step 10: Entity Connections**
+    - Draw arrows between entities as defined in slice connections
+    - Handle connections across swimlanes and slices
+    - Proper arrow styling and routing
 
-12. **Step 11: Verify Email Screen (View)**
-    - Position in slice 1, swimlane 0
+12. **Step 11: Layout Algorithm**
+    - Implement proper entity positioning within slices
+    - Handle multiple entities in same swimlane/slice
+    - Ensure proper spacing and alignment
+    - Support dynamic canvas sizing based on content
 
-13. **Step 12: Send Email Verification (Command)**
-    - Position in slice 1, swimlane 1
 
-14. **Step 13: Email Verification Message Sent (Event)**
-    - Position in slice 1, swimlane 2
-
-15. **Step 14: User Email Verification Token Projection**
-    - Position in slice 1, swimlane 1
-
-16. **Step 15: Second Slice Connections**
-    - UserAccountCredentialsCreated → EmailVerifier
-    - EmailVerifier → SendEmailVerification
-    - SendEmailVerification → EmailVerificationMessageSent
-    - EmailVerificationMessageSent → UserEmailVerificationTokenProjection
-
-**Third Slice - Verify Email Address**:
-
-17. **Step 16: Get Account Id Query**
-    - First query (blue box like command)
-    - Position in slice 2, swimlane 1
-
-18. **Step 17: Verify User Email Address (Command)**
-    - Position in slice 2, swimlane 1
-
-19. **Step 18: Email Address Verified (Event)**
-    - Position in slice 2, swimlane 2
-
-20. **Step 19: Get User Profile (Query)**
-    - Position in slice 2, swimlane 1
-
-21. **Step 20: User Profile Screen (View)**
-    - Final view in the flow
-    - Position in slice 2, swimlane 0
-
-22. **Step 21: Duplicate Entities**
-    - Add second instances of projections where they appear again
-    - UserCredentialsProjection (slice 2)
-    - UserEmailVerificationTokenProjection (slice 2)
-    - VerifyEmailScreen appears twice
-
-23. **Step 22: Third Slice Connections**
-    - All remaining connections from slice definitions
-    - Cross-slice connection handling
 
 **Test Scenarios Section**:
 
