@@ -22,12 +22,7 @@ jobs:
   claude:
     runs-on: ubuntu-latest
     # Only run if @claude is mentioned
-    if: |
-      (github.event_name == 'issues' && contains(github.event.issue.body || '', '@claude')) ||
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body || '', '@claude')) ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.body || '', '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body || '', '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body || '', '@claude'))
+    if: contains(toJSON(github.event), '@claude')
     
     steps:
       - name: Checkout repository
@@ -41,6 +36,6 @@ jobs:
           claude_access_token: ${{ secrets.CLAUDE_ACCESS_TOKEN }}
           claude_refresh_token: ${{ secrets.CLAUDE_REFRESH_TOKEN }}
           claude_expires_at: ${{ secrets.CLAUDE_EXPIRES_AT }}
-          allowed_tools: "bash,write,read,edit"
+          allowed_tools: "*"
           # Claude will read CLAUDE.md for project-specific instructions
           # It will understand our workflow from the documentation we added
