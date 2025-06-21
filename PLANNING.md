@@ -108,7 +108,9 @@ git checkout -b feature/your-branch-name
    - Reply directly to each review comment with either:
      - How you fixed the issue (with commit reference if applicable)
      - Why you're not addressing it (with clear reasoning)
-   - Resolve review threads using GraphQL API:
+   - ONLY resolve review threads where you have made the requested fix
+   - For threads where you provide reasoning but don't make changes, leave them unresolved for user review
+   - Resolve review threads using GraphQL API (only for fixed issues):
      ```bash
      gh api graphql -H "Accept: application/vnd.github.merge-info-preview+json" -f query='
      mutation {
