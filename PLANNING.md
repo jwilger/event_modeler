@@ -108,6 +108,7 @@ git checkout -b feature/your-branch-name
    - Reply directly to each review comment thread (not as top-level comments) with either:
      - How you fixed the issue (with commit reference if applicable)
      - Why you're not addressing it (with clear reasoning)
+   - **IMPORTANT**: All replies must begin with `[Response from Claude Code]` to clarify attribution
    - Use GraphQL API to reply within review threads:
      ```bash
      gh api graphql -f query='
