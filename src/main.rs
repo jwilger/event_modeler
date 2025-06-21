@@ -26,19 +26,7 @@
 //! All validation happens once at system boundaries, and the rest of the code
 //! works with types that maintain invariants by construction.
 
-/// The version of Event Modeler, used as the default schema version for YAML files.
-/// This must match the version in Cargo.toml.
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-pub mod cli;
-// TODO: Re-enable when diagram module is complete
-// pub mod diagram;
-pub mod event_model;
-// TODO: Re-enable when diagram module is complete
-// pub mod export;
-pub mod infrastructure;
-
-use cli::{Cli, Error};
+use event_modeler::cli::{Cli, Error};
 use std::process;
 
 fn main() {
