@@ -311,6 +311,12 @@ For Phase 6 only, due to the incremental visual development approach:
 This ensures each visual element matches expectations before building on it.
 
 **Branch/PR Strategy for Phase 6**:
+- **CRITICAL**: Always update main before creating new branches:
+  ```bash
+  git checkout main
+  git pull origin main
+  git checkout -b feature/diagram-step-{number}-{element-name}
+  ```
 - Each step gets its own feature branch from main
 - Branch naming: `feature/diagram-step-{number}-{element-name}`
   - Example: `feature/diagram-step-3-slice-headers`
@@ -711,6 +717,11 @@ This ensures:
 ### For Each Feature Implementation:
 
 1. **Create Feature Branch**
+   - **ALWAYS start by updating main**:
+     ```bash
+     git checkout main
+     git pull origin main
+     ```
    - First feature: `git checkout -b feature/yaml-type-system`
    - Subsequent features: `git checkout -b feature/<name> feature/<previous-feature>`
    - This creates a chain: main → yaml-type-system → yaml-parser → domain-extensions → flow-layout → rich-rendering
