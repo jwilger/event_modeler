@@ -26,135 +26,30 @@ This ensures no work is forgotten or lost in the codebase.
 
 ## Current Status
 
-**Last Updated**: 2025-06-20 (Phase 1-5 COMPLETE, Phase 6 RESTARTING)
+**Last Updated**: 2025-06-21 (Phase 6 Step 2 COMPLETE)
 
 **Latest Progress**: 
-- Phase 5 (Rich Visual Rendering) completed with limitations - PR #20 merged
-- Node-based layout architecture completed - PR #21 merged
-- Acceptance testing revealed fundamental slice architecture mismatch
-- Gold master analysis completed - slices must be horizontal workflows
-- PNG-based visual comparison testing implemented
-- Previous Phase 6 approach (11 steps) completed but produced wrong layout
-- **NEW APPROACH**: Complete diagram module rewrite using incremental development
-  - Each step adds one element type
-  - Visual validation at each step before proceeding
-  - Build proper event model diagramming library from scratch
+- Phase 6 (Incremental Diagram Module Rewrite) in progress
+- Step 0: Delete and Initialize ✅ COMPLETE
+- Step 1: Canvas and Workflow Title ✅ COMPLETE 
+- Step 2: Swimlanes ✅ COMPLETE (just merged)
+  - Dynamic swimlane rendering with rotated labels
+  - Text wrapping for long labels
+  - Dynamic width calculation for label section
+  - Left-aligned workflow title
+- Next: Step 3 - Slice Headers
 
-**🚨 CRITICAL ISSUES DISCOVERED (2025-06-19)**:
-Major discrepancies between current implementation and gold standard:
+**Current Approach**: Building diagram module incrementally:
+- Add one element type at a time
+- Visual validation at each step
+- Dynamic layout that works for ANY valid .eventmodel file
 
-1. **Layout Architecture Wrong**: 
-   - Current: Vertical stacking of slices
-   - Required: Horizontal main diagram with test scenarios below
-   
-2. **Missing Core Elements**: ✅ PARTIALLY FIXED
-   - Email Verifier entity (central icon in gold standard) - ✅ FIXED
-   - Several projections and proper entity type labels - ✅ FIXED
-   
-3. **Test Scenario Layout Wrong**: ✅ PARTIALLY FIXED
-   - Current: Vertical panels with Given/When/Then rows - Still vertical, needs columnar layout
-   - Required: Horizontal boxes below main diagram with columnar structure
-   - Test scenario order now correct
-   
-4. **Connection Routing Issues**: ✅ PARTIALLY FIXED
-   - Many connections missing or incorrectly routed - Some connections added
-   - Arrow styles don't match gold standard - Still needs work
-
-**Progress Update (2025-06-19)**:
-- Email Verifier now renders as circular icon with envelope
-- Test scenario boxes in correct order
-- Added missing connections in Verify Email Address slice
-- Entity names corrected (Get Account Id)
-
-**Still Required**: Complete layout restructure to match gold standard's two-part layout (main diagram + test scenarios)
-
-**🚨 CRITICAL DISCOVERY - Node-Based Layout (2025-06-18)**: 
-The example.jpg shows that entities can appear multiple times in the diagram as separate visual nodes. Each appearance is a distinct node with its own position and connections, even though they reference the same logical entity. This is essential for avoiding visual clutter and showing different relationships clearly. **This requires a fundamental shift from entity-based to node-based layout architecture.**
-
-**Critical Discovery**: The existing implementation was based on incorrect requirements. The actual requirements call for a rich YAML-based event modeling language with:
-- Multiple entity types (events, commands, views, projections, queries, automations)
-- Data schemas with type annotations
-- Test scenarios (Given/When/Then)
-- UI component hierarchies  
-- Slice-based flow definitions
-- Professional visual output with color coding and sub-diagrams
-
-The example.eventmodel and example.jpg files represent the TRUE requirements.
-
-**Phase 1 COMPLETE**: Type System Overhaul completed with PR #15
-- ✅ All entity types defined with type safety guarantees
-- ✅ YAML registry for managing entities and connections
-- ✅ ADRs created for YAML format and gold master testing
-- ✅ Comprehensive documentation of type safety
-
-**Phase 2 COMPLETE**: YAML Parser Implementation
-- ✅ Added serde and serde_yaml dependencies
-- ✅ Created ADR for schema versioning strategy
-- ✅ Implemented VERSION constant for schema versioning
-- ✅ Created YAML parsing types matching the format structure
-- ✅ Implemented parse_yaml function with version checking
-- ✅ Added EntityReference::parse method skeleton
-- ✅ Created yaml_converter module with error types
-- ✅ Completed conversion from parsing types to domain types
-- ✅ Added comprehensive error handling with line/column numbers
-- ✅ Updated README.md with YAML format specification
-- ✅ Created comprehensive YAML syntax guide
-- ✅ Updated CLAUDE.md with YAML-specific guidance
-
-**Phase 3 COMPLETE**: Domain Model Extensions
-- ✅ Extended Event to include data schema
-- ✅ Extended Command to include data schema and test scenarios
-- ✅ Implemented View with component hierarchies
-- ✅ Implemented Projection with field schemas
-- ✅ Implemented Query with input/output contracts
-- ✅ Implemented Automation (basic support)
-- ✅ Implemented Slice as first-class concept
-- ✅ Updated EventModelDiagram to use slices for connections
-
-**Phase 4 COMPLETE**: Flow-Based Layout Engine completed with PR #19
-- ✅ Implemented topological sort for entity positioning based on slice connections
-- ✅ Added flow-based layout algorithm that positions entities in timeline order
-- ✅ Updated layout to use EntityRegistry for proper entity type and name lookup
-- ✅ Maintains left-to-right timeline layout within swimlanes
-- ✅ Added foundation for test scenario sub-diagram layout
-- ✅ Handles circular dependency detection in entity flows
-- ✅ Uses slice definitions to determine flow order
-
-**Phase 5 COMPLETE (with limitations)**: Rich Visual Rendering (PR #20 - merging)
-- ✅ Updated entity color scheme to match requirements (blue for commands/views/queries, purple for events, yellow for projections, green for automations)
-- ✅ Enhanced entity text rendering with typography hierarchy (type labels + entity names)
-- ✅ Added configurable entity sizing for better visual space (160x80 vs 120x60)
-- ✅ Professional typography using theme font configuration
-- ✅ Fixed circular dependency issue with conservative temporal filtering (temporary fix)
-- ✅ Basic YAML integration working - can parse and render example.eventmodel
-- ✅ Professional spacing and layout improvements
-- ⚠️ **CRITICAL DISCOVERY**: Layout must support multiple visual nodes per entity (see example.jpg)
-- ⚠️ Node-based layout architecture - **Required for full implementation**
-- ⚠️ Rich entity content rendering (data schemas) - **Deferred: Requires node-based layout**
-- ⚠️ Test scenario sub-diagrams - **Deferred: Requires node-based layout**
-
-**Next Steps**: Continue node-based layout implementation in PR #21:
-- ✅ DiagramNode type system implemented
-- ✅ NodeLayoutEngine foundation created
-- ✅ Node generation from slices working
-- ✅ Topological sort for node positioning implemented
-- ✅ SVG renderer updated to work with nodes
-- ✅ Conservative temporal filtering removed
-- ✅ All connection types enabled in the diagram
-- ✅ Support for isolated entities added
-
-PR #21 implementation is complete. Next step: Proceed to Phase 6 - Acceptance Testing & Documentation
-
-**🚨 CRITICAL DISCOVERY - Horizontal Slices (2025-06-19)**: 
-Acceptance testing revealed a fundamental misunderstanding of slice architecture. The gold master shows slices as **horizontal workflow sections**, not vertical dividers. Each slice represents a complete user flow that spans across all swimlanes horizontally. This is a major architectural change that affects:
-- Slice interpretation and rendering
-- Entity grouping and positioning
-- Layout algorithms
-- Visual styling and headers
-
-See docs/gold-master-analysis.md for detailed findings.
-
-**Architectural Impact**: This discovery means that much of the current layout implementation needs to be redesigned. The node-based layout work in PR #21 is still valuable, but it needs to work within horizontal slice boundaries rather than treating the entire diagram as one flow.
+**Completed Phases**:
+- Phase 1: Type System Overhaul ✅
+- Phase 2: YAML Parser Implementation ✅
+- Phase 3: Domain Model Extensions ✅ 
+- Phase 4: Flow-Based Layout Engine ✅
+- Phase 5: Rich Visual Rendering ✅ (basic implementation)
 
 **Version Planning**: This rewrite will be released as version 0.3.0. Since we're pre-1.0, we can make breaking changes without maintaining backward compatibility. The YAML format will use this version number for its schema version.
 
@@ -363,122 +258,60 @@ workflow: User Account Signup
 3. Update module documentation for event_model
 4. Create entity type reference guide
 
-### Phase 4: Flow-Based Layout Engine
-**Goal**: Layout entities based on slice-defined flows, not grid positions
-
-**⚠️ CRITICAL UPDATE**: Phase 4 implementation must be revised to support node-based layout where entities can appear multiple times as distinct visual nodes.
-
-#### Tasks:
-1. ~~Implement topological sort for entity positioning~~ ✅ DONE (but needs revision)
-2. ~~Use slice definitions to determine flow order~~ ✅ DONE (but needs revision)
-3. ~~Layout test scenarios as sub-diagrams below main flow~~ ✅ Foundation added
-4. ~~Implement smart connector routing~~ ✅ Basic routing done
-5. ~~Handle multiple parallel flows~~ ✅ DONE
-6. ~~Ensure readable left-to-right timeline layout~~ ✅ DONE
-
-#### Required Revisions for Node-Based Layout:
-1. Create distinct visual nodes for each entity reference in connections
-2. Position nodes (not entities) using topological sort
-3. Support multiple node instances per entity
-4. Route connections between specific node instances
-5. Maintain entity identity while having multiple visual representations
-
-#### Documentation Tasks:
-1. Create ADR for flow-based layout algorithm
-2. **Create ADR for node-based layout architecture** 
-3. Document layout constraints and rules
-4. Update diagram module documentation
-5. Create layout troubleshooting guide
-
-### Phase 5: Rich Visual Rendering
-**Goal**: Produce professional diagrams matching the example output
-
-#### Completed Tasks:
-1. ✅ Implement entity-type-specific styling:
-   - Blue: Commands, Views, Queries
-   - Purple: Events
-   - Yellow: Projections
-   - Green: Automations
-   - Red: Error states
-2. ✅ Basic entity rendering with names and type labels
-3. ✅ Professional typography:
-   - Proper text sizing
-   - Clear hierarchy
-   - Readable spacing
-4. ✅ Fixed circular dependency with conservative temporal filtering
-
-#### Remaining Tasks (Blocked on Node-Based Layout):
-1. **Implement node-based layout architecture**:
-   - Create `DiagramNode` type that references an entity
-   - Generate nodes from slice connections (each endpoint = node)
-   - Update layout engine to position nodes instead of entities
-   - Support multiple visual nodes per logical entity
-   - Maintain node-to-entity mapping for styling
-2. Render entity content:
-   - Names and descriptions ✅ DONE
-   - Data schemas (requires node space allocation)
-   - UI component hierarchies (requires node space allocation)
-3. Render test scenarios:
-   - Separate boxes below main flow
-   - Given/When/Then sections
-   - Connected to parent command node
-4. Restore all entity types to layout:
-   - Currently filtering out non-temporal connections
-   - Node-based layout eliminates cycles, allowing all connections
-
-#### Documentation Tasks:
-1. Create visual style guide document
-2. Document color scheme and rationale ✅ Partially done
-3. Update theme documentation
-4. Create accessibility considerations guide
-5. Document node-based layout architecture
 
 ### Phase 6: Incremental Diagram Module Rewrite
 **Goal**: Build a proper event model diagramming library from scratch using incremental development
 
-**Previous Approaches Failed**: Both the initial implementation and the 11-step horizontal slice approach produced diagrams fundamentally different from the gold standard. We need a complete rewrite with a different methodology.
+**Approach**: Build incrementally, adding one element type at a time with visual validation before proceeding.
 
-#### Context:
-After multiple attempts, we've learned that trying to build the entire diagram at once leads to fundamental mismatches with the gold standard. Instead, we'll build incrementally, adding one element type at a time and validating each step visually before proceeding.
-
-**Critical Requirement**: While the gold standard (example.png) shows exactly how example.eventmodel should be rendered, the diagram module MUST be dynamic enough to handle ANY valid .eventmodel file that conforms to our schema. This means:
-- Variable number of swimlanes (not just 3)
+**Critical Requirement**: The diagram module MUST be dynamic enough to handle ANY valid .eventmodel file:
+- Variable number of swimlanes
 - Variable number of entities of each type
 - Different slice configurations
 - Different test scenario counts per command
 - Dynamic layout that adapts to content
-- Multiple instances of ANY entity type (not just views/projections) - the same command, event, query, or automation can appear in multiple places based on slice connections
-
-**New Approach**: Incremental development with visual validation at each step:
-1. Delete the existing diagram module completely
-2. Build from scratch, adding one element at a time
-3. After each element addition, generate SVG → PNG and review
-4. Compare against gold standard before proceeding
-5. Commit only when the current step is approved
-6. Ensure each step builds toward a dynamic, flexible system
+- Multiple instances of ANY entity type based on slice connections
 
 #### Implementation Steps:
 
-Each step follows this pattern:
-1. Add one diagram element type
-2. Generate an SVG
-3. Push changes to trigger GitHub Actions preview
-4. Review diagram in PR comment
-5. Compare against gold standard
-6. Wait for feedback/approval
-7. Proceed to next step when approved
+**⚠️ IMPORTANT: Approval Required Between Steps**
+For Phase 6 only, due to the incremental visual development approach:
+1. Create a new feature branch for each step (e.g., `feature/diagram-step-3-slice-headers`)
+2. Implement one diagram element
+3. Generate SVG and commit/push changes
+4. Create a focused PR for just that element
+5. **STOP and wait for user approval** before proceeding to next step
+6. User will review the visual output and provide feedback
+7. After approval, merge PR and create next feature branch from main
 
-**Step-by-Step Implementation**:
+This ensures each visual element matches expectations before building on it.
 
-Note: While using "User Account Signup" example for visual validation, each step must build toward handling arbitrary event models. Order chosen to show meaningful progress and validate layout early.
+**Branch/PR Strategy for Phase 6**:
+- Each step gets its own feature branch from main
+- Branch naming: `feature/diagram-step-{number}-{element-name}`
+  - Example: `feature/diagram-step-3-slice-headers`
+  - Example: `feature/diagram-step-4-login-screen-view`
+- Each PR focuses on ONE visual element only
+- PR title format: "Add diagram element: {element description}"
+- After approval and merge, immediately create next branch from updated main
 
-**Rationale for Order**:
-- Foundation first (canvas, swimlanes, slices) to establish layout grid
-- Then fill in slice-by-slice following the workflow narrative
-- Each slice completed before moving to next to see complete flows
-- Connections added after entities to validate positioning
-- Test scenarios last as they're a separate section
-- This order allows validating layout algorithms early and seeing the story emerge progressively
+**Approval Process for Phase 6**:
+- After implementing each step, commit and push to trigger GitHub Actions
+- The CI will generate a PNG preview and post it as a PR comment
+- User will review the visual output against the gold standard
+- User will provide one of:
+  - ✅ "Approved, proceed to next step"
+  - 🔄 "Changes needed: [specific feedback]"
+  - ❌ "Revert and try different approach: [guidance]"
+- Only proceed when you receive explicit approval
+- If changes are requested, implement them and push again for re-review
+- After approval, merge the PR before starting next step
+
+**Current Progress**:
+- ✅ Step 0: Delete and Initialize (approved)
+- ✅ Step 1: Canvas and Workflow Title (approved)
+- ✅ Step 2: Swimlanes (approved - just merged)
+- 🔄 Step 3: Slice Headers (next - awaiting implementation)
 
 **Foundation Steps (Canvas & Structure)**:
 
@@ -491,14 +324,13 @@ Note: While using "User Account Signup" example for visual validation, each step
 2. **Step 1: Canvas and Workflow Title** ✅ DONE
    - Create EventModelDiagram with canvas sizing
    - Add workflow title from loaded model
-   - For testing: "User Account Signup"
-   - Dynamic: Canvas width adjusts to content, title centers
+   - Dynamic: Canvas width adjusts to content, title left-aligned
 
-3. **Step 2: All Swimlanes**
+3. **Step 2: All Swimlanes** ✅ DONE
    - Add all swimlanes from model at once
-   - For testing: "UX, Automations", "Commands, Projections, Queries", "User Account Event Stream"
    - Dynamic: Height adjusts to number of swimlanes
-   - Rotated labels on left side
+   - Rotated labels on left side with text wrapping
+   - Dynamic width calculation for label section
 
 4. **Step 3: Slice Headers**
    - Add slice dividers and headers
@@ -744,27 +576,14 @@ diagram = diagram.layout_from_slices(&domain_model.slices);
 
 ## Timeline Estimate
 
-- Phase 1 (Type System): ✅ COMPLETE
-- Phase 2 (YAML Parser): ✅ COMPLETE
-- Phase 3 (Domain Extensions): ✅ COMPLETE
-- Phase 4 (Flow Layout): ✅ COMPLETE
-- Phase 5 (Rich Rendering): ✅ COMPLETE (with limitations)
-- Phase 6 (Incremental Diagram Rewrite): 10-12 hours + 2 hours documentation (RESTARTING)
-  - Previous approach (11 steps): ❌ COMPLETE but wrong layout
-  - New approach: Incremental development with visual validation
+- Phase 1-5: ✅ COMPLETE
+- Phase 6 (Incremental Diagram Rewrite): IN PROGRESS
+  - Steps 0-2: ✅ COMPLETE
+  - Steps 3-26: ~10 hours remaining
 - Phase 7 (Acceptance Testing): 4-6 hours + 4 hours documentation
 - Phase 8 (Cleanup): 2-3 hours
 
-Remaining: ~16-21 hours of implementation + ~6 hours of documentation = ~22-27 hours
-
-**Note**: This is a complete rewrite with significantly more complexity than the original MVP. The rich format requires:
-- Complex type hierarchies
-- YAML parsing with nested structures
-- Sophisticated layout algorithms
-- Multi-layered rendering (main diagram + test scenarios)
-- Professional visual design
-- Comprehensive documentation updates
-- GitHub Pages updates with new examples
+Remaining: ~16-21 hours of implementation + ~6 hours of documentation
 
 ## Future Enhancements (Post-Implementation)
 
@@ -827,6 +646,7 @@ Following our type-driven testing ADR:
    
 3. The **LAST item** on EVERY todo list must always be:
    - "Review PLANNING.md, update with current status, determine next tasks, and START implementing them"
+   - **EXCEPTION for Phase 6**: Replace with "Review PLANNING.md, update with current status, and await approval before proceeding"
 
 ### Example Todo List Structure:
 1. Implement CLI argument parsing in src/cli.rs
@@ -842,6 +662,9 @@ Following our type-driven testing ADR:
 11. Check PR status and CI checks after push
 12. Review PLANNING.md, update with current status, determine next tasks, and START implementing them
 
+**For Phase 6 Incremental Steps**:
+12. Review PLANNING.md, update with current status, and await approval before proceeding to next step
+
 This ensures:
 1. **Extremely frequent verification** that code compiles and tests pass
 2. **Incremental commits** capturing each small working change
@@ -853,6 +676,7 @@ This ensures:
 8. **Continuous forward momentum** - work continues seamlessly without stopping
 9. Clear handoff between work sessions
 10. **No pause between phases** - as soon as one phase is complete, the next begins immediately
+    - **EXCEPTION**: Phase 6 requires approval between each incremental step
 
 **Note**: Build and test checks should happen AT LEAST this frequently, if not more often. You may add additional build/test/commit steps between tasks whenever it makes sense.
 
