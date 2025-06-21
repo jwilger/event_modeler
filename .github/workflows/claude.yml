@@ -29,6 +29,9 @@ jobs:
       contains(github.event.review.body || '', '@claude')
     
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
       - name: Run Claude
         uses: grll/claude-code-action@main
         with:
