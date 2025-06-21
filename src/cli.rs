@@ -241,7 +241,7 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
             .map_err(|e| Error::InvalidArguments(format!("YAML conversion error: {}", e)))?;
 
     // Extract workflow title before domain_model is moved
-    let workflow_title = domain_model.workflow.clone().into_inner();
+    let _workflow_title = domain_model.workflow.clone().into_inner();
 
     // 4. Convert domain model to EventModelDiagram
     let event_model_diagram =
@@ -268,25 +268,16 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
         .sum();
     println!("Found {} entities total", total_entities);
 
-    // 5. Create new diagram using incremental approach
-    use crate::diagram::EventModelDiagram;
+    // 5. TODO: Convert domain model to diagram and render
+    // This is where we'll call the new diagram module once it's implemented properly
 
-    let mut diagram = EventModelDiagram::new(workflow_title);
-
-    // Add swimlanes
-    for swimlane in domain_model.swimlanes.iter() {
-        let id = swimlane.id.clone();
-        let label = swimlane.name.clone();
-
-        diagram = diagram.with_swimlane(id, label);
-    }
-
-    // 6. Render to requested formats
+    // For now, just output a placeholder
     for format in cmd.options.formats.iter() {
         match format {
             OutputFormat::Svg => {
-                // Use new incremental rendering approach
-                let svg_doc = diagram.to_svg();
+                let svg_doc = r#"<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+                    <text x="50" y="50" text-anchor="middle">TODO: Implement diagram module</text>
+                </svg>"#;
 
                 // Generate output filename
                 let output_filename = if let Some(filename) = &cmd.options.output_filename {

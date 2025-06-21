@@ -26,18 +26,13 @@ This ensures no work is forgotten or lost in the codebase.
 
 ## Current Status
 
-**Last Updated**: 2025-06-21 (Phase 6 Step 2 COMPLETE)
+**Last Updated**: 2025-06-21 (Phase 6 RESTARTED - proper implementation approach)
 
 **Latest Progress**: 
-- Phase 6 (Incremental Diagram Module Rewrite) in progress
-- Step 0: Delete and Initialize ✅ COMPLETE
-- Step 1: Canvas and Workflow Title ✅ COMPLETE 
-- Step 2: Swimlanes ✅ COMPLETE (just merged)
-  - Dynamic swimlane rendering with rotated labels
-  - Text wrapping for long labels
-  - Dynamic width calculation for label section
-  - Left-aligned workflow title
-- Next: Step 3 - Slice Headers
+- Phase 6 (Incremental Diagram Module Rewrite) RESTARTED
+- Previous attempt failed due to improper implementation approach
+- Starting over with Step 0: Delete and Initialize
+- **CRITICAL**: All code must be in the library, not in test binaries or CLI hacks
 
 **Current Approach**: Building diagram module incrementally:
 - Add one element type at a time
@@ -264,7 +259,36 @@ workflow: User Account Signup
 
 **Approach**: Build incrementally, adding one element type at a time with visual validation before proceeding.
 
-**Critical Requirement**: The diagram module MUST be dynamic enough to handle ANY valid .eventmodel file:
+**CRITICAL IMPLEMENTATION REQUIREMENTS**:
+
+1. **ALL CODE IN THE LIBRARY**: 
+   - The diagram module is part of the core library at `src/diagram/`
+   - NO test binaries with implementation logic
+   - NO hacks in the CLI - it should only call library functions
+   - The CLI's execute_render function should convert YAML → Domain → Diagram → SVG
+
+2. **PROPER CONVERSION FLOW**:
+   ```rust
+   // In the CLI or a proper conversion module:
+   let yaml_model = parse_yaml(&input)?;
+   let domain_model = convert_yaml_to_domain(yaml_model)?;
+   let diagram = build_diagram_from_domain(domain_model)?;  // THIS IS WHAT WE'RE BUILDING
+   let svg = diagram.to_svg();
+   ```
+
+3. **TESTING APPROACH**:
+   - Run the actual event_modeler binary: `cargo run -- example.eventmodel -o output.svg`
+   - Look at the generated SVG to verify correctness
+   - Locally convert to PNG if needed: `magick output.svg output.png`
+   - Compare with example.png gold standard
+
+4. **PR WORKFLOW**:
+   - Generate SVG using the actual binary
+   - CI creates a new gist with the SVG
+   - PR description is updated with the gist link
+   - Review the actual rendered diagram in the PR
+
+**Dynamic Requirements**: The diagram module MUST be dynamic enough to handle ANY valid .eventmodel file:
 - Variable number of swimlanes
 - Variable number of entities of each type
 - Different slice configurations
@@ -308,26 +332,28 @@ This ensures each visual element matches expectations before building on it.
 - After approval, merge the PR before starting next step
 
 **Current Progress**:
-- ✅ Step 0: Delete and Initialize (approved)
-- ✅ Step 1: Canvas and Workflow Title (approved)
-- ✅ Step 2: Swimlanes (approved - just merged)
-- 🔄 Step 3: Slice Headers (next - awaiting implementation)
+- 🔄 Step 0: Delete and Initialize (restarting with proper approach)
+- ⏸️ Step 1: Canvas and Workflow Title (not started)
+- ⏸️ Step 2: Swimlanes (not started)
+- ⏸️ Step 3: Slice Headers (not started)
 
 **Foundation Steps (Canvas & Structure)**:
 
-1. **Step 0: Delete and Initialize** ✅ DONE
+1. **Step 0: Delete and Initialize**
    - Delete entire `src/diagram/` module
-   - Create new empty module structure
-   - Set up basic SVG generation infrastructure
-   - Create test harness that can load ANY .eventmodel file
+   - Create new empty module structure with proper library design
+   - Set up conversion function that takes domain model and returns diagram
+   - Ensure CLI can use this to generate SVGs from .eventmodel files
+   - NO TEST BINARIES - test by running: `cargo run -- example.eventmodel -o test.svg`
 
-2. **Step 1: Canvas and Workflow Title** ✅ DONE
-   - Create EventModelDiagram with canvas sizing
-   - Add workflow title from loaded model
+2. **Step 1: Canvas and Workflow Title**
+   - Create EventModelDiagram type in diagram module
+   - Add conversion function that builds diagram from domain model
+   - Render canvas with workflow title
    - Dynamic: Canvas width adjusts to content, title left-aligned
 
-3. **Step 2: All Swimlanes** ✅ DONE
-   - Add all swimlanes from model at once
+3. **Step 2: All Swimlanes**
+   - Add swimlanes to diagram from domain model
    - Dynamic: Height adjusts to number of swimlanes
    - Rotated labels on left side with text wrapping
    - Dynamic width calculation for label section

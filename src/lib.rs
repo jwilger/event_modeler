@@ -18,9 +18,6 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Command-line interface.
 pub mod cli;
 
-/// Diagram generation and rendering.
-pub mod diagram;
-
 /// Event model domain types and operations.
 pub mod event_model;
 
