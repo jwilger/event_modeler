@@ -454,8 +454,7 @@ All work is now tracked through GitHub issues. Check issues with the `epic` labe
 
 3. **Commit Frequently**
    - Commit after EVERY small task that builds successfully
-   - Write descriptive commit messages explaining "why"
-   - No commit message prefixes (no "feat:", "fix:", etc.)
+   - Refer to "Git Commit Guidelines" section for detailed commit practices
 
 4. **Create PRs Immediately**
    - Create PR after first push (not as draft)
@@ -464,7 +463,9 @@ All work is now tracked through GitHub issues. Check issues with the `epic` labe
 
 5. **Handle PR Chains**
    - When a base PR merges, IMMEDIATELY rebase downstream PRs
-   - Use `git rebase origin/main` and `--theirs` for conflicts
+   - Use `git rebase origin/main` and resolve conflicts carefully
+   - For PR chain conflicts (same changes in different commits), `--theirs` is often correct
+   - For genuine conflicts, resolve manually to preserve intended changes
    - Update PR base with `gh pr edit <number> --base main`
 
 ### Testing Requirements
@@ -491,10 +492,15 @@ cargo run -- tests/fixtures/acceptance/example.eventmodel -o test.svg
 
 ### Git Commit Guidelines
 
-- High-quality commits that explain the "why"
-- Commit whenever tests pass
-- Keep commits focused and atomic
-- Follow the format in README.md
+- Write high-quality commit messages that explain the "why" not just the "what"
+- Commit whenever all tests pass (cargo test --workspace)
+- Keep commits focused and atomic - one logical change per commit
+- No commit message prefixes (no "feat:", "fix:", "chore:", etc.)
+- Use the format shown in README.md:
+  - First line: concise summary (50 chars or less)
+  - Blank line
+  - Detailed explanation of why the change was made
+  - Include context that future developers will need
 
 ### Working with @claude GitHub App
 
