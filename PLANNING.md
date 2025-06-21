@@ -32,7 +32,7 @@ This ensures no work is forgotten or lost in the codebase.
 - Phase 6 (Incremental Diagram Module Rewrite) IN PROGRESS
 - Step 0: Delete and Initialize (COMPLETE - PR #28 merged)
 - Step 1: Canvas and Workflow Title (COMPLETE - PR #29 merged)
-- Step 2: All Swimlanes (COMPLETE - PR #30 created, Copilot reviewed, awaiting merge)
+- Step 2: All Swimlanes (COMPLETE - PR #30 merged)
 - **CRITICAL**: All code must be in the library, not in test binaries or CLI hacks
 
 **Current Approach**: Building diagram module incrementally:
@@ -368,8 +368,9 @@ Phase 6 follows the general Visual Development Rule (see above) with these speci
 **Current Progress**:
 - ✅ Step 0: Delete and Initialize (COMPLETE - PR #28 merged)
 - ✅ Step 1: Canvas and Workflow Title (COMPLETE - PR #29 merged)
-- ✅ Step 2: All Swimlanes (COMPLETE - PR #30 created, Copilot reviewed, awaiting merge)
-- ⏸️ Step 3: Slice Headers (not started)
+- ✅ Step 2: All Swimlanes (COMPLETE - PR #30 merged)
+- 🔄 Step 3: Slice Headers (IN PROGRESS)
+- ⏸️ Step 4: Login Screen (View) (not started)
 
 **Foundation Steps (Canvas & Structure)**:
 
