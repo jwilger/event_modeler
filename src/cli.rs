@@ -246,7 +246,7 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
 
     println!(
         "Successfully converted event model: {}",
-        domain_model.workflow.clone().into_inner().as_str()
+        diagram.workflow_title().as_str()
     );
 
     // 5. Render to requested formats
