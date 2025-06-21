@@ -1,7 +1,7 @@
 //! Simple lexer for the Event Model format used in tests.
 //!
 //! This lexer handles the simple format:
-//! ```
+//! ```text
 //! Title: Model Name
 //! Swimlane: Lane Name
 //! - Entity: EntityName

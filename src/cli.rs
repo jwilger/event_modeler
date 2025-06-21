@@ -240,10 +240,15 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
         crate::infrastructure::parsing::yaml_converter::convert_yaml_to_domain(yaml_model)
             .map_err(|e| Error::InvalidArguments(format!("YAML conversion error: {}", e)))?;
 
+    // Extract workflow title before domain_model is moved
+    let workflow_title = domain_model.workflow.clone().into_inner();
+
     // 4. Convert domain model to EventModelDiagram
     let event_model_diagram =
-        crate::event_model::yaml_to_diagram_converter::convert_yaml_to_diagram(domain_model)
-            .map_err(|e| Error::InvalidArguments(format!("Diagram conversion error: {:?}", e)))?;
+        crate::event_model::yaml_to_diagram_converter::convert_yaml_to_diagram(
+            domain_model.clone(),
+        )
+        .map_err(|e| Error::InvalidArguments(format!("Diagram conversion error: {:?}", e)))?;
 
     println!(
         "Successfully converted event model: {}",
@@ -263,65 +268,25 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
         .sum();
     println!("Found {} entities total", total_entities);
 
-    // 5. Create layout from the diagram using node-based layout
-    use crate::diagram::layout::LayoutConfig;
-    use crate::diagram::node_layout::NodeLayoutEngine;
-    use crate::infrastructure::types::PositiveFloat;
+    // 5. Create new diagram using incremental approach
+    use crate::diagram::EventModelDiagram;
 
-    let layout_config = LayoutConfig {
-        entity_spacing: crate::diagram::layout::EntitySpacing::new(
-            PositiveFloat::parse(30.0).unwrap(),
-        ),
-        swimlane_height: crate::diagram::layout::SwimlaneHeight::new(
-            PositiveFloat::parse(140.0).unwrap(), // Increased for better visual hierarchy
-        ),
-        slice_gutter: crate::diagram::layout::SliceGutter::new(PositiveFloat::parse(20.0).unwrap()),
-        connection_routing: crate::diagram::layout::ConnectionRouting::Straight,
-        entity_width: crate::diagram::layout::EntityWidth::new(
-            PositiveFloat::parse(160.0).unwrap(), // Increased from 120 for better text fit
-        ),
-        entity_height: crate::diagram::layout::EntityHeight::new(
-            PositiveFloat::parse(80.0).unwrap(), // Increased from 60 for type label + name
-        ),
-    };
+    let mut diagram = EventModelDiagram::new(workflow_title);
 
-    // Use node-based layout engine
-    let node_layout_engine = NodeLayoutEngine::new(layout_config);
-    let node_layout = node_layout_engine
-        .compute_node_layout(&event_model_diagram, &event_model_diagram.entities)
-        .map_err(|e| Error::InvalidArguments(format!("Layout error: {:?}", e)))?;
+    // Add swimlanes
+    for swimlane in domain_model.swimlanes.iter() {
+        let id = swimlane.id.clone();
+        let label = swimlane.name.clone();
+
+        diagram = diagram.with_swimlane(id, label);
+    }
 
     // 6. Render to requested formats
     for format in cmd.options.formats.iter() {
         match format {
             OutputFormat::Svg => {
-                // Create theme based on style
-                let theme = match cmd.options.style {
-                    RenderStyle::GithubLight => crate::diagram::theme::ThemedRenderer::<
-                        crate::diagram::theme::GithubLight,
-                    >::github_light()
-                    .theme()
-                    .clone(),
-                    RenderStyle::GithubDark => crate::diagram::theme::ThemedRenderer::<
-                        crate::diagram::theme::GithubDark,
-                    >::github_dark()
-                    .theme()
-                    .clone(),
-                };
-
-                // Create SVG renderer
-                let svg_config = crate::diagram::svg::SvgRenderConfig {
-                    precision: crate::diagram::svg::DecimalPrecision::new(
-                        crate::infrastructure::types::PositiveInt::parse(2).unwrap(),
-                    ),
-                    optimize: crate::diagram::svg::OptimizationLevel::Basic,
-                    embed_fonts: crate::diagram::svg::EmbedFonts::new(false),
-                };
-
-                let renderer = crate::diagram::svg::SvgRenderer::new(svg_config, theme);
-                let svg_doc = renderer
-                    .render_node_layout(&node_layout)
-                    .map_err(|e| Error::InvalidArguments(format!("SVG render error: {}", e)))?;
+                // Use new incremental rendering approach
+                let svg_doc = diagram.to_svg();
 
                 // Generate output filename
                 let output_filename = if let Some(filename) = &cmd.options.output_filename {
@@ -338,7 +303,7 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
                 let output_path = cmd.options.output_dir.as_path_buf().join(&output_filename);
 
                 // Write SVG to file
-                let svg_content = svg_doc.to_xml();
+                let svg_content = svg_doc;
                 let mut file = fs::File::create(&output_path)?;
                 file.write_all(svg_content.as_bytes())?;
 

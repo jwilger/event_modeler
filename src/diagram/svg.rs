@@ -1,1295 +1,166 @@
-// Copyright (c) 2025 John Wilger
-// SPDX-License-Identifier: MIT
-
-//! SVG rendering for Event Model diagrams.
+//! SVG rendering for event model diagrams.
 //!
-//! This module handles the generation of SVG documents from layout information,
-//! including all visual elements, styles, and optimizations.
+//! This module converts an EventModelDiagram into SVG output.
 
-use crate::diagram::layout::{Height, Layout, Width, XCoordinate, YCoordinate};
-use crate::diagram::style::{ConnectionStyle, EntityStyle};
-use crate::infrastructure::types::{
-    FiniteFloat, NonEmptyString, NonNegativeFloat, Percentage as ValidatedPercentage,
-    PositiveFloat, PositiveInt,
-};
-use nutype::nutype;
+use super::EventModelDiagram;
 
-/// A complete SVG document.
-#[derive(Debug, Clone)]
-pub struct SvgDocument {
-    /// Viewbox defining the coordinate system.
-    pub viewbox: ViewBox,
-    /// All visual elements in the document.
-    pub elements: Vec<SvgElement>,
-    /// Definitions for reusable elements.
-    pub defs: SvgDefs,
+/// Escapes special XML characters in text.
+fn xml_escape(text: &str) -> String {
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&apos;")
 }
 
-impl SvgDocument {
-    /// Serialize the SVG document to XML string.
-    pub fn to_xml(&self) -> String {
-        let mut xml = String::new();
-
-        // XML declaration
-        xml.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-
-        // SVG root element with namespace and viewBox
-        xml.push_str(&format!(
-            "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"{} {} {} {}\" width=\"{}\" height=\"{}\">\n",
-            self.viewbox.x.into_inner().value(),
-            self.viewbox.y.into_inner().value(),
-            self.viewbox.width.into_inner().value(),
-            self.viewbox.height.into_inner().value(),
-            self.viewbox.width.into_inner().value(),
-            self.viewbox.height.into_inner().value()
-        ));
-
-        // Add defs section if there are any definitions
-        if !self.defs.patterns.is_empty()
-            || !self.defs.gradients.is_empty()
-            || !self.defs.markers.is_empty()
-        {
-            xml.push_str("  <defs>\n");
-            // TODO: Serialize patterns, gradients, and markers
-            xml.push_str("  </defs>\n");
+/// Wraps text to fit within a given width when rotated.
+/// Returns a vector of lines.
+fn wrap_text(text: &str, max_chars: usize) -> Vec<String> {
+    // Split by both whitespace and comma (keeping the comma with the word)
+    let mut words = Vec::new();
+    for part in text.split_whitespace() {
+        if part.contains(',') {
+            // Split around comma but keep it
+            let comma_parts: Vec<&str> = part.splitn(2, ',').collect();
+            if comma_parts.len() == 2 && !comma_parts[1].is_empty() {
+                words.push(format!("{},", comma_parts[0]));
+                words.push(comma_parts[1].to_string());
+            } else {
+                words.push(part.to_string());
+            }
+        } else {
+            words.push(part.to_string());
         }
-
-        // Serialize all elements
-        for element in &self.elements {
-            xml.push_str(&self.serialize_element(element, 1));
-        }
-
-        // Close SVG
-        xml.push_str("</svg>\n");
-
-        xml
     }
 
-    /// Serialize a single SVG element with proper indentation.
-    fn serialize_element(&self, element: &SvgElement, indent_level: usize) -> String {
-        let indent = "  ".repeat(indent_level);
+    let mut lines = Vec::new();
+    let mut current_line = String::new();
 
-        match element {
-            SvgElement::Group(group) => {
-                let mut xml = format!("{}<g", indent);
-                if let Some(id) = &group.id {
-                    xml.push_str(&format!(" id=\"{}\"", id.clone().into_inner().as_str()));
-                }
-                if let Some(class) = &group.class {
-                    xml.push_str(&format!(
-                        " class=\"{}\"",
-                        class.clone().into_inner().as_str()
-                    ));
-                }
-                // TODO: Add transform attribute if present
-                xml.push_str(">\n");
+    for word in words {
+        if current_line.is_empty() {
+            current_line = word;
+        } else if current_line.len() + 1 + word.len() <= max_chars {
+            current_line.push(' ');
+            current_line.push_str(&word);
+        } else {
+            lines.push(current_line);
+            current_line = word;
+        }
+    }
 
-                // Serialize children
-                for child in &group.children {
-                    xml.push_str(&self.serialize_element(child, indent_level + 1));
-                }
+    if !current_line.is_empty() {
+        lines.push(current_line);
+    }
 
-                xml.push_str(&format!("{}</g>\n", indent));
-                xml
-            }
+    lines
+}
 
-            SvgElement::Rectangle(rect) => {
-                let mut xml = format!("{}<rect", indent);
-                if let Some(id) = &rect.id {
-                    xml.push_str(&format!(" id=\"{}\"", id.clone().into_inner().as_str()));
-                }
-                if let Some(class) = &rect.class {
-                    xml.push_str(&format!(
-                        " class=\"{}\"",
-                        class.clone().into_inner().as_str()
-                    ));
-                }
-                xml.push_str(&format!(
-                    " x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\"",
-                    rect.x.into_inner().value(),
-                    rect.y.into_inner().value(),
-                    rect.width.into_inner().value(),
-                    rect.height.into_inner().value()
-                ));
-                if let Some(rx) = &rect.rx {
-                    xml.push_str(&format!(" rx=\"{}\"", rx.into_inner().value()));
-                }
-                if let Some(ry) = &rect.ry {
-                    xml.push_str(&format!(" ry=\"{}\"", ry.into_inner().value()));
-                }
+impl EventModelDiagram {
+    /// Renders the diagram to SVG.
+    pub fn to_svg(&self) -> String {
+        const TITLE_HEIGHT: f64 = 60.0;
+        const SWIMLANE_HEIGHT: f64 = 200.0;
+        const CANVAS_WIDTH: f64 = 1200.0;
+        const FONT_SIZE: f64 = 16.0;
+        const LINE_HEIGHT: f64 = 20.0; // Line height for wrapped text
+        const PADDING: f64 = 20.0; // Padding around text
+        const MAX_CHARS_PER_LINE: usize = 20; // Maximum characters per line when wrapped
 
-                // Add style attributes
-                xml.push_str(&self.serialize_entity_style(&rect.style));
+        // Calculate the maximum width needed for all swimlane labels
+        let mut max_label_width = 100.0; // Minimum width
 
-                xml.push_str("/>\n");
-                xml
-            }
+        for swimlane in self.swimlanes() {
+            let label = swimlane.label();
+            let wrapped = wrap_text(&label, MAX_CHARS_PER_LINE);
 
-            SvgElement::Text(text) => {
-                let mut xml = format!("{}<text", indent);
-                if let Some(id) = &text.id {
-                    xml.push_str(&format!(" id=\"{}\"", id.clone().into_inner().as_str()));
-                }
-                if let Some(class) = &text.class {
-                    xml.push_str(&format!(
-                        " class=\"{}\"",
-                        class.clone().into_inner().as_str()
-                    ));
-                }
-                xml.push_str(&format!(
-                    " x=\"{}\" y=\"{}\"",
-                    text.x.into_inner().value(),
-                    text.y.into_inner().value()
-                ));
+            // When rotated -90 degrees:
+            // - The height of the text area becomes the width of the label section
+            // - The width of the text area becomes limited by the swimlane height
 
-                // Add text style attributes
-                xml.push_str(&self.serialize_text_style(&text.style));
+            // Find the longest line to determine minimum width needed
+            let max_line_length = wrapped.iter().map(|line| line.len()).max().unwrap_or(0) as f64;
 
-                xml.push_str(&format!(
-                    ">{}</text>\n",
-                    text.content.clone().into_inner().as_str()
-                ));
-                xml
-            }
+            // Calculate required width based on either:
+            // 1. The number of lines (for vertical space when rotated)
+            // 2. The longest line (for horizontal space when rotated)
+            let text_height = wrapped.len() as f64 * LINE_HEIGHT;
+            let text_width = max_line_length * 8.0; // Approximate character width
 
-            SvgElement::Path(path) => {
-                let mut xml = format!("{}<path", indent);
-                if let Some(id) = &path.id {
-                    xml.push_str(&format!(" id=\"{}\"", id.clone().into_inner().as_str()));
-                }
-                if let Some(class) = &path.class {
-                    xml.push_str(&format!(
-                        " class=\"{}\"",
-                        class.clone().into_inner().as_str()
-                    ));
-                }
-                xml.push_str(&format!(" d=\"{}\"", path.d.clone().into_inner().as_str()));
+            // The required width is the maximum of:
+            // - Space needed for wrapped lines (text_height when rotated)
+            // - Space needed for the longest line (ensures text fits)
+            let required_width = text_height.max(text_width) + PADDING * 2.0;
 
-                // Add path style attributes
-                xml.push_str(&self.serialize_connection_style(&path.style));
-
-                xml.push_str("/>\n");
-                xml
-            }
-
-            SvgElement::Image(_img) => {
-                // TODO: Implement image serialization
-                format!("{}<!-- Image element not yet implemented -->\n", indent)
+            if required_width > max_label_width {
+                max_label_width = required_width;
             }
         }
-    }
 
-    /// Serialize entity style attributes.
-    fn serialize_entity_style(&self, style: &crate::diagram::style::EntityStyle) -> String {
-        let mut attrs = String::new();
-
-        // Fill style
-        attrs.push_str(&format!(
-            " fill=\"{}\"",
-            style.fill.color.clone().into_inner().as_str()
-        ));
-        if let Some(opacity) = &style.fill.opacity {
-            attrs.push_str(&format!(
-                " fill-opacity=\"{}\"",
-                opacity.into_inner().value()
-            ));
-        }
-
-        // Stroke style
-        attrs.push_str(&format!(
-            " stroke=\"{}\"",
-            style.stroke.color.clone().into_inner().as_str()
-        ));
-        attrs.push_str(&format!(
-            " stroke-width=\"{}\"",
-            style.stroke.width.into_inner().value()
-        ));
-        if let Some(opacity) = &style.stroke.opacity {
-            attrs.push_str(&format!(
-                " stroke-opacity=\"{}\"",
-                opacity.into_inner().value()
-            ));
-        }
-        // TODO: Add stroke-dasharray if present
-
-        attrs
-    }
-
-    /// Serialize text style attributes.
-    fn serialize_text_style(&self, style: &TextStyle) -> String {
-        let mut attrs = String::new();
-
-        attrs.push_str(&format!(
-            " font-family=\"{}\"",
-            style.font_family.clone().into_inner().as_str()
-        ));
-        attrs.push_str(&format!(
-            " font-size=\"{}\"",
-            style.font_size.into_inner().value()
-        ));
-        attrs.push_str(&format!(
-            " fill=\"{}\"",
-            style.fill.clone().into_inner().as_str()
-        ));
-
-        if let Some(weight) = &style.font_weight {
-            let weight_str = match weight {
-                FontWeight::Normal => "normal",
-                FontWeight::Bold => "bold",
-                FontWeight::Bolder => "bolder",
-                FontWeight::Lighter => "lighter",
-                FontWeight::Weight(w) => {
-                    // TODO: Convert numeric weight to string
-                    let _ = w; // Avoid unused warning
-                    "normal"
-                }
-            };
-            attrs.push_str(&format!(" font-weight=\"{}\"", weight_str));
-        }
-
-        if let Some(anchor) = &style.anchor {
-            let anchor_str = match anchor {
-                TextAnchor::Start => "start",
-                TextAnchor::Middle => "middle",
-                TextAnchor::End => "end",
-            };
-            attrs.push_str(&format!(" text-anchor=\"{}\"", anchor_str));
-        }
-
-        attrs
-    }
-
-    /// Serialize connection style attributes.
-    fn serialize_connection_style(&self, style: &crate::diagram::style::ConnectionStyle) -> String {
-        let mut attrs = String::new();
-
-        // No fill for paths
-        attrs.push_str(" fill=\"none\"");
-
-        // Stroke style
-        attrs.push_str(&format!(
-            " stroke=\"{}\"",
-            style.stroke.color.clone().into_inner().as_str()
-        ));
-        attrs.push_str(&format!(
-            " stroke-width=\"{}\"",
-            style.stroke.width.into_inner().value()
-        ));
-        if let Some(opacity) = &style.stroke.opacity {
-            attrs.push_str(&format!(
-                " stroke-opacity=\"{}\"",
-                opacity.into_inner().value()
-            ));
-        }
-        // TODO: Add stroke-dasharray if present
-        // TODO: Add marker-end and marker-start if present
-
-        attrs
-    }
-}
-
-/// SVG viewBox defining the coordinate system.
-#[derive(Debug, Clone)]
-pub struct ViewBox {
-    /// X coordinate of the viewbox.
-    pub x: XCoordinate,
-    /// Y coordinate of the viewbox.
-    pub y: YCoordinate,
-    /// Width of the viewbox.
-    pub width: Width,
-    /// Height of the viewbox.
-    pub height: Height,
-}
-
-/// SVG definitions section for reusable elements.
-#[derive(Debug, Clone)]
-pub struct SvgDefs {
-    /// Pattern definitions.
-    pub patterns: Vec<Pattern>,
-    /// Gradient definitions.
-    pub gradients: Vec<Gradient>,
-    /// Marker definitions for arrows/endpoints.
-    pub markers: Vec<Marker>,
-}
-
-/// Types of SVG elements.
-#[derive(Debug, Clone)]
-pub enum SvgElement {
-    /// Group element containing other elements.
-    Group(SvgGroup),
-    /// Rectangle shape.
-    Rectangle(SvgRectangle),
-    /// Text element.
-    Text(SvgText),
-    /// Path element for complex shapes.
-    Path(SvgPath),
-    /// Image element.
-    Image(SvgImage),
-}
-
-/// SVG group element.
-#[derive(Debug, Clone)]
-pub struct SvgGroup {
-    /// Optional element ID.
-    pub id: Option<ElementId>,
-    /// Optional CSS class.
-    pub class: Option<CssClass>,
-    /// Optional transformation.
-    pub transform: Option<Transform>,
-    /// Child elements.
-    pub children: Vec<SvgElement>,
-}
-
-/// SVG rectangle element.
-#[derive(Debug, Clone)]
-pub struct SvgRectangle {
-    /// Optional element ID.
-    pub id: Option<ElementId>,
-    /// Optional CSS class.
-    pub class: Option<CssClass>,
-    /// X coordinate.
-    pub x: XCoordinate,
-    /// Y coordinate.
-    pub y: YCoordinate,
-    /// Width.
-    pub width: Width,
-    /// Height.
-    pub height: Height,
-    /// X-axis border radius.
-    pub rx: Option<BorderRadius>,
-    /// Y-axis border radius.
-    pub ry: Option<BorderRadius>,
-    /// Visual style.
-    pub style: EntityStyle,
-}
-
-/// SVG text element.
-#[derive(Debug, Clone)]
-pub struct SvgText {
-    /// Optional element ID.
-    pub id: Option<ElementId>,
-    /// Optional CSS class.
-    pub class: Option<CssClass>,
-    /// X coordinate.
-    pub x: XCoordinate,
-    /// Y coordinate.
-    pub y: YCoordinate,
-    /// Text to display.
-    pub content: TextContent,
-    /// Text style.
-    pub style: TextStyle,
-}
-
-/// SVG path element.
-#[derive(Debug, Clone)]
-pub struct SvgPath {
-    /// Optional element ID.
-    pub id: Option<ElementId>,
-    /// Optional CSS class.
-    pub class: Option<CssClass>,
-    /// Path data commands.
-    pub d: PathData,
-    /// Visual style.
-    pub style: ConnectionStyle,
-}
-
-/// SVG image element.
-#[derive(Debug, Clone)]
-pub struct SvgImage {
-    /// Optional element ID.
-    pub id: Option<ElementId>,
-    /// X coordinate.
-    pub x: XCoordinate,
-    /// Y coordinate.
-    pub y: YCoordinate,
-    /// Width.
-    pub width: Width,
-    /// Height.
-    pub height: Height,
-    /// Image source URL.
-    pub href: ImageHref,
-}
-
-/// SVG pattern definition.
-#[derive(Debug, Clone)]
-pub struct Pattern {
-    /// Unique pattern ID.
-    pub id: PatternId,
-    /// Pattern width.
-    pub width: PatternSize,
-    /// Pattern height.
-    pub height: PatternSize,
-    /// Pattern content.
-    pub content: Vec<SvgElement>,
-}
-
-/// SVG gradient definition.
-#[derive(Debug, Clone)]
-pub struct Gradient {
-    /// Unique gradient ID.
-    pub id: GradientId,
-    /// Type of gradient.
-    pub gradient_type: GradientType,
-    /// Color stops.
-    pub stops: Vec<GradientStop>,
-}
-
-/// Type of gradient.
-#[derive(Debug, Clone)]
-pub enum GradientType {
-    /// Linear gradient.
-    Linear(LinearGradient),
-    /// Radial gradient.
-    Radial(RadialGradient),
-}
-
-/// Linear gradient parameters.
-#[derive(Debug, Clone)]
-pub struct LinearGradient {
-    /// Start X position.
-    pub x1: Percentage,
-    /// Start Y position.
-    pub y1: Percentage,
-    /// End X position.
-    pub x2: Percentage,
-    /// End Y position.
-    pub y2: Percentage,
-}
-
-/// Radial gradient parameters.
-#[derive(Debug, Clone)]
-pub struct RadialGradient {
-    /// Center X position.
-    pub cx: Percentage,
-    /// Center Y position.
-    pub cy: Percentage,
-    /// Radius.
-    pub r: Percentage,
-}
-
-/// Color stop in a gradient.
-#[derive(Debug, Clone)]
-pub struct GradientStop {
-    /// Position along gradient (0-100%).
-    pub offset: Percentage,
-    /// Color at this stop.
-    pub color: Color,
-    /// Optional opacity.
-    pub opacity: Option<Opacity>,
-}
-
-/// SVG marker for arrow heads and endpoints.
-#[derive(Debug, Clone)]
-pub struct Marker {
-    /// Unique marker ID.
-    pub id: MarkerId,
-    /// Marker width.
-    pub width: MarkerSize,
-    /// Marker height.
-    pub height: MarkerSize,
-    /// X reference point.
-    pub refx: MarkerRef,
-    /// Y reference point.
-    pub refy: MarkerRef,
-    /// Marker content.
-    pub content: Vec<SvgElement>,
-}
-
-/// Style properties for text.
-#[derive(Debug, Clone)]
-pub struct TextStyle {
-    /// Font family.
-    pub font_family: FontFamily,
-    /// Font size.
-    pub font_size: FontSize,
-    /// Font weight.
-    pub font_weight: Option<FontWeight>,
-    /// Text color.
-    pub fill: Color,
-    /// Text alignment.
-    pub anchor: Option<TextAnchor>,
-}
-
-/// Text alignment anchor point.
-#[derive(Debug, Clone)]
-pub enum TextAnchor {
-    /// Align to start (left for LTR).
-    Start,
-    /// Center alignment.
-    Middle,
-    /// Align to end (right for LTR).
-    End,
-}
-
-/// Font weight options.
-#[derive(Debug, Clone)]
-pub enum FontWeight {
-    /// Normal weight.
-    Normal,
-    /// Bold weight.
-    Bold,
-    /// Bolder than parent.
-    Bolder,
-    /// Lighter than parent.
-    Lighter,
-    /// Specific numeric weight.
-    Weight(FontWeightValue),
-}
-
-/// SVG transformation types.
-#[derive(Debug, Clone)]
-pub enum Transform {
-    /// Translation by x,y.
-    Translate(XCoordinate, YCoordinate),
-    /// Scaling by x,y factors.
-    Scale(ScaleFactor, ScaleFactor),
-    /// Rotation with optional center point.
-    Rotate(RotationAngle, Option<XCoordinate>, Option<YCoordinate>),
-    /// Full transformation matrix.
-    Matrix(Matrix),
-}
-
-/// 2D transformation matrix.
-#[derive(Debug, Clone)]
-pub struct Matrix {
-    /// Scale X.
-    pub a: MatrixValue,
-    /// Skew Y.
-    pub b: MatrixValue,
-    /// Skew X.
-    pub c: MatrixValue,
-    /// Scale Y.
-    pub d: MatrixValue,
-    /// Translate X.
-    pub e: MatrixValue,
-    /// Translate Y.
-    pub f: MatrixValue,
-}
-
-/// Unique identifier for an SVG element.
-#[nutype(derive(Debug, Clone, PartialEq, Eq))]
-pub struct ElementId(NonEmptyString);
-
-/// CSS class name.
-#[nutype(derive(Debug, Clone, PartialEq, Eq))]
-pub struct CssClass(NonEmptyString);
-
-/// Border radius for rounded corners.
-#[nutype(derive(Debug, Clone, Copy, PartialEq, PartialOrd))]
-pub struct BorderRadius(NonNegativeFloat);
-
-/// Text content to display.
-#[nutype(derive(Debug, Clone))]
-pub struct TextContent(NonEmptyString);
-
-/// SVG path data string.
-#[nutype(derive(Debug, Clone))]
-pub struct PathData(NonEmptyString);
-
-/// Image URL or data URI.
-#[nutype(derive(Debug, Clone))]
-pub struct ImageHref(NonEmptyString);
-
-/// Unique identifier for a pattern.
-#[nutype(derive(Debug, Clone, PartialEq, Eq))]
-pub struct PatternId(NonEmptyString);
-
-/// Size of a pattern.
-#[nutype(derive(Debug, Clone, Copy))]
-pub struct PatternSize(PositiveFloat);
-
-/// Unique identifier for a gradient.
-#[nutype(derive(Debug, Clone, PartialEq, Eq))]
-pub struct GradientId(NonEmptyString);
-
-/// Percentage value (0-100).
-#[nutype(derive(Debug, Clone, Copy, PartialEq, PartialOrd))]
-pub struct Percentage(ValidatedPercentage);
-
-/// Color value (hex or rgb).
-#[nutype(derive(Debug, Clone, PartialEq, Eq))]
-pub struct Color(NonEmptyString);
-
-/// Opacity value (0.0-1.0).
-#[nutype(derive(Debug, Clone, Copy, PartialEq, PartialOrd))]
-pub struct Opacity(NonNegativeFloat);
-
-/// Unique identifier for a marker.
-#[nutype(derive(Debug, Clone, PartialEq, Eq))]
-pub struct MarkerId(NonEmptyString);
-
-/// Size of a marker.
-#[nutype(derive(Debug, Clone, Copy))]
-pub struct MarkerSize(PositiveFloat);
-
-/// Reference point for a marker.
-#[nutype(derive(Debug, Clone, Copy))]
-pub struct MarkerRef(FiniteFloat);
-
-/// Font family name.
-#[nutype(derive(Debug, Clone))]
-pub struct FontFamily(NonEmptyString);
-
-/// Font size in pixels.
-#[nutype(derive(Debug, Clone, Copy))]
-pub struct FontSize(PositiveFloat);
-
-/// Font weight value (100-900).
-#[nutype(derive(Debug, Clone, Copy))]
-pub struct FontWeightValue(PositiveInt);
-
-/// Scale transformation factor.
-#[nutype(derive(Debug, Clone, Copy, PartialEq, PartialOrd))]
-pub struct ScaleFactor(PositiveFloat);
-
-/// Rotation angle in degrees.
-#[nutype(derive(Debug, Clone, Copy))]
-pub struct RotationAngle(FiniteFloat);
-
-/// Value in a transformation matrix.
-#[nutype(derive(Debug, Clone, Copy))]
-pub struct MatrixValue(FiniteFloat);
-
-/// Renderer for converting layouts to SVG documents.
-pub struct SvgRenderer {
-    /// Configuration for rendering.
-    config: SvgRenderConfig,
-    /// Theme to use for styling.
-    theme: crate::diagram::style::Theme,
-}
-
-/// Configuration for SVG rendering.
-#[derive(Debug, Clone)]
-pub struct SvgRenderConfig {
-    /// Decimal precision for coordinates.
-    pub precision: DecimalPrecision,
-    /// Optimization level for output.
-    pub optimize: OptimizationLevel,
-    /// Whether to embed fonts.
-    pub embed_fonts: EmbedFonts,
-}
-
-/// Level of SVG optimization.
-#[derive(Debug, Clone)]
-pub enum OptimizationLevel {
-    /// No optimization.
-    None,
-    /// Basic optimization (remove comments, whitespace).
-    Basic,
-    /// Full optimization (merge paths, simplify).
-    Full,
-}
-
-/// Decimal precision for coordinates (0-6).
-#[nutype(derive(Debug, Clone, Copy))]
-pub struct DecimalPrecision(PositiveInt);
-
-/// Whether to embed fonts in the SVG.
-#[nutype(derive(Debug, Clone))]
-pub struct EmbedFonts(bool);
-
-impl SvgRenderer {
-    /// Create a new SVG renderer.
-    pub fn new(config: SvgRenderConfig, theme: crate::diagram::style::Theme) -> Self {
-        Self { config, theme }
-    }
-
-    /// Render a layout to an SVG document.
-    pub fn render(&self, layout: &Layout) -> Result<SvgDocument, SvgRenderError> {
-        // Create viewbox from canvas dimensions
-        let viewbox = ViewBox {
-            x: XCoordinate::new(NonNegativeFloat::parse(0.0).unwrap()),
-            y: YCoordinate::new(NonNegativeFloat::parse(0.0).unwrap()),
-            width: Width::new(
-                PositiveFloat::parse(layout.canvas.width.into_inner().value() as f32).unwrap(),
-            ),
-            height: Height::new(
-                PositiveFloat::parse(layout.canvas.height.into_inner().value() as f32).unwrap(),
-            ),
-        };
-
-        // Create SVG elements
-        let mut elements = Vec::new();
-
-        // Render swimlanes
-        for (swimlane_id, swimlane_layout) in &layout.swimlane_layouts {
-            let swimlane_group = self.render_swimlane(swimlane_id, swimlane_layout)?;
-            elements.push(SvgElement::Group(swimlane_group));
-        }
-
-        // Render connectors BEFORE entities so they appear behind
-        for connection in &layout.connections {
-            let connector_element = self.render_connector(connection)?;
-            elements.push(connector_element);
-        }
-
-        // Render entities on top of connectors
-        for (entity_id, entity_position) in &layout.entity_positions {
-            let entity_element = self.render_entity(entity_id, entity_position)?;
-            elements.push(entity_element);
-        }
-
-        // Create empty defs for now
-        let defs = SvgDefs {
-            patterns: vec![],
-            gradients: vec![],
-            markers: vec![],
-        };
-
-        Ok(SvgDocument {
-            viewbox,
-            elements,
-            defs,
-        })
-    }
-
-    /// Render a node-based layout to an SVG document.
-    pub fn render_node_layout(
-        &self,
-        node_layout: &crate::diagram::node_layout::NodeLayout,
-    ) -> Result<SvgDocument, SvgRenderError> {
-        // Create viewbox from canvas
-        let viewbox = ViewBox {
-            x: XCoordinate::new(NonNegativeFloat::parse(0.0).unwrap()),
-            y: YCoordinate::new(NonNegativeFloat::parse(0.0).unwrap()),
-            width: Width::new(
-                PositiveFloat::parse(node_layout.canvas.width.into_inner().value() as f32).unwrap(),
-            ),
-            height: Height::new(
-                PositiveFloat::parse(node_layout.canvas.height.into_inner().value() as f32)
-                    .unwrap(),
-            ),
-        };
-
-        // Create SVG elements
-        let mut elements = Vec::new();
-
-        // Render swimlanes
-        for (swimlane_id, swimlane_layout) in &node_layout.swimlane_layouts {
-            let swimlane_group = self.render_swimlane(swimlane_id, swimlane_layout)?;
-            elements.push(SvgElement::Group(swimlane_group));
-        }
-
-        // Render node connections BEFORE nodes so they appear behind
-        for connection in &node_layout.connections {
-            let connector_element = self.render_node_connector(connection, &node_layout.nodes)?;
-            elements.push(connector_element);
-        }
-
-        // Render nodes on top of connectors
-        for positioned_node in node_layout.nodes.values() {
-            let node_element = self.render_node(positioned_node)?;
-            elements.push(node_element);
-        }
-
-        // Create empty defs for now
-        let defs = SvgDefs {
-            patterns: vec![],
-            gradients: vec![],
-            markers: vec![],
-        };
-
-        Ok(SvgDocument {
-            viewbox,
-            elements,
-            defs,
-        })
-    }
-
-    /// Get the current configuration.
-    pub fn config(&self) -> &SvgRenderConfig {
-        &self.config
-    }
-
-    /// Render a swimlane as an SVG group.
-    fn render_swimlane(
-        &self,
-        swimlane_id: &crate::event_model::diagram::SwimlaneId,
-        layout: &crate::diagram::layout::SwimlaneLayout,
-    ) -> Result<SvgGroup, SvgRenderError> {
-        let mut children = Vec::new();
-
-        // Create swimlane background rectangle
-        let background = SvgRectangle {
-            id: Some(ElementId::new(
-                NonEmptyString::parse(format!(
-                    "swimlane-{}",
-                    swimlane_id.clone().into_inner().as_str()
-                ))
-                .unwrap(),
-            )),
-            class: Some(CssClass::new(
-                NonEmptyString::parse("swimlane".to_string()).unwrap(),
-            )),
-            x: layout.position.x,
-            y: layout.position.y,
-            width: layout.dimensions.width,
-            height: layout.dimensions.height,
-            rx: None,
-            ry: None,
-            style: crate::diagram::style::EntityStyle {
-                fill: self.theme.swimlane_style.background.clone(),
-                stroke: self.theme.swimlane_style.border.clone(),
-                shadow: None,
-            },
-        };
-        children.push(SvgElement::Rectangle(background));
-
-        // Create swimlane label
-        let label_x = layout.position.x.into_inner().value() + 10.0;
-        let label_y = layout.position.y.into_inner().value() + 25.0;
-
-        let label = SvgText {
-            id: None,
-            class: Some(CssClass::new(
-                NonEmptyString::parse("swimlane-label".to_string()).unwrap(),
-            )),
-            x: XCoordinate::new(NonNegativeFloat::parse(label_x).unwrap()),
-            y: YCoordinate::new(NonNegativeFloat::parse(label_y).unwrap()),
-            content: TextContent::new(layout.name.clone()),
-            style: TextStyle {
-                font_family: FontFamily::new(
-                    self.theme
-                        .swimlane_style
-                        .label_style
-                        .font
-                        .family
-                        .clone()
-                        .into_inner(),
-                ),
-                font_size: FontSize::new(
-                    self.theme.swimlane_style.label_style.font.size.into_inner(),
-                ),
-                font_weight: match self.theme.swimlane_style.label_style.font.weight {
-                    crate::diagram::style::StyleFontWeight::Bold => Some(FontWeight::Bold),
-                    crate::diagram::style::StyleFontWeight::Normal => Some(FontWeight::Normal),
-                },
-                fill: Color::new(
-                    self.theme
-                        .swimlane_style
-                        .label_style
-                        .color
-                        .clone()
-                        .into_inner(),
-                ),
-                anchor: match self.theme.swimlane_style.label_style.alignment {
-                    crate::diagram::style::TextAlignment::Left => Some(TextAnchor::Start),
-                    crate::diagram::style::TextAlignment::Center => Some(TextAnchor::Middle),
-                    crate::diagram::style::TextAlignment::Right => Some(TextAnchor::End),
-                },
-            },
-        };
-        children.push(SvgElement::Text(label));
-
-        Ok(SvgGroup {
-            id: None,
-            class: None,
-            transform: None,
-            children,
-        })
-    }
-
-    /// Render an entity as an SVG element.
-    fn render_entity(
-        &self,
-        entity_id: &crate::event_model::entities::EntityId,
-        position: &crate::diagram::layout::EntityPosition,
-    ) -> Result<SvgElement, SvgRenderError> {
-        // For now, render all entities as rectangles with rounded corners
-        let rect = SvgRectangle {
-            id: Some(ElementId::new(
-                NonEmptyString::parse(format!(
-                    "entity-{}",
-                    entity_id.clone().into_inner().as_str()
-                ))
-                .unwrap(),
-            )),
-            class: Some(CssClass::new(
-                NonEmptyString::parse("entity".to_string()).unwrap(),
-            )),
-            x: position.position.x,
-            y: position.position.y,
-            width: position.dimensions.width,
-            height: position.dimensions.height,
-            rx: Some(BorderRadius::new(NonNegativeFloat::parse(8.0).unwrap())),
-            ry: Some(BorderRadius::new(NonNegativeFloat::parse(8.0).unwrap())),
-            style: match position.entity_type {
-                crate::event_model::entities::EntityType::Wireframe => {
-                    self.theme.wireframe_style.clone()
-                }
-                crate::event_model::entities::EntityType::Command => {
-                    self.theme.command_style.clone()
-                }
-                crate::event_model::entities::EntityType::Event => self.theme.event_style.clone(),
-                crate::event_model::entities::EntityType::View => {
-                    self.theme.command_style.clone() // Views use command styling (blue)
-                }
-                crate::event_model::entities::EntityType::Projection => {
-                    self.theme.projection_style.clone()
-                }
-                crate::event_model::entities::EntityType::Query => self.theme.query_style.clone(),
-                crate::event_model::entities::EntityType::Automation => {
-                    self.theme.automation_style.clone()
-                }
-            },
-        };
-
-        // Create a group to hold both the rectangle and text
-        let mut group_elements = vec![SvgElement::Rectangle(rect)];
-
-        // Add entity type label at the top
-        let type_label = match position.entity_type {
-            crate::event_model::entities::EntityType::Wireframe => "Wireframe",
-            crate::event_model::entities::EntityType::Command => "Command",
-            crate::event_model::entities::EntityType::Event => "Event",
-            crate::event_model::entities::EntityType::View => "View",
-            crate::event_model::entities::EntityType::Projection => "Projection",
-            crate::event_model::entities::EntityType::Query => "Query",
-            crate::event_model::entities::EntityType::Automation => "Automation",
-        };
-
-        let type_text_x = position.position.x.into_inner().value()
-            + position.dimensions.width.into_inner().value() / 2.0;
-        let type_text_y = position.position.y.into_inner().value() + 16.0;
-
-        let type_text = SvgText {
-            id: None,
-            class: Some(CssClass::new(
-                NonEmptyString::parse("entity-type-label".to_string()).unwrap(),
-            )),
-            x: XCoordinate::new(NonNegativeFloat::parse(type_text_x).unwrap()),
-            y: YCoordinate::new(NonNegativeFloat::parse(type_text_y).unwrap()),
-            content: TextContent::new(NonEmptyString::parse(type_label.to_string()).unwrap()),
-            style: TextStyle {
-                font_family: FontFamily::new(
-                    self.theme
-                        .text_style
-                        .entity_name
-                        .family
-                        .clone()
-                        .into_inner(),
-                ),
-                font_size: FontSize::new(
-                    crate::infrastructure::types::PositiveFloat::parse(10.0).unwrap(),
-                ),
-                font_weight: Some(FontWeight::Normal),
-                fill: Color::new(NonEmptyString::parse("#666666".to_string()).unwrap()),
-                anchor: Some(TextAnchor::Middle),
-            },
-        };
-
-        group_elements.push(SvgElement::Text(type_text));
-
-        // Add entity name in the center with enhanced typography
-        let name_text_x = position.position.x.into_inner().value()
-            + position.dimensions.width.into_inner().value() / 2.0;
-        let name_text_y = position.position.y.into_inner().value()
-            + position.dimensions.height.into_inner().value() / 2.0
-            + 2.0; // Slight offset for better centering
-
-        let name_text = SvgText {
-            id: None,
-            class: Some(CssClass::new(
-                NonEmptyString::parse("entity-name".to_string()).unwrap(),
-            )),
-            x: XCoordinate::new(NonNegativeFloat::parse(name_text_x).unwrap()),
-            y: YCoordinate::new(NonNegativeFloat::parse(name_text_y).unwrap()),
-            content: TextContent::new(position.entity_name.clone()),
-            style: TextStyle {
-                font_family: FontFamily::new(
-                    self.theme
-                        .text_style
-                        .entity_name
-                        .family
-                        .clone()
-                        .into_inner(),
-                ),
-                font_size: FontSize::new(self.theme.text_style.entity_name.size.into_inner()),
-                font_weight: match self.theme.text_style.entity_name.weight {
-                    crate::diagram::style::StyleFontWeight::Bold => Some(FontWeight::Bold),
-                    crate::diagram::style::StyleFontWeight::Normal => Some(FontWeight::Normal),
-                },
-                fill: Color::new(NonEmptyString::parse("#000000".to_string()).unwrap()),
-                anchor: Some(TextAnchor::Middle),
-            },
-        };
-
-        group_elements.push(SvgElement::Text(name_text));
-
-        // Return a group containing both elements
-        let group = SvgGroup {
-            id: Some(ElementId::new(
-                NonEmptyString::parse(format!(
-                    "entity-group-{}",
-                    entity_id.clone().into_inner().as_str()
-                ))
-                .unwrap(),
-            )),
-            class: None,
-            transform: None,
-            children: group_elements,
-        };
-
-        Ok(SvgElement::Group(group))
-    }
-
-    /// Render a node as an SVG element.
-    fn render_node(
-        &self,
-        positioned_node: &crate::diagram::node_layout::PositionedNode,
-    ) -> Result<SvgElement, SvgRenderError> {
-        let entity_ref = positioned_node.node.entity_ref();
-
-        // Render similar to entity but use node position and entity reference
-        let rect = SvgRectangle {
-            id: Some(ElementId::new(
-                NonEmptyString::parse(format!("node-{}", positioned_node.node.id().as_str()))
-                    .unwrap(),
-            )),
-            class: Some(CssClass::new(
-                NonEmptyString::parse("node".to_string()).unwrap(),
-            )),
-            x: positioned_node.position.x,
-            y: positioned_node.position.y,
-            width: positioned_node.dimensions.width,
-            height: positioned_node.dimensions.height,
-            rx: Some(BorderRadius::new(NonNegativeFloat::parse(8.0).unwrap())),
-            ry: Some(BorderRadius::new(NonNegativeFloat::parse(8.0).unwrap())),
-            style: match entity_ref.entity_type {
-                crate::event_model::entities::EntityType::Wireframe => {
-                    self.theme.wireframe_style.clone()
-                }
-                crate::event_model::entities::EntityType::Command => {
-                    self.theme.command_style.clone()
-                }
-                crate::event_model::entities::EntityType::Event => self.theme.event_style.clone(),
-                crate::event_model::entities::EntityType::View => {
-                    self.theme.command_style.clone() // Views use command styling (blue)
-                }
-                crate::event_model::entities::EntityType::Projection => {
-                    self.theme.projection_style.clone()
-                }
-                crate::event_model::entities::EntityType::Query => self.theme.query_style.clone(),
-                crate::event_model::entities::EntityType::Automation => {
-                    self.theme.automation_style.clone()
-                }
-            },
-        };
-
-        // Create a group to hold both the rectangle and text
-        let mut group_elements = vec![SvgElement::Rectangle(rect)];
-
-        // Add entity type label at the top
-        let type_label = match entity_ref.entity_type {
-            crate::event_model::entities::EntityType::Wireframe => "Wireframe",
-            crate::event_model::entities::EntityType::Command => "Command",
-            crate::event_model::entities::EntityType::Event => "Event",
-            crate::event_model::entities::EntityType::View => "View",
-            crate::event_model::entities::EntityType::Projection => "Projection",
-            crate::event_model::entities::EntityType::Query => "Query",
-            crate::event_model::entities::EntityType::Automation => "Automation",
-        };
-
-        let type_text_x = positioned_node.position.x.into_inner().value()
-            + positioned_node.dimensions.width.into_inner().value() / 2.0;
-        let type_text_y = positioned_node.position.y.into_inner().value() + 16.0;
-
-        let type_text = SvgText {
-            id: None,
-            class: Some(CssClass::new(
-                NonEmptyString::parse("entity-type-label".to_string()).unwrap(),
-            )),
-            x: XCoordinate::new(NonNegativeFloat::parse(type_text_x).unwrap()),
-            y: YCoordinate::new(NonNegativeFloat::parse(type_text_y).unwrap()),
-            content: TextContent::new(NonEmptyString::parse(type_label.to_string()).unwrap()),
-            style: TextStyle {
-                font_family: FontFamily::new(
-                    self.theme
-                        .text_style
-                        .entity_name
-                        .family
-                        .clone()
-                        .into_inner(),
-                ),
-                font_size: FontSize::new(
-                    crate::infrastructure::types::PositiveFloat::parse(10.0).unwrap(),
-                ),
-                font_weight: Some(FontWeight::Normal),
-                fill: Color::new(NonEmptyString::parse("#666666".to_string()).unwrap()),
-                anchor: Some(TextAnchor::Middle),
-            },
-        };
-
-        group_elements.push(SvgElement::Text(type_text));
-
-        // Add entity name in the center with enhanced typography
-        let name_text_x = positioned_node.position.x.into_inner().value()
-            + positioned_node.dimensions.width.into_inner().value() / 2.0;
-        let name_text_y = positioned_node.position.y.into_inner().value()
-            + positioned_node.dimensions.height.into_inner().value() / 2.0
-            + 2.0; // Slight offset for better centering
-
-        let name_text = SvgText {
-            id: None,
-            class: Some(CssClass::new(
-                NonEmptyString::parse("entity-name".to_string()).unwrap(),
-            )),
-            x: XCoordinate::new(NonNegativeFloat::parse(name_text_x).unwrap()),
-            y: YCoordinate::new(NonNegativeFloat::parse(name_text_y).unwrap()),
-            content: TextContent::new(entity_ref.entity_id.clone().into_inner()),
-            style: TextStyle {
-                font_family: FontFamily::new(
-                    self.theme
-                        .text_style
-                        .entity_name
-                        .family
-                        .clone()
-                        .into_inner(),
-                ),
-                font_size: FontSize::new(self.theme.text_style.entity_name.size.into_inner()),
-                font_weight: match self.theme.text_style.entity_name.weight {
-                    crate::diagram::style::StyleFontWeight::Bold => Some(FontWeight::Bold),
-                    crate::diagram::style::StyleFontWeight::Normal => Some(FontWeight::Normal),
-                },
-                fill: Color::new(NonEmptyString::parse("#000000".to_string()).unwrap()),
-                anchor: Some(TextAnchor::Middle),
-            },
-        };
-
-        group_elements.push(SvgElement::Text(name_text));
-
-        // Return a group containing both elements
-        let group = SvgGroup {
-            id: Some(ElementId::new(
-                NonEmptyString::parse(format!("node-group-{}", positioned_node.node.id().as_str()))
-                    .unwrap(),
-            )),
-            class: None,
-            transform: None,
-            children: group_elements,
-        };
-
-        Ok(SvgElement::Group(group))
-    }
-
-    /// Render a node connector as an SVG path.
-    fn render_node_connector(
-        &self,
-        connection: &crate::diagram::node::NodeConnection,
-        nodes: &std::collections::HashMap<
-            crate::diagram::node::NodeId,
-            crate::diagram::node_layout::PositionedNode,
-        >,
-    ) -> Result<SvgElement, SvgRenderError> {
-        // Get source and target nodes
-        let source_node = nodes.get(&connection.from).ok_or_else(|| {
-            SvgRenderError::InvalidConnection(format!(
-                "Source node not found: {:?}",
-                connection.from
-            ))
-        })?;
-        let target_node = nodes.get(&connection.to).ok_or_else(|| {
-            SvgRenderError::InvalidConnection(format!("Target node not found: {:?}", connection.to))
-        })?;
-
-        // Calculate connection points
-        let start_x = source_node.position.x.into_inner().value()
-            + source_node.dimensions.width.into_inner().value();
-        let start_y = source_node.position.y.into_inner().value()
-            + source_node.dimensions.height.into_inner().value() / 2.0;
-        let end_x = target_node.position.x.into_inner().value();
-        let end_y = target_node.position.y.into_inner().value()
-            + target_node.dimensions.height.into_inner().value() / 2.0;
-
-        // Create path data
-        let path_data = PathData::new(
-            NonEmptyString::parse(format!("M {} {} L {} {}", start_x, start_y, end_x, end_y))
-                .unwrap(),
+        let canvas_height = TITLE_HEIGHT + (self.swimlanes().len() as f64 * SWIMLANE_HEIGHT) + 50.0;
+
+        let mut svg = format!(
+            r#"<svg width="{}" height="{}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="{}" height="{}" fill="white" />
+    <text x="{}" y="40" text-anchor="start" font-family="Liberation Sans, Arial, sans-serif" font-size="24" font-weight="bold" fill="{}">{}</text>"#,
+            CANVAS_WIDTH,
+            canvas_height,
+            CANVAS_WIDTH,
+            canvas_height,
+            PADDING, // Use same padding as other elements
+            "#24292e",
+            xml_escape(self.workflow_title())
         );
 
-        let path = SvgPath {
-            id: Some(ElementId::new(
-                NonEmptyString::parse(format!(
-                    "connection-{}-to-{}",
-                    connection.from.as_str(),
-                    connection.to.as_str()
-                ))
-                .unwrap(),
-            )),
-            class: Some(CssClass::new(
-                NonEmptyString::parse("connector".to_string()).unwrap(),
-            )),
-            d: path_data,
-            style: self.theme.connection_style.clone(),
-        };
+        // Draw swimlanes
+        for (index, swimlane) in self.swimlanes().iter().enumerate() {
+            let y = TITLE_HEIGHT + (index as f64 * SWIMLANE_HEIGHT);
 
-        Ok(SvgElement::Path(path))
-    }
-
-    /// Render a connector as an SVG path.
-    fn render_connector(
-        &self,
-        connection: &crate::diagram::layout::Connection,
-    ) -> Result<SvgElement, SvgRenderError> {
-        // Create path data from connection points
-        let mut path_commands = Vec::new();
-
-        // Move to first point
-        if let Some(first_point) = connection.path.points.first() {
-            path_commands.push(format!(
-                "M {} {}",
-                first_point.x.into_inner().value(),
-                first_point.y.into_inner().value()
+            // Draw swimlane background
+            svg.push_str(&format!(
+                r#"
+    <rect x="0" y="{}" width="{}" height="{}" fill="{}" stroke="{}" stroke-width="1" />"#,
+                y, CANVAS_WIDTH, SWIMLANE_HEIGHT, "#f6f8fa", "#e1e4e8"
             ));
 
-            // Line to subsequent points
-            for point in connection.path.points.iter().skip(1) {
-                path_commands.push(format!(
-                    "L {} {}",
-                    point.x.into_inner().value(),
-                    point.y.into_inner().value()
+            // Draw swimlane label area with calculated width
+            svg.push_str(&format!(
+                r#"
+    <rect x="0" y="{}" width="{}" height="{}" fill="{}" stroke="{}" stroke-width="1" />"#,
+                y, max_label_width, SWIMLANE_HEIGHT, "#f6f8fa", "#e1e4e8"
+            ));
+
+            // Draw rotated swimlane label with wrapped text
+            let label_x = max_label_width / 2.0;
+            let label_y = y + (SWIMLANE_HEIGHT / 2.0);
+
+            // Wrap the text
+            let wrapped_lines = wrap_text(&swimlane.label(), MAX_CHARS_PER_LINE);
+            let total_height = wrapped_lines.len() as f64 * LINE_HEIGHT;
+            let start_offset = total_height / 2.0;
+
+            svg.push_str(&format!(
+                r#"
+    <g transform="translate({},{}) rotate(-90)">"#,
+                label_x, label_y
+            ));
+
+            // Render each line of wrapped text
+            for (i, line) in wrapped_lines.iter().enumerate() {
+                let y_offset = -start_offset + (i as f64 + 0.5) * LINE_HEIGHT;
+                svg.push_str(&format!(
+                    r#"
+        <text x="0" y="{}" text-anchor="middle" font-family="Liberation Sans, Arial, sans-serif" font-size="{}" font-weight="bold" fill="{}">{}</text>"#,
+                    y_offset,
+                    FONT_SIZE,
+                    "#000000",
+                    xml_escape(line)
                 ));
             }
+
+            svg.push_str("\n    </g>");
         }
 
-        let path_data = path_commands.join(" ");
-
-        let path = SvgPath {
-            id: Some(ElementId::new(
-                NonEmptyString::parse(format!(
-                    "connector-{}-{}",
-                    connection.from.clone().into_inner().as_str(),
-                    connection.to.clone().into_inner().as_str()
-                ))
-                .unwrap(),
-            )),
-            class: Some(CssClass::new(
-                NonEmptyString::parse("connector".to_string()).unwrap(),
-            )),
-            d: PathData::new(NonEmptyString::parse(path_data).unwrap()),
-            style: self.theme.connection_style.clone(),
-        };
-
-        Ok(SvgElement::Path(path))
+        svg.push_str("\n</svg>");
+        svg
     }
 }
-
-/// Errors that can occur during SVG rendering.
-#[derive(Debug, thiserror::Error)]
-pub enum SvgRenderError {
-    /// The layout is invalid for SVG generation.
-    #[error("Invalid layout: {0}")]
-    InvalidLayout(String),
-
-    /// A required resource was not found.
-    #[error("Resource not found: {0}")]
-    ResourceNotFound(String),
-
-    /// Invalid connection in the layout.
-    #[error("Invalid connection: {0}")]
-    InvalidConnection(String),
-}
-
-#[cfg(test)]
-#[path = "svg_tests.rs"]
-mod tests;

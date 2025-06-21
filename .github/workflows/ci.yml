@@ -11,9 +11,12 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  check:
-    name: Check
+  ci:
+    name: CI
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       
@@ -22,7 +25,7 @@ jobs:
         with:
           components: rustfmt, clippy
       
-      - name: Cache dependencies
+      - name: Cache cargo registry
         uses: actions/cache@v4
         with:
           path: |
@@ -30,11 +33,20 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-cargo-registry-
       
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-release-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('src/**/*.rs', 'Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-release-${{ hashFiles('**/Cargo.lock') }}-
+            ${{ runner.os }}-cargo-build-release-
+      
+      # Run all checks
       - name: Check formatting
         run: cargo fmt --all -- --check
       
@@ -48,30 +60,8 @@ jobs:
         run: cargo doc --workspace --no-deps --document-private-items
         env:
           RUSTDOCFLAGS: "-D warnings"
-
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    needs: check
-    steps:
-      - uses: actions/checkout@v4
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      
+      # Build release binary
       - name: Build release
         run: cargo build --release --workspace
       
@@ -81,3 +71,56 @@ jobs:
           name: event-modeler-linux-x86_64
           path: target/release/event_modeler
           retention-days: 1
+      
+      # Generate and update PR description with diagram
+      - name: Update PR description with diagram
+        if: github.event_name == 'pull_request'
+        run: |
+          # Generate SVG
+          if ./target/release/event_modeler tests/fixtures/acceptance/example.eventmodel -o example.svg; then
+            # Get current PR description
+            export GH_TOKEN="${{ github.token }}"
+            gh pr view ${{ github.event.pull_request.number }} --json body -q '.body' > current_body.md
+            
+            # Check if GIST_TOKEN is available
+            if [ -n "${{ secrets.GIST_TOKEN }}" ]; then
+              echo "Using GIST_TOKEN to create gist"
+              export GH_TOKEN="${{ secrets.GIST_TOKEN }}"
+              
+              # Create a gist with the SVG using PAT
+              GIST_OUTPUT=$(gh gist create example.svg --desc "Event Model Diagram for PR #${{ github.event.pull_request.number }}" --public)
+              GIST_ID=$(echo "$GIST_OUTPUT" | grep -oE '[a-f0-9]{32}' | head -1)
+              
+              # Get the raw URL for the SVG file
+              SVG_URL="https://gist.githubusercontent.com/${{ github.actor }}/${GIST_ID}/raw/example.svg"
+              
+              # Create the diagram section using template
+              sed -e "s|{{SVG_URL}}|${SVG_URL}|g" \
+                  -e "s|{{GIST_ID}}|${GIST_ID}|g" \
+                  -e "s|{{BUILD_NUMBER}}|${{ github.run_number }}|g" \
+                  .github/pr-description-template.md > diagram_section.md
+            else
+              echo "No GIST_TOKEN available, using fallback"
+              # Use the no-gist template
+              sed -e "s|{{BUILD_NUMBER}}|${{ github.run_number }}|g" \
+                  .github/pr-description-template-no-gist.md > diagram_section.md
+            fi
+            
+            # Update PR body - remove old diagram section if exists and append new one
+            if grep -q "<!-- DIAGRAM_START -->" current_body.md; then
+              # Remove existing diagram section and append new one
+              sed '/<!-- DIAGRAM_START -->/,/<!-- DIAGRAM_END -->/d' current_body.md > temp_body.md
+              cat temp_body.md diagram_section.md > new_body.md
+            else
+              # Just append the diagram section
+              cat current_body.md > new_body.md
+              echo "" >> new_body.md
+              cat diagram_section.md >> new_body.md
+            fi
+            
+            # Update PR description
+            export GH_TOKEN="${{ github.token }}"
+            gh pr edit ${{ github.event.pull_request.number }} --body-file new_body.md
+          else
+            echo "Failed to generate diagram"
+          fi
