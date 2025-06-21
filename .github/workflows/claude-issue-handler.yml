@@ -12,6 +12,7 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
+  id-token: write
 
 jobs:
   handle-claude-mention:
@@ -54,11 +55,11 @@ jobs:
         if: steps.check-deps.outputs.canWork == 'true'
         uses: grll/claude-code-action@main
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          oauth: true
-          access-token: ${{ secrets.CLAUDE_ACCESS_TOKEN }}
-          refresh-token: ${{ secrets.CLAUDE_REFRESH_TOKEN }}
-          expires-at: ${{ secrets.CLAUDE_EXPIRES_AT }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          use_oauth: true
+          claude_access_token: ${{ secrets.CLAUDE_ACCESS_TOKEN }}
+          claude_refresh_token: ${{ secrets.CLAUDE_REFRESH_TOKEN }}
+          claude_expires_at: ${{ secrets.CLAUDE_EXPIRES_AT }}
 
   find-next-issue:
     if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
