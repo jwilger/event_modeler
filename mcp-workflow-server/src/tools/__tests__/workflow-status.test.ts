@@ -5,6 +5,20 @@ import { getAllPRs } from '../../utils/github.js';
 
 vi.mock('../../utils/git.js');
 vi.mock('../../utils/github.js');
+vi.mock('../../state/store.js', () => {
+  const mockStore = {
+    updateLastStatusCheck: vi.fn(),
+    updatePRStatus: vi.fn(),
+    getPRStatus: vi.fn(),
+    recordBranchCreation: vi.fn(),
+    getBranchCreationDate: vi.fn(),
+    clearPRStatus: vi.fn(),
+  };
+  
+  return {
+    StateStore: vi.fn(() => mockStore),
+  };
+});
 
 describe('Workflow Status Tool', () => {
   beforeEach(() => {

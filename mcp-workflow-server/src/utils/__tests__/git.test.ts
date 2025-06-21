@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, MockedFunction } from 'vitest';
-import type { SimpleGit } from 'simple-git';
 import { getGitStatus, isCurrentBranchStale } from '../git.js';
 
 // Mock the entire simple-git module

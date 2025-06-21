@@ -1,11 +1,17 @@
 import { WorkflowResponse, PRStatus } from '../types.js';
 import { getGitStatus, isCurrentBranchStale } from '../utils/git.js';
 import { getAllPRs } from '../utils/github.js';
+import { StateStore } from '../state/store.js';
+
+const stateStore = new StateStore();
 
 export async function workflowStatusTool(): Promise<WorkflowResponse> {
   const automaticActions: string[] = [];
   const issuesFound: string[] = [];
   const suggestedActions: string[] = [];
+  
+  // Update last status check time
+  stateStore.updateLastStatusCheck();
 
   try {
     // Get git status
@@ -24,10 +30,42 @@ export async function workflowStatusTool(): Promise<WorkflowResponse> {
     try {
       allPRs = await getAllPRs();
       automaticActions.push(`Retrieved status for ${allPRs.length} open PRs`);
+      
+      // Check for new reviews or status changes
+      for (const pr of allPRs) {
+        const lastStatus = stateStore.getPRStatus(pr.number);
+        
+        if (lastStatus) {
+          // Detect new reviews
+          const currentReviewCount = pr.hasUnresolvedReviews ? 1 : 0; // Simplified for now
+          if (currentReviewCount > lastStatus.lastReviewCount) {
+            issuesFound.push(`🆕 NEW: PR #${pr.number} has new review comments`);
+            suggestedActions.push(`[NEW] Check and address review feedback in PR #${pr.number}`);
+          }
+          
+          // Detect CI status changes
+          const currentCheckStatus = pr.checks.failed > 0 ? 'failed' : 
+                                   pr.checks.pending > 0 ? 'pending' : 'success';
+          if (currentCheckStatus !== lastStatus.lastCheckRunStatus && currentCheckStatus === 'failed') {
+            issuesFound.push(`🆕 NEW: PR #${pr.number} CI checks started failing`);
+          }
+        }
+        
+        // Update stored status
+        const reviewCount = pr.hasUnresolvedReviews ? 1 : 0;
+        const checkStatus = pr.checks.failed > 0 ? 'failed' : 
+                          pr.checks.pending > 0 ? 'pending' : 'success';
+        stateStore.updatePRStatus(pr.number, reviewCount, checkStatus);
+      }
     } catch (error) {
       // If GitHub API fails, continue with empty PR list
       issuesFound.push('Unable to retrieve PR status from GitHub');
       suggestedActions.push('Ensure gh CLI is authenticated: gh auth status');
+    }
+    
+    // Record current branch creation if not already tracked
+    if (gitStatus.currentBranch !== 'main') {
+      stateStore.recordBranchCreation(gitStatus.currentBranch);
     }
 
     // Analyze git status for issues
