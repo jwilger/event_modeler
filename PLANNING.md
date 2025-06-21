@@ -105,9 +105,21 @@ git checkout -b feature/your-branch-name
    - Continue monitoring until PR is merged
 3. Before PR can be merged:
    - ALL review comments must be addressed (even if marked as "low confidence")
-   - Reply directly to each review comment with either:
+   - Reply directly to each review comment thread (not as top-level comments) with either:
      - How you fixed the issue (with commit reference if applicable)
      - Why you're not addressing it (with clear reasoning)
+   - Use GraphQL API to reply within review threads:
+     ```bash
+     gh api graphql -f query='
+     mutation {
+       addPullRequestReviewThreadReply(input: {
+         pullRequestReviewThreadId: "THREAD_ID"
+         body: "Your reply here"
+       }) {
+         comment { id }
+       }
+     }'
+     ```
    - ONLY resolve review threads where you have made the requested fix
    - For threads where you provide reasoning but don't make changes, leave them unresolved for user review
    - Resolve review threads using GraphQL API (only for fixed issues):
