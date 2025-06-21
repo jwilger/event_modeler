@@ -120,17 +120,8 @@ git checkout -b feature/your-branch-name
        }
      }'
      ```
-   - ONLY resolve review threads where you have made the requested fix
-   - For threads where you provide reasoning but don't make changes, leave them unresolved for user review
-   - Resolve review threads using GraphQL API (only for fixed issues):
-     ```bash
-     gh api graphql -H "Accept: application/vnd.github.merge-info-preview+json" -f query='
-     mutation {
-       resolveReviewThread(input: {threadId: "THREAD_ID"}) {
-         thread { isResolved }
-       }
-     }'
-     ```
+   - NEVER resolve review threads - the user will read and resolve all review comments manually
+   - Always leave threads unresolved after replying, regardless of whether you made changes or provided reasoning
 4. PR merge = approval to proceed to next task
 5. Once PR is merged, immediately proceed to next step
 
