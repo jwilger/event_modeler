@@ -2,6 +2,7 @@ import { execSync } from 'child_process';
 import { Octokit } from '@octokit/rest';
 import { WorkflowResponse } from '../types.js';
 import { getProjectConfig } from '../config.js';
+import { getRepoInfo } from '../utils/github.js';
 
 interface DecisionInput {
   decisionId: string;
@@ -83,13 +84,7 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
     automaticActions.push(`Current user: ${currentUser}`);
 
     // Get repository info from git remote
-    const remoteUrl = execSync('git remote get-url origin', { encoding: 'utf8' }).trim();
-    const repoMatch = remoteUrl.match(/github\.com[:/]([^/]+)\/([^.]+)/);
-    if (!repoMatch) {
-      throw new Error('Could not determine repository from git remote');
-    }
-    const owner = repoMatch[1];
-    const repo = repoMatch[2];
+    const { owner, repo } = getRepoInfo();
 
     // Get the selected issue details
     const { data: issue } = await octokit.issues.get({

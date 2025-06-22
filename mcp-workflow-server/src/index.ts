@@ -8,6 +8,7 @@ import { workflowNext } from './tools/workflow-next.js';
 import { workflowDecide } from './tools/workflow-decide.js';
 import { workflowConfigure } from './tools/workflow-configure.js';
 import { workflowCreatePR } from './tools/workflow-create-pr.js';
+import { workflowMonitorReviews } from './tools/workflow-monitor-reviews.js';
 import { WorkflowResponse } from './types.js';
 
 const server = new Server(
@@ -123,6 +124,25 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: [],
         },
       },
+      {
+        name: 'workflow_monitor_reviews',
+        description:
+          'Monitor PR reviews across the repository, detect feedback needing attention, and format for LLM action',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            includeApproved: {
+              type: 'boolean',
+              description: 'Include already approved PRs in response',
+            },
+            includeDrafts: {
+              type: 'boolean',
+              description: 'Include draft PRs in monitoring',
+            },
+          },
+          required: [],
+        },
+      },
     ],
   };
 });
@@ -149,6 +169,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       case 'workflow_create_pr':
         result = await workflowCreatePR(request.params.arguments as any || {});
+        break;
+      case 'workflow_monitor_reviews':
+        result = await workflowMonitorReviews(request.params.arguments as any || {});
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);
