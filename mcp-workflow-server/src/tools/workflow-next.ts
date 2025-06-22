@@ -2,7 +2,8 @@ import { Octokit } from '@octokit/rest';
 import { execSync } from 'child_process';
 import { WorkflowResponse } from '../types.js';
 import { getProjectConfig, getMissingConfigFields, createConfigRequest } from '../config.js';
-import { workflowMonitorReviews } from './workflow-monitor-reviews.js';
+import { workflowMonitorReviews, requestCopilotReReview, type ReviewInfo } from './workflow-monitor-reviews.js';
+import { getRepoInfo } from '../utils/github.js';
 
 interface TodoItem {
   text: string;
@@ -48,7 +49,7 @@ interface NextStepAction {
   // Fields for PR feedback
   prNumber?: number;
   reviewStatus?: string;
-  reviews?: any[];
+  reviews?: ReviewInfo[];
   prUrl?: string;
   author?: string;
 }
@@ -130,13 +131,9 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
     automaticActions.push(`Identified current user: ${currentUser}`);
 
     // Get repository info from git remote
-    const remoteUrl = execSync('git remote get-url origin', { encoding: 'utf8' }).trim();
-    const repoMatch = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/);
-    if (!repoMatch) {
-      throw new Error('Could not determine repository from git remote');
-    }
-    const owner = { login: repoMatch[1] };
-    const name = repoMatch[2];
+    const { owner: ownerName, repo: repoName } = getRepoInfo();
+    const owner = { login: ownerName };
+    const name = repoName;
     automaticActions.push(`Working in repository: ${owner.login}/${name}`);
 
     // Get current git status early as we need it for context
@@ -172,6 +169,31 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       // PR was updated after user's review
       return prLastUpdated > myReviewDate;
     });
+    
+    // Check if any of my PRs need Copilot re-review requested
+    for (const pr of allOpenPRs.filter(p => p.author === currentUser)) {
+      const copilotReview = pr.reviews.find(r => 
+        r.reviewer === 'copilot-pull-request-reviewer[bot]' || 
+        r.reviewer === 'copilot-pull-request-reviewer'
+      );
+      
+      if (copilotReview) {
+        // Check if PR was updated after Copilot's review
+        const reviewDate = new Date(copilotReview.submittedAt);
+        const prLastUpdated = new Date(pr.lastUpdated);
+        
+        if (prLastUpdated > reviewDate) {
+          // PR was updated after Copilot's review, request re-review
+          automaticActions.push(`PR #${pr.prNumber} was updated after Copilot's review, requesting re-review`);
+          const reReviewRequested = await requestCopilotReReview(pr.prNumber);
+          if (reReviewRequested) {
+            automaticActions.push(`Successfully requested Copilot re-review for PR #${pr.prNumber}`);
+          } else {
+            issuesFound.push(`Failed to request Copilot re-review for PR #${pr.prNumber}`);
+          }
+        }
+      }
+    }
     
     // Prioritize: 1) My PRs with feedback, 2) Others' PRs needing review
     if (myPRsNeedingAttention.length > 0) {

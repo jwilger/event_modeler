@@ -16,12 +16,12 @@ function getGitHubToken(): string {
 }
 
 // Get repository info from git remote
-function getRepoInfo(): { owner: string; repo: string } {
+export function getRepoInfo(): { owner: string; repo: string } {
   try {
     const remoteUrl = execSync('git config --get remote.origin.url', { encoding: 'utf-8' }).trim();
     
     // Parse GitHub URL (supports both HTTPS and SSH)
-    const match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/]+)(\.git)?$/);
+    const match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/);
     if (!match) {
       throw new Error('Not a GitHub repository');
     }

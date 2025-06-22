@@ -2,6 +2,7 @@ import { execSync } from 'child_process';
 import { Octokit } from '@octokit/rest';
 import { WorkflowResponse } from '../types.js';
 import { getProjectConfig } from '../config.js';
+import { getRepoInfo } from '../utils/github.js';
 
 interface CreatePRInput {
   baseBranch?: string; // defaults to main/master
@@ -104,13 +105,7 @@ export async function workflowCreatePR(input: CreatePRInput = {}): Promise<Workf
     }
 
     // Get repository info
-    const remoteUrl = execSync('git remote get-url origin', { encoding: 'utf8' }).trim();
-    const repoMatch = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/);
-    if (!repoMatch) {
-      throw new Error('Could not determine repository from git remote');
-    }
-    const owner = repoMatch[1];
-    const repo = repoMatch[2];
+    const { owner, repo } = getRepoInfo();
 
     // Set up GitHub API
     const token = execSync('gh auth token', { encoding: 'utf8' }).trim();

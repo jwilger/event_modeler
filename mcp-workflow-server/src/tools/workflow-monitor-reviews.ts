@@ -2,20 +2,21 @@ import { execSync } from 'child_process';
 import { Octokit } from '@octokit/rest';
 import { WorkflowResponse } from '../types.js';
 import { getProjectConfig } from '../config.js';
+import { getRepoInfo } from '../utils/github.js';
 
 interface MonitorReviewsInput {
   includeApproved?: boolean; // Include already approved PRs in response
   includeDrafts?: boolean;   // Include draft PRs in monitoring
 }
 
-interface ReviewComment {
+export interface ReviewComment {
   file: string;
   line: number;
   comment: string;
   suggestion?: string;
 }
 
-interface ReviewInfo {
+export interface ReviewInfo {
   reviewer: string;
   type: 'approved' | 'changes_requested' | 'commented' | 'pending';
   submittedAt: string;
@@ -98,6 +99,68 @@ function suggestAction(status: 'approved' | 'changes_requested' | 'pending_revie
   }
 }
 
+// Request re-review from Copilot after pushing changes
+export async function requestCopilotReReview(prNumber: number): Promise<boolean> {
+  try {
+    const { owner, repo } = getRepoInfo();
+    const token = execSync('gh auth token', { encoding: 'utf8' }).trim();
+    const octokit = new Octokit({ auth: token });
+
+    // First, get the PR node ID
+    const prQuery = `
+      query($owner: String!, $repo: String!, $prNumber: Int!) {
+        repository(owner: $owner, name: $repo) {
+          pullRequest(number: $prNumber) {
+            id
+          }
+        }
+      }
+    `;
+
+    const prResult = await octokit.graphql(prQuery, {
+      owner,
+      repo,
+      prNumber
+    });
+
+    const prNodeId = (prResult as any).repository.pullRequest.id;
+
+    // Request re-review from Copilot using the bot ID
+    const requestReviewMutation = `
+      mutation($pullRequestId: ID!, $botIds: [ID!]) {
+        requestReviews(input: {
+          pullRequestId: $pullRequestId,
+          botIds: $botIds
+        }) {
+          pullRequest {
+            id
+            reviewRequests(first: 1) {
+              nodes {
+                requestedReviewer {
+                  ... on Bot {
+                    login
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    await octokit.graphql(requestReviewMutation, {
+      pullRequestId: prNodeId,
+      botIds: ["BOT_kgDOCnlnWA"] // Copilot's bot ID
+    });
+
+    console.log('Requested Copilot re-review for PR #' + prNumber);
+    return true;
+  } catch (error) {
+    console.error('Failed to request Copilot re-review:', error);
+    return false;
+  }
+}
+
 export async function workflowMonitorReviews(input: MonitorReviewsInput = {}): Promise<WorkflowMonitorReviewsResponse> {
   const automaticActions: string[] = [];
   const issuesFound: string[] = [];
@@ -112,13 +175,7 @@ export async function workflowMonitorReviews(input: MonitorReviewsInput = {}): P
     }
 
     // Get repository info
-    const remoteUrl = execSync('git remote get-url origin', { encoding: 'utf8' }).trim();
-    const repoMatch = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/);
-    if (!repoMatch) {
-      throw new Error('Could not determine repository from git remote');
-    }
-    const owner = repoMatch[1];
-    const repo = repoMatch[2];
+    const { owner, repo } = getRepoInfo();
 
     // Set up GitHub API
     const token = execSync('gh auth token', { encoding: 'utf8' }).trim();
