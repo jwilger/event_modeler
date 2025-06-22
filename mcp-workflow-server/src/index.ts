@@ -7,6 +7,7 @@ import { workflowStatusTool } from './tools/workflow-status.js';
 import { workflowNext } from './tools/workflow-next.js';
 import { workflowDecide } from './tools/workflow-decide.js';
 import { workflowConfigure } from './tools/workflow-configure.js';
+import { workflowCreatePR } from './tools/workflow-create-pr.js';
 import { WorkflowResponse } from './types.js';
 
 const server = new Server(
@@ -103,6 +104,25 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: [],
         },
       },
+      {
+        name: 'workflow_create_pr',
+        description:
+          'Create a pull request with smart PR generation from commits and issues',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            baseBranch: {
+              type: 'string',
+              description: 'Base branch for the PR (defaults to main/master)',
+            },
+            draft: {
+              type: 'boolean',
+              description: 'Create as draft PR',
+            },
+          },
+          required: [],
+        },
+      },
     ],
   };
 });
@@ -126,6 +146,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       case 'workflow_configure':
         result = await workflowConfigure(request.params.arguments as any || {});
+        break;
+      case 'workflow_create_pr':
+        result = await workflowCreatePR(request.params.arguments as any || {});
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);
