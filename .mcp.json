@@ -1,8 +1,11 @@
 {
   "mcpServers": {
     "workflow": {
+      "type": "stdio",
       "command": "node",
-      "args": ["mcp-workflow-server/dist/index.js"],
+      "args": [
+        "./mcp-workflow-server/dist/index.js"
+      ],
       "env": {}
     }
   }

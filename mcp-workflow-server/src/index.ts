@@ -23,7 +23,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
-        name: 'workflow/status',
+        name: 'workflow_status',
         description:
           'Get comprehensive status of current git branch, all open PRs, CI status, and detect issues like stale branches or needed rebases',
         inputSchema: {
@@ -44,7 +44,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     let result: WorkflowResponse;
 
     switch (name) {
-      case 'workflow/status':
+      case 'workflow_status':
         result = await workflowStatusTool();
         break;
       default:
