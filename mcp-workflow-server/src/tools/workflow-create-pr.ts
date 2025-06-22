@@ -1,0 +1,343 @@
+import { execSync } from 'child_process';
+import { Octokit } from '@octokit/rest';
+import { WorkflowResponse } from '../types.js';
+import { getProjectConfig } from '../config.js';
+
+interface CreatePRInput {
+  baseBranch?: string; // defaults to main/master
+  draft?: boolean;
+}
+
+interface WorkflowCreatePRResponse extends WorkflowResponse {
+  requestedData: {
+    pr?: {
+      number: number;
+      url: string;
+      title: string;
+      draft: boolean;
+    };
+    error?: string;
+  };
+}
+
+// Not used currently but may be needed for reviewer assignment
+// async function getCurrentUser(): Promise<string> {
+//   try {
+//     const output = execSync('gh api user --jq .login', { encoding: 'utf8' });
+//     return output.trim();
+//   } catch (error) {
+//     throw new Error('Failed to get current GitHub user. Make sure gh CLI is authenticated.');
+//   }
+// }
+
+function getDefaultBranch(): string {
+  try {
+    // Try to get the default branch from git
+    const remotes = execSync('git remote', { encoding: 'utf8' }).trim().split('\n');
+    const remote = remotes.includes('origin') ? 'origin' : remotes[0];
+    
+    // Get the default branch
+    const defaultBranch = execSync(`git symbolic-ref refs/remotes/${remote}/HEAD | sed 's@^refs/remotes/${remote}/@@'`, { encoding: 'utf8' }).trim();
+    return defaultBranch || 'main';
+  } catch {
+    // Fallback to common defaults
+    return 'main';
+  }
+}
+
+function extractIssueNumber(branchName: string): number | null {
+  // Try different patterns to extract issue number
+  const patterns = [
+    /issue-(\d+)/i,
+    /\/#?(\d+)/,
+    /phase-(\d+)/i,
+    /-(\d+)$/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = branchName.match(pattern);
+    if (match) {
+      return parseInt(match[1]);
+    }
+  }
+  
+  return null;
+}
+
+export async function workflowCreatePR(input: CreatePRInput = {}): Promise<WorkflowCreatePRResponse> {
+  const automaticActions: string[] = [];
+  const issuesFound: string[] = [];
+  const suggestedActions: string[] = [];
+
+  try {
+    // Check configuration
+    const { isComplete } = getProjectConfig();
+    
+    if (!isComplete) {
+      throw new Error('Configuration is incomplete. Please run workflow_configure first.');
+    }
+
+    // Get current branch
+    const currentBranch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
+    automaticActions.push(`Current branch: ${currentBranch}`);
+    
+    if (currentBranch === 'main' || currentBranch === 'master') {
+      throw new Error('Cannot create PR from default branch. Please create a feature branch first.');
+    }
+
+    // Check for uncommitted changes
+    const gitStatus = execSync('git status --porcelain', { encoding: 'utf8' });
+    if (gitStatus.length > 0) {
+      throw new Error('You have uncommitted changes. Please commit or stash them before creating a PR.');
+    }
+
+    // Get repository info
+    const remoteUrl = execSync('git remote get-url origin', { encoding: 'utf8' }).trim();
+    const repoMatch = remoteUrl.match(/github\.com[:/]([^/]+)\/([^.]+)/);
+    if (!repoMatch) {
+      throw new Error('Could not determine repository from git remote');
+    }
+    const owner = repoMatch[1];
+    const repo = repoMatch[2];
+
+    // Set up GitHub API
+    const token = execSync('gh auth token', { encoding: 'utf8' }).trim();
+    const octokit = new Octokit({ auth: token });
+
+    // Check if PR already exists for this branch
+    const existingPRs = await octokit.pulls.list({
+      owner,
+      repo,
+      head: `${owner}:${currentBranch}`,
+      state: 'open'
+    });
+
+    if (existingPRs.data.length > 0) {
+      const existingPR = existingPRs.data[0];
+      automaticActions.push('PR already exists for this branch');
+      return {
+        requestedData: {
+          pr: {
+            number: existingPR.number,
+            url: existingPR.html_url,
+            title: existingPR.title,
+            draft: existingPR.draft || false
+          }
+        },
+        automaticActions,
+        issuesFound: ['PR already exists for this branch'],
+        suggestedActions: [`View existing PR: ${existingPR.html_url}`],
+        allPRStatus: []
+      };
+    }
+
+    // Get base branch
+    const baseBranch = input.baseBranch || getDefaultBranch();
+    automaticActions.push(`Base branch: ${baseBranch}`);
+
+    // Get commits between base and current branch
+    const commits = execSync(`git log ${baseBranch}..HEAD --pretty=format:"%H|%s|%b" --reverse`, { encoding: 'utf8' })
+      .trim()
+      .split('\n')
+      .filter(line => line.length > 0)
+      .map(line => {
+        const [hash, subject, body] = line.split('|');
+        return { hash, subject, body };
+      });
+
+    if (commits.length === 0) {
+      throw new Error('No commits found between base branch and current branch. Make sure you have commits to create a PR.');
+    }
+
+    automaticActions.push(`Found ${commits.length} commits`);
+
+    // Try to find related issue
+    const issueNumber = extractIssueNumber(currentBranch);
+    let issue = null;
+    let issueBody = '';
+
+    if (issueNumber) {
+      try {
+        const issueResponse = await octokit.issues.get({
+          owner,
+          repo,
+          issue_number: issueNumber
+        });
+        issue = issueResponse.data;
+        issueBody = issue.body || '';
+        automaticActions.push(`Found related issue #${issueNumber}: ${issue.title}`);
+      } catch (error) {
+        automaticActions.push(`Could not fetch issue #${issueNumber}`);
+      }
+    }
+
+    // Generate PR title
+    let prTitle = '';
+    if (issue) {
+      prTitle = issue.title;
+    } else if (commits.length === 1) {
+      prTitle = commits[0].subject;
+    } else {
+      // Use branch name to generate title
+      prTitle = currentBranch
+        .replace(/^feature\//, '')
+        .replace(/[-_]/g, ' ')
+        .replace(/\b\w/g, char => char.toUpperCase());
+    }
+
+    // Extract acceptance criteria from issue body
+    const acceptanceCriteria: string[] = [];
+    if (issueBody) {
+      const lines = issueBody.split('\n');
+      let inAcceptanceCriteria = false;
+      
+      for (const line of lines) {
+        if (line.match(/^#+\s*(acceptance\s*criteria|ac)/i)) {
+          inAcceptanceCriteria = true;
+          continue;
+        }
+        if (inAcceptanceCriteria && line.match(/^#+\s/)) {
+          inAcceptanceCriteria = false;
+        }
+        if (inAcceptanceCriteria && line.match(/^\s*-\s*\[\s*\]/)) {
+          acceptanceCriteria.push(line);
+        }
+      }
+    }
+
+    // Generate PR body
+    let prBody = '## Summary\n\n';
+    
+    if (issue) {
+      prBody += `This PR implements ${issue.title}.\n\n`;
+    } else {
+      prBody += `This PR includes the following changes:\n\n`;
+    }
+
+    // Add commit summary
+    if (commits.length > 1) {
+      prBody += '## Commits\n\n';
+      commits.forEach(commit => {
+        prBody += `- ${commit.subject}\n`;
+      });
+      prBody += '\n';
+    }
+
+    // Add related issue section
+    if (issue) {
+      prBody += '## Related Issue\n\n';
+      prBody += `Closes #${issueNumber}\n\n`;
+    }
+
+    // Add changes section
+    prBody += '## Changes\n\n';
+    
+    // Try to get file changes summary
+    const diffStat = execSync(`git diff ${baseBranch}...HEAD --stat`, { encoding: 'utf8' });
+    const changedFiles = diffStat
+      .split('\n')
+      .filter(line => line.includes('|'))
+      .map(line => line.split('|')[0].trim());
+    
+    if (changedFiles.length > 0) {
+      // Group changes by directory
+      const changesByDir: Record<string, string[]> = {};
+      changedFiles.forEach(file => {
+        const dir = file.includes('/') ? file.split('/')[0] : 'root';
+        if (!changesByDir[dir]) {
+          changesByDir[dir] = [];
+        }
+        changesByDir[dir].push(file);
+      });
+      
+      Object.entries(changesByDir).forEach(([dir, files]) => {
+        if (files.length === 1) {
+          prBody += `- Updated \`${files[0]}\`\n`;
+        } else {
+          prBody += `- Updated ${files.length} files in \`${dir}/\`\n`;
+        }
+      });
+    } else {
+      prBody += '- See commit history for detailed changes\n';
+    }
+    prBody += '\n';
+
+    // Add test plan
+    prBody += '## Test Plan\n\n';
+    
+    if (acceptanceCriteria.length > 0) {
+      prBody += 'Based on acceptance criteria:\n';
+      acceptanceCriteria.forEach(criterion => {
+        prBody += `${criterion}\n`;
+      });
+    } else {
+      prBody += '- [ ] Code builds successfully\n';
+      prBody += '- [ ] Tests pass\n';
+      prBody += '- [ ] Manual testing completed\n';
+    }
+    
+    prBody += '\n🤖 Generated with [MCP Workflow Server](https://github.com/jwilger/event_modeler)\n';
+
+    // Create the PR
+    const pr = await octokit.pulls.create({
+      owner,
+      repo,
+      title: prTitle,
+      body: prBody,
+      head: currentBranch,
+      base: baseBranch,
+      draft: input.draft || false
+    });
+
+    automaticActions.push(`Created PR #${pr.data.number}: ${pr.data.title}`);
+    suggestedActions.push(`View PR: ${pr.data.html_url}`);
+
+    // Try to set labels if issue has labels
+    if (issue && issue.labels && issue.labels.length > 0) {
+      try {
+        const labelNames = issue.labels
+          .filter(label => typeof label !== 'string')
+          .map(label => (label as any).name);
+        
+        await octokit.issues.update({
+          owner,
+          repo,
+          issue_number: pr.data.number,
+          labels: labelNames
+        });
+        automaticActions.push(`Applied ${labelNames.length} labels from issue`);
+      } catch (error) {
+        automaticActions.push('Could not apply labels from issue');
+      }
+    }
+
+    return {
+      requestedData: {
+        pr: {
+          number: pr.data.number,
+          url: pr.data.html_url,
+          title: pr.data.title,
+          draft: pr.data.draft || false
+        }
+      },
+      automaticActions,
+      issuesFound,
+      suggestedActions,
+      allPRStatus: []
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    issuesFound.push(`Error: ${errorMessage}`);
+    
+    return {
+      requestedData: {
+        error: errorMessage
+      },
+      automaticActions,
+      issuesFound,
+      suggestedActions: ['Fix the error and try again'],
+      allPRStatus: []
+    };
+  }
+}
