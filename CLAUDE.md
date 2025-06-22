@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Event Modeler is a CLI application that converts YAML-based event model descriptions (`.eventmodel` files) into visual diagrams (SVG/PDF format).
 
-**Current Status**: Phase 6 (Diagram Module Rewrite) in progress - See GitHub issues with `epic` label for current work.
+**Current Status**: Major rewrite in progress (Phase 2 of 7 complete) - transitioning from simple text format to rich YAML-based event modeling language. See [PLANNING.md](PLANNING.md) for detailed implementation plan.
 
 For general architecture and contribution guidelines, see [README.md](README.md).
 
@@ -32,10 +32,9 @@ For general architecture and contribution guidelines, see [README.md](README.md)
 
 ### Development Workflow
 
-- Check GitHub issues with `epic` label for current work phases
-- Find next task in sub-issues of active epics
-- Create feature branches for each issue
-- Follow acceptance criteria in issue descriptions
+- Check implementation priorities in [ROADMAP.md](ROADMAP.md)
+- Create feature branches for focused work
+- Implement functionality while preserving type signatures
 
 ## Technical Architecture
 
@@ -433,73 +432,3 @@ let diagram: EventModelDiagram = transform_to_diagram(domain)?;
 - Render rich entity content (data schemas, test scenarios)
 - Support sub-diagrams for test scenarios
 - Complete visual styling per entity type
-
-## Development Process Rules
-
-### GitHub Issue-Driven Development
-
-All work is now tracked through GitHub issues. Check issues with the `epic` label to see current phases.
-
-### PR-Driven Workflow
-
-1. **Always Update Main First**
-   ```bash
-   git checkout main
-   git pull origin main
-   ```
-
-2. **Create Feature Branches**
-   - Name branches descriptively: `feature/descriptive-name`
-   - For Phase 6 steps: `feature/diagram-step-{number}-{description}`
-
-3. **Commit Frequently**
-   - Commit after EVERY small task that builds successfully
-   - Write descriptive commit messages explaining "why"
-   - No commit message prefixes (no "feat:", "fix:", etc.)
-
-4. **Create PRs Immediately**
-   - Create PR after first push (not as draft)
-   - Include clear description and test plan
-   - Monitor for automated reviews
-
-5. **Handle PR Chains**
-   - When a base PR merges, IMMEDIATELY rebase downstream PRs
-   - Use `git rebase origin/main` and `--theirs` for conflicts
-   - Update PR base with `gh pr edit <number> --base main`
-
-### Testing Requirements
-
-Before committing:
-```bash
-cargo fmt --all
-cargo clippy --workspace --all-targets
-cargo test --workspace
-```
-
-For Phase 6 visual development:
-```bash
-cargo run -- tests/fixtures/acceptance/example.eventmodel -o test.svg
-# Compare with tests/fixtures/acceptance/example.png
-```
-
-### Type-Driven Development
-
-- Use nutype for domain-specific types
-- Parse, don't validate - all validation at boundaries
-- Make illegal states unrepresentable
-- Never use `.unwrap()` or `.expect()` on validation
-
-### Git Commit Guidelines
-
-- High-quality commits that explain the "why"
-- Commit whenever tests pass
-- Keep commits focused and atomic
-- Follow the format in README.md
-
-### Working with @claude GitHub App
-
-When the @claude GitHub App is set up:
-1. Issues should have clear acceptance criteria
-2. Include "Depends on #X" for dependencies
-3. Reference gold standard examples where applicable
-4. @claude will add TODO checklists when starting work
