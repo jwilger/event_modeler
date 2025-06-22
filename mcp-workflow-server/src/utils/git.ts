@@ -80,3 +80,26 @@ export async function isCurrentBranchStale(): Promise<boolean> {
     return false;
   }
 }
+
+export async function isBranchMerged(branch?: string): Promise<boolean> {
+  try {
+    // Use current branch if not specified
+    const branchToCheck = branch || await git.revparse(['--abbrev-ref', 'HEAD']);
+    
+    if (branchToCheck.trim() === 'main') {
+      return true; // main is always "merged"
+    }
+    
+    // Check if all commits from the branch are in main
+    const unmergedCommits = await git.raw([
+      'rev-list',
+      '--count',
+      `origin/main..${branchToCheck}`,
+    ]);
+    
+    // If there are no unmerged commits, the branch has been merged
+    return parseInt(unmergedCommits.trim(), 10) === 0;
+  } catch {
+    return false;
+  }
+}

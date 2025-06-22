@@ -1,5 +1,5 @@
 import { WorkflowResponse, PRStatus } from '../types.js';
-import { getGitStatus, isCurrentBranchStale } from '../utils/git.js';
+import { getGitStatus, isCurrentBranchStale, isBranchMerged } from '../utils/git.js';
 import { getAllPRs } from '../utils/github.js';
 import { StateStore } from '../state/store.js';
 
@@ -18,11 +18,18 @@ export async function workflowStatusTool(): Promise<WorkflowResponse> {
     const gitStatus = await getGitStatus();
     automaticActions.push('Checked git status and branch information');
     
-    // Check if branch is stale
+    // Check if branch is stale or merged
     const isStale = await isCurrentBranchStale();
-    if (isStale && gitStatus.currentBranch !== 'main') {
-      issuesFound.push(`Branch '${gitStatus.currentBranch}' may be stale (created before recent main merges)`);
-      suggestedActions.push('Consider rebasing on latest main or creating a fresh branch');
+    const isMerged = await isBranchMerged(gitStatus.currentBranch);
+    
+    if (gitStatus.currentBranch !== 'main') {
+      if (isMerged) {
+        issuesFound.push(`Branch '${gitStatus.currentBranch}' has been merged to main`);
+        suggestedActions.push('[NEXT] Switch to main: git checkout main && git pull origin main');
+      } else if (isStale) {
+        issuesFound.push(`Branch '${gitStatus.currentBranch}' may be stale (created before recent main merges)`);
+        suggestedActions.push('Consider rebasing on latest main or creating a fresh branch');
+      }
     }
     
     // Get all PRs
@@ -125,7 +132,7 @@ export async function workflowStatusTool(): Promise<WorkflowResponse> {
         suggestedActions.push('[NEXT] Create a new feature branch for your next task');
       } else if (allPRs.some(pr => pr.branch === gitStatus.currentBranch)) {
         suggestedActions.push('[NEXT] Continue implementing features on current branch');
-      } else {
+      } else if (!isMerged) {
         suggestedActions.push('[NEXT] Create a PR for your current branch');
       }
     }

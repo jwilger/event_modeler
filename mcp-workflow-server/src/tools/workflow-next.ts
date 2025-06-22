@@ -4,6 +4,7 @@ import { WorkflowResponse } from '../types.js';
 import { getProjectConfig, getMissingConfigFields, createConfigRequest } from '../config.js';
 import { workflowMonitorReviews, requestCopilotReReview, type ReviewInfo } from './workflow-monitor-reviews.js';
 import { getRepoInfo } from '../utils/github.js';
+import { isBranchMerged } from '../utils/git.js';
 
 interface TodoItem {
   text: string;
@@ -140,6 +141,36 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
     const gitStatus = execSync('git status --porcelain', { encoding: 'utf8' });
     const currentBranch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
     const hasUncommittedChanges = gitStatus.length > 0;
+    
+    // Check if current branch has been merged
+    if (currentBranch !== 'main') {
+      const isMerged = await isBranchMerged(currentBranch);
+      if (isMerged) {
+        automaticActions.push(`Current branch '${currentBranch}' has been merged to main`);
+        
+        return {
+          requestedData: {
+            nextSteps: [{
+              action: 'select_work',
+              suggestion: `Your branch '${currentBranch}' has been merged. Switch to main and pull latest changes before starting new work.`,
+              reason: 'Current branch has been merged to main'
+            }],
+            context: {
+              currentBranch,
+              hasUncommittedChanges,
+              branchMerged: true
+            }
+          },
+          automaticActions,
+          issuesFound: [`Branch '${currentBranch}' has been merged - switch to main`],
+          suggestedActions: [
+            'Run: git checkout main && git pull origin main',
+            'Then run workflow_next again to find next task'
+          ],
+          allPRStatus: []
+        };
+      }
+    }
 
     // First, check if there are any PRs needing attention
     const reviewStatus = await workflowMonitorReviews({ includeApproved: false, includeDrafts: false });
