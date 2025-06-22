@@ -66,7 +66,7 @@ function determineReviewStatus(reviews: ReviewInfo[]): 'approved' | 'changes_req
     }
   }
 
-  // Check if all reviewers approved
+  // Check if we have any approvals (and no changes requested)
   const hasApprovals = Array.from(latestReviews.values()).some(r => r.type === 'approved');
   const hasComments = Array.from(latestReviews.values()).some(r => r.type === 'commented');
 
@@ -113,7 +113,7 @@ export async function workflowMonitorReviews(input: MonitorReviewsInput = {}): P
 
     // Get repository info
     const remoteUrl = execSync('git remote get-url origin', { encoding: 'utf8' }).trim();
-    const repoMatch = remoteUrl.match(/github\.com[:/]([^/]+)\/([^.]+)/);
+    const repoMatch = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/);
     if (!repoMatch) {
       throw new Error('Could not determine repository from git remote');
     }

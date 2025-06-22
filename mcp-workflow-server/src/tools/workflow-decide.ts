@@ -84,7 +84,7 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
 
     // Get repository info from git remote
     const remoteUrl = execSync('git remote get-url origin', { encoding: 'utf8' }).trim();
-    const repoMatch = remoteUrl.match(/github\.com[:/]([^/]+)\/([^.]+)/);
+    const repoMatch = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/);
     if (!repoMatch) {
       throw new Error('Could not determine repository from git remote');
     }
