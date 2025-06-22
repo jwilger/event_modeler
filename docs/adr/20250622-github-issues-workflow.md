@@ -24,6 +24,10 @@ We will migrate to using GitHub Issues with epics and sub-issues for all work tr
 - **Dependencies**: Tracked using "Depends on #X" pattern in issue descriptions
 - **Critical rules**: Preserved in DEVELOPMENT_PROCESS.md
 - **Vision/roadmap**: Kept in ROADMAP.md but referencing GitHub for current status
+- **GitHub Project**: Repository-level project board for priority management
+  - Manual sort order determines priority (not labels or fields)
+  - Epics sorted in "Epics Overview" view
+  - Sub-issues sorted within status columns on Kanban board
 
 ## Consequences
 
@@ -34,6 +38,8 @@ We will migrate to using GitHub Issues with epics and sub-issues for all work tr
 - **Dependency tracking**: GitHub's sub-issue feature provides clear relationships
 - **Reduced commit noise**: No more commits just to update status
 - **Standard workflow**: Aligns with common open-source practices
+- **Visual priority management**: Drag-and-drop prioritization in project board
+- **Flexible organization**: Multiple views for different perspectives
 
 ### Negative
 - **External dependency**: Work tracking requires GitHub access

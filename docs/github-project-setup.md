@@ -24,13 +24,6 @@ This document describes the GitHub Project configuration for Event Modeler devel
 - 📝 Documentation - Documentation updates
 - 🔧 Maintenance - Refactoring, dependencies, etc
 
-### Complexity (Number)
-- 1-5 scale for effort estimation
-- 1 = Trivial (< 1 hour)
-- 2 = Small (few hours)
-- 3 = Medium (1-2 days)
-- 4 = Large (3-5 days)
-- 5 = Extra Large (1+ week)
 
 ## Built-in Fields Used
 
@@ -113,13 +106,35 @@ The MCP workflow server can interact with this project to:
 }
 ```
 
+## Priority System
+
+GitHub Projects uses **manual sort order** to determine priority:
+
+### Epic Priority
+- Epics are manually sorted in the "Epics Overview" view
+- Top-to-bottom order = highest-to-lowest priority
+- This determines which epic's work should be done first
+
+### Sub-Issue Priority  
+- Sub-issues are manually sorted within their Status column on the Kanban board
+- When grouped by parent issue, the order within each group determines priority
+- Top-to-bottom order = highest-to-lowest priority
+
+### Work Selection Algorithm
+1. Find the highest priority epic (by position in Epics view)
+2. Within that epic, find the highest priority "Todo" sub-issue
+3. Check that all dependencies are met
+4. That's the next item to work on
+
+The Priority field (P0-P3) is for additional context but **manual sort order is the source of truth**.
+
 ## Workflow Guidelines
 
 1. **New Issues**: Default to "Todo" status
-2. **Priority Assignment**: 
-   - Epics: Based on roadmap importance
-   - Features: Based on epic priority
-   - Bugs: Based on severity
+2. **Priority Management**: 
+   - Drag epics in "Epics Overview" to set epic priority
+   - Drag sub-issues within Status columns to set task priority
+   - Use Priority field (P0-P3) for severity/urgency indicators
 3. **Status Transitions**:
    - Todo → In Progress (when assigned)
    - In Progress → Done (when PR merged)
