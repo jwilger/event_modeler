@@ -11,6 +11,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 5. **NEVER use `#[allow(...)]` without explicit user permission**
 6. **Check [PLANNING.md](PLANNING.md) for current work and process rules**
 
+## Conversation Compaction
+
+When the conversation is compacted (manual or auto-compact), ensure both [CLAUDE.md](CLAUDE.md) and [PLANNING.md](PLANNING.md) are reviewed to maintain awareness of:
+- Critical development rules and architecture principles
+- Current work status and next steps
+- Active PRs and their status
+
 ## Repository Overview
 
 Event Modeler is a CLI application that converts YAML-based event model descriptions (`.eventmodel` files) into visual diagrams (SVG/PDF format).
