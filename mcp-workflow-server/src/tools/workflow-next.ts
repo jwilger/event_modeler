@@ -1,6 +1,7 @@
 import { Octokit } from '@octokit/rest';
 import { execSync } from 'child_process';
 import { WorkflowResponse } from '../types.js';
+import { getProjectConfig, getMissingConfigFields, createConfigRequest } from '../config.js';
 
 interface TodoItem {
   text: string;
@@ -9,7 +10,7 @@ interface TodoItem {
 }
 
 interface NextStepAction {
-  action: 'work_on_todo' | 'todos_complete' | 'select_work';
+  action: 'work_on_todo' | 'todos_complete' | 'select_work' | 'epic_analysis' | 'complete_epic' | 'requires_llm_decision' | 'requires_config';
   issueNumber?: number;
   title?: string;
   status?: string;
@@ -20,6 +21,29 @@ interface NextStepAction {
   suggestion?: string;
   projectUrl?: string;
   reason?: string;
+  epicNumber?: number;
+  epicTitle?: string;
+  subIssues?: Array<{
+    number: number;
+    title: string;
+    status: string;
+  }>;
+  // Fields for LLM decision requests
+  decisionType?: 'select_next_issue' | 'prioritize_work';
+  decisionId?: string; // Unique ID to track this decision
+  choices?: Array<{
+    id: string | number;
+    title: string;
+    description?: string;
+    metadata?: Record<string, any>;
+  }>;
+  decisionContext?: {
+    prompt: string;
+    additionalInfo?: Record<string, any>;
+  };
+  // Fields for config requests
+  missingConfig?: string[];
+  configSuggestions?: string[];
 }
 
 interface WorkflowNextResponse extends WorkflowResponse {
@@ -65,6 +89,31 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
   const suggestedActions: string[] = [];
 
   try {
+    // Check configuration first
+    const { config, isComplete } = getProjectConfig();
+    
+    if (!isComplete) {
+      const missingFields = getMissingConfigFields(config);
+      const configRequest = createConfigRequest(missingFields);
+      
+      return {
+        requestedData: {
+          nextSteps: [{
+            action: 'requires_config',
+            missingConfig: configRequest.missingFields,
+            configSuggestions: configRequest.suggestions,
+            suggestion: 'Configuration is incomplete. Please run workflow_configure to set missing values.'
+          }],
+          context: {
+            currentConfig: config
+          }
+        },
+        automaticActions: ['Configuration check failed - missing required fields'],
+        issuesFound: [`Missing configuration: ${missingFields.join(', ')}`],
+        suggestedActions: configRequest.suggestions,
+        allPRStatus: []
+      };
+    }
     // Get GitHub token from gh CLI
     const token = execSync('gh auth token', { encoding: 'utf8' }).trim();
     const octokit = new Octokit({ auth: token });
@@ -73,9 +122,14 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
     const currentUser = await getCurrentUser();
     automaticActions.push(`Identified current user: ${currentUser}`);
 
-    // Get repository info
-    const repoInfo = execSync('gh repo view --json owner,name', { encoding: 'utf8' });
-    const { owner, name } = JSON.parse(repoInfo);
+    // Get repository info from git remote
+    const remoteUrl = execSync('git remote get-url origin', { encoding: 'utf8' }).trim();
+    const repoMatch = remoteUrl.match(/github\.com[:/]([^/]+)\/([^.]+)/);
+    if (!repoMatch) {
+      throw new Error('Could not determine repository from git remote');
+    }
+    const owner = { login: repoMatch[1] };
+    const name = repoMatch[2];
     automaticActions.push(`Working in repository: ${owner.login}/${name}`);
 
     // Query project for issues assigned to current user
@@ -92,6 +146,11 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
                     title
                     body
                     state
+                    labels(first: 10) {
+                      nodes {
+                        name
+                      }
+                    }
                     assignees(first: 10) {
                       nodes {
                         login
@@ -120,12 +179,14 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
 
     const projectData = await octokit.graphql(projectQuery, {
       owner: owner.login,
-      projectNumber: 9
+      projectNumber: config.github.projectNumber!
     });
 
     // Filter to issues assigned to current user and in progress
     const items = (projectData as any).user.projectV2.items.nodes;
-    const inProgressIssues = items.filter((item: any) => {
+    
+    // Separate regular issues and epics
+    const allInProgressIssues = items.filter((item: any) => {
       if (!item.content || !item.content.assignees) return false;
       
       const isAssignedToUser = item.content.assignees.nodes.some(
@@ -139,6 +200,20 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       
       return isAssignedToUser && isInProgress;
     });
+    
+    const inProgressIssues = allInProgressIssues.filter((item: any) => {
+      const isEpic = item.content.labels && item.content.labels.nodes.some(
+        (label: any) => label.name === 'epic'
+      );
+      return !isEpic;
+    });
+    
+    const inProgressEpics = allInProgressIssues.filter((item: any) => {
+      const isEpic = item.content.labels && item.content.labels.nodes.some(
+        (label: any) => label.name === 'epic'
+      );
+      return isEpic;
+    });
 
     automaticActions.push(`Found ${inProgressIssues.length} issues assigned to ${currentUser} in progress`);
 
@@ -146,9 +221,266 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
     const gitStatus = execSync('git status --porcelain', { encoding: 'utf8' });
     const currentBranch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
     const hasUncommittedChanges = gitStatus.length > 0;
+    
+    // Check for existing PR on current branch using GraphQL
+    let existingPR = null;
+    try {
+      const prQuery = `
+        query($owner: String!, $repo: String!, $headRef: String!) {
+          repository(owner: $owner, name: $repo) {
+            pullRequests(headRefName: $headRef, states: [OPEN], first: 1) {
+              nodes {
+                number
+                title
+                state
+              }
+            }
+          }
+        }
+      `;
+      
+      const prResult = await octokit.graphql(prQuery, {
+        owner: owner.login,
+        repo: name,
+        headRef: currentBranch
+      });
+      
+      const prs = (prResult as any).repository.pullRequests.nodes;
+      if (prs.length > 0) {
+        existingPR = {
+          number: prs[0].number,
+          title: prs[0].title,
+          state: prs[0].state
+        };
+      }
+    } catch (error) {
+      // No PR found or error checking
+    }
 
     if (inProgressIssues.length === 0) {
-      // No in-progress work assigned
+      // No regular issues in progress, check for epics
+      if (inProgressEpics.length > 0) {
+        // Analyze the first epic
+        const epic = inProgressEpics[0].content;
+        
+        // Get all sub-issues linked to this epic
+        const epicQuery = `
+          query($owner: String!, $repo: String!, $epicNumber: Int!) {
+            repository(owner: $owner, name: $repo) {
+              issue(number: $epicNumber) {
+                title
+                body
+                subIssues(first: 100) {
+                  nodes {
+                    number
+                    title
+                    state
+                    labels(first: 10) {
+                      nodes {
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        
+        try {
+          const epicData = await octokit.graphql(epicQuery, {
+            owner: owner.login,
+            repo: name,
+            epicNumber: epic.number
+          });
+          
+          const epicIssue = (epicData as any).repository.issue;
+          const subIssues = epicIssue.subIssues?.nodes || [];
+          const openSubIssues = subIssues.filter((issue: any) => issue.state === 'OPEN');
+          
+          if (openSubIssues.length === 0) {
+            // Epic has no open sub-issues
+            return {
+              requestedData: {
+                nextSteps: [{
+                  action: 'complete_epic',
+                  epicNumber: epic.number,
+                  epicTitle: epic.title,
+                  suggestion: 'All sub-issues for this epic are complete. Consider marking the epic as done.'
+                }],
+                context: {
+                  currentBranch,
+                  hasUncommittedChanges,
+                  existingPR: existingPR ? { number: existingPR.number, title: existingPR.title } : null
+                }
+              },
+              automaticActions,
+              issuesFound,
+              suggestedActions: [`Mark epic #${epic.number} as complete`],
+              allPRStatus: []
+            };
+          }
+          
+          // Epic has open sub-issues - request LLM decision if multiple options
+          if (openSubIssues.length > 1) {
+            // Multiple sub-issues available, request LLM decision
+            const decisionId = `epic-${epic.number}-next-issue-${Date.now()}`;
+            
+            return {
+              requestedData: {
+                nextSteps: [{
+                  action: 'requires_llm_decision',
+                  decisionType: 'select_next_issue',
+                  decisionId,
+                  epicNumber: epic.number,
+                  epicTitle: epic.title,
+                  choices: openSubIssues.map((issue: any) => ({
+                    id: issue.number,
+                    title: issue.title,
+                    description: `Issue #${issue.number}`,
+                    metadata: {
+                      state: issue.state,
+                      labels: issue.labels?.nodes?.map((l: any) => l.name) || []
+                    }
+                  })),
+                  decisionContext: {
+                    prompt: `Which sub-issue of the epic "${epic.title}" should be worked on next? Consider dependencies, logical ordering, and which issues might be foundation work that enables others.`,
+                    additionalInfo: {
+                      currentBranch,
+                      existingPR
+                    }
+                  }
+                }],
+                context: {
+                  currentBranch,
+                  hasUncommittedChanges,
+                  existingPR: existingPR ? { number: existingPR.number, title: existingPR.title } : null
+                }
+              },
+              automaticActions,
+              issuesFound,
+              suggestedActions: ['Awaiting decision on which sub-issue to work on next'],
+              allPRStatus: []
+            };
+          }
+          
+          // Only one sub-issue, suggest it directly
+          const nextIssue = openSubIssues[0];
+          
+          return {
+            requestedData: {
+              nextSteps: [{
+                action: 'epic_analysis',
+                epicNumber: epic.number,
+                epicTitle: epic.title,
+                suggestion: `Work on sub-issue #${nextIssue.number}: ${nextIssue.title}`,
+                subIssues: openSubIssues.map((issue: any) => ({
+                  number: issue.number,
+                  title: issue.title,
+                  status: issue.state
+                }))
+              }],
+              context: {
+                currentBranch,
+                hasUncommittedChanges,
+                existingPR: existingPR ? { number: existingPR.number, title: existingPR.title } : null
+              }
+            },
+            automaticActions,
+            issuesFound,
+            suggestedActions: [`Start work on issue #${nextIssue.number} from epic #${epic.number}`],
+            allPRStatus: []
+          };
+        } catch (error) {
+          // Fallback to searching for issues that mention the epic using GraphQL
+          automaticActions.push('Primary query failed, using search fallback');
+          
+          const searchQuery = `
+            query($query: String!) {
+              search(query: $query, type: ISSUE, first: 100) {
+                nodes {
+                  ... on Issue {
+                    number
+                    title
+                    state
+                    repository {
+                      name
+                      owner {
+                        login
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `;
+          
+          const searchResult = await octokit.graphql(searchQuery, {
+            query: `repo:${owner.login}/${name} is:issue is:open "#${epic.number}" in:body`
+          });
+          
+          const relatedIssues = ((searchResult as any).search.nodes || [])
+            .filter((issue: any) => 
+              issue.repository?.owner?.login === owner.login && 
+              issue.repository?.name === name
+            )
+            .map((issue: any) => ({
+              number: issue.number,
+              title: issue.title,
+              state: issue.state
+            }));
+          
+          if (relatedIssues.length === 0) {
+            return {
+              requestedData: {
+                nextSteps: [{
+                  action: 'complete_epic',
+                  epicNumber: epic.number,
+                  epicTitle: epic.title,
+                  suggestion: 'No open issues found for this epic. Consider marking it as done.'
+                }],
+                context: {
+                  currentBranch,
+                  hasUncommittedChanges,
+                  existingPR: existingPR ? { number: existingPR.number, title: existingPR.title } : null
+                }
+              },
+              automaticActions,
+              issuesFound,
+              suggestedActions: [`Mark epic #${epic.number} as complete`],
+              allPRStatus: []
+            };
+          }
+          
+          const nextIssue = relatedIssues[0];
+          return {
+            requestedData: {
+              nextSteps: [{
+                action: 'epic_analysis',
+                epicNumber: epic.number,
+                epicTitle: epic.title,
+                suggestion: `Work on sub-issue #${nextIssue.number}: ${nextIssue.title}`,
+                subIssues: relatedIssues.map((issue: any) => ({
+                  number: issue.number,
+                  title: issue.title,
+                  status: issue.state
+                }))
+              }],
+              context: {
+                currentBranch,
+                hasUncommittedChanges,
+                existingPR: existingPR ? { number: existingPR.number, title: existingPR.title } : null
+              }
+            },
+            automaticActions,
+            issuesFound,
+            suggestedActions: [`Start work on issue #${nextIssue.number} from epic #${epic.number}`],
+            allPRStatus: []
+          };
+        }
+      }
+      
+      // No issues or epics in progress
       return {
         requestedData: {
           nextSteps: [{
@@ -176,6 +508,10 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
 
     if (!nextTodo) {
       // All todos complete
+      const suggestion = existingPR 
+        ? `All todos complete. PR #${existingPR.number} exists - check if ready to merge.`
+        : 'All todos complete. Create PR for the completed work.';
+        
       return {
         requestedData: {
           nextSteps: [{
@@ -183,19 +519,22 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
             issueNumber: issue.number,
             title: issue.title,
             status: 'In Progress',
-            suggestion: 'All todos complete. Create PR if not exists, or close issue if PR merged.'
+            suggestion
           }],
           context: {
             totalTodos: todos.length,
             completedTodos: todos.length,
-            hasPR: false, // Could enhance to check for existing PR
+            hasPR: !!existingPR,
+            existingPR: existingPR ? { number: existingPR.number, title: existingPR.title } : null,
             currentBranch,
             hasUncommittedChanges
           }
         },
         automaticActions,
         issuesFound,
-        suggestedActions: ['Create a pull request for the completed work'],
+        suggestedActions: existingPR 
+          ? [`Check PR #${existingPR.number} for review status`]
+          : ['Create a pull request for the completed work'],
         allPRStatus: []
       };
     }
@@ -215,7 +554,8 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         }],
         context: {
           currentBranch,
-          hasUncommittedChanges
+          hasUncommittedChanges,
+          existingPR: existingPR ? { number: existingPR.number, title: existingPR.title } : null
         }
       },
       automaticActions,

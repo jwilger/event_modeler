@@ -34,6 +34,7 @@ describe('workflowNext', () => {
       }
       if (cmd === 'git status --porcelain') return '';
       if (cmd === 'git branch --show-current') return 'feature/test-branch\n';
+      if (cmd.startsWith('gh pr list --head')) return '[]';
       return '';
     });
   });
@@ -81,6 +82,9 @@ describe('workflowNext', () => {
                 state: 'OPEN',
                 assignees: {
                   nodes: [{ login: 'testuser' }]
+                },
+                labels: {
+                  nodes: []
                 }
               },
               fieldValues: {
@@ -125,6 +129,9 @@ describe('workflowNext', () => {
                 state: 'OPEN',
                 assignees: {
                   nodes: [{ login: 'testuser' }]
+                },
+                labels: {
+                  nodes: []
                 }
               },
               fieldValues: {
@@ -146,7 +153,7 @@ describe('workflowNext', () => {
       action: 'todos_complete',
       issueNumber: 42,
       title: 'Test Issue',
-      suggestion: 'All todos complete. Create PR if not exists, or close issue if PR merged.'
+      suggestion: 'All todos complete. Create PR for the completed work.'
     });
   });
 
@@ -187,6 +194,9 @@ describe('workflowNext', () => {
                 state: 'OPEN',
                 assignees: {
                   nodes: [{ login: 'testuser' }]
+                },
+                labels: {
+                  nodes: []
                 }
               },
               fieldValues: {
@@ -208,6 +218,262 @@ describe('workflowNext', () => {
       todoItem: 'Pending task',
       totalTodos: 6,  // 6 valid todos total
       completedTodos: 3
+    });
+  });
+
+  it('should detect existing PR and update suggestion accordingly', async () => {
+    const { workflowNext } = await import('../workflow-next.js');
+    
+    // Mock PR exists for the branch
+    mockExecSync.mockImplementation((cmd: string) => {
+      if (cmd === 'gh auth token') return 'mock-token\n';
+      if (cmd === 'gh api user --jq .login') return 'testuser\n';
+      if (cmd === 'gh repo view --json owner,name') {
+        return JSON.stringify({ owner: { login: 'jwilger' }, name: 'event_modeler' });
+      }
+      if (cmd === 'git status --porcelain') return '';
+      if (cmd === 'git branch --show-current') return 'feature/test-branch\n';
+      if (cmd.startsWith('gh pr list --head')) {
+        return JSON.stringify([{
+          number: 123,
+          title: 'Test PR',
+          state: 'OPEN'
+        }]);
+      }
+      return '';
+    });
+    
+    mockGraphql.mockResolvedValue({
+      user: {
+        projectV2: {
+          items: {
+            nodes: [{
+              id: 'test-item-id',
+              content: {
+                number: 42,
+                title: 'Test Issue',
+                body: '## Tasks\n- [x] Completed task 1\n- [x] Completed task 2',
+                state: 'OPEN',
+                assignees: {
+                  nodes: [{ login: 'testuser' }]
+                },
+                labels: {
+                  nodes: []
+                }
+              },
+              fieldValues: {
+                nodes: [{
+                  name: 'In Progress',
+                  field: { name: 'Status' }
+                }]
+              }
+            }]
+          }
+        }
+      }
+    });
+
+    const result = await workflowNext();
+
+    expect(result.requestedData.nextSteps[0]).toMatchObject({
+      action: 'todos_complete',
+      issueNumber: 42,
+      title: 'Test Issue',
+      suggestion: 'All todos complete. PR #123 exists - check if ready to merge.'
+    });
+    expect(result.requestedData.context.hasPR).toBe(true);
+    expect(result.requestedData.context.existingPR).toEqual({
+      number: 123,
+      title: 'Test PR'
+    });
+  });
+
+  it('should filter out epic issues', async () => {
+    const { workflowNext } = await import('../workflow-next.js');
+    
+    mockGraphql.mockResolvedValue({
+      user: {
+        projectV2: {
+          items: {
+            nodes: [
+              {
+                id: 'epic-item-id',
+                content: {
+                  number: 1,
+                  title: 'Epic Issue',
+                  body: 'Epic without todos',
+                  state: 'OPEN',
+                  assignees: {
+                    nodes: [{ login: 'testuser' }]
+                  },
+                  labels: {
+                    nodes: [{ name: 'epic' }]
+                  }
+                },
+                fieldValues: {
+                  nodes: [{
+                    name: 'In Progress',
+                    field: { name: 'Status' }
+                  }]
+                }
+              },
+              {
+                id: 'regular-item-id',
+                content: {
+                  number: 2,
+                  title: 'Regular Issue',
+                  body: '- [ ] Task to do',
+                  state: 'OPEN',
+                  assignees: {
+                    nodes: [{ login: 'testuser' }]
+                  },
+                  labels: {
+                    nodes: []
+                  }
+                },
+                fieldValues: {
+                  nodes: [{
+                    name: 'In Progress',
+                    field: { name: 'Status' }
+                  }]
+                }
+              }
+            ]
+          }
+        }
+      }
+    });
+
+    const result = await workflowNext();
+
+    // Should pick the regular issue, not the epic
+    expect(result.requestedData.nextSteps[0]).toMatchObject({
+      action: 'work_on_todo',
+      issueNumber: 2,
+      title: 'Regular Issue',
+      todoItem: 'Task to do'
+    });
+  });
+
+  it('should analyze epic when no regular issues are in progress', async () => {
+    const { workflowNext } = await import('../workflow-next.js');
+    
+    // Mock GitHub CLI to return issue search results
+    mockExecSync.mockImplementation((cmd: string) => {
+      if (cmd === 'gh auth token') return 'mock-token\n';
+      if (cmd === 'gh api user --jq .login') return 'testuser\n';
+      if (cmd === 'gh repo view --json owner,name') {
+        return JSON.stringify({ owner: { login: 'jwilger' }, name: 'event_modeler' });
+      }
+      if (cmd === 'git status --porcelain') return '';
+      if (cmd === 'git branch --show-current') return 'main\n';
+      if (cmd.startsWith('gh pr list --head')) return '[]';
+      if (cmd.includes('gh issue list --search')) {
+        return JSON.stringify([
+          { number: 10, title: 'Sub-issue 1', state: 'OPEN' },
+          { number: 11, title: 'Sub-issue 2', state: 'OPEN' }
+        ]);
+      }
+      return '';
+    });
+    
+    mockGraphql.mockResolvedValue({
+      user: {
+        projectV2: {
+          items: {
+            nodes: [{
+              id: 'epic-item-id',
+              content: {
+                number: 100,
+                title: 'Epic: Test Epic',
+                body: 'Epic description',
+                state: 'OPEN',
+                assignees: {
+                  nodes: [{ login: 'testuser' }]
+                },
+                labels: {
+                  nodes: [{ name: 'epic' }]
+                }
+              },
+              fieldValues: {
+                nodes: [{
+                  name: 'In Progress',
+                  field: { name: 'Status' }
+                }]
+              }
+            }]
+          }
+        }
+      }
+    });
+
+    const result = await workflowNext();
+
+    expect(result.requestedData.nextSteps[0]).toMatchObject({
+      action: 'epic_analysis',
+      epicNumber: 100,
+      epicTitle: 'Epic: Test Epic',
+      suggestion: 'Work on sub-issue #10: Sub-issue 1'
+    });
+    expect(result.requestedData.nextSteps[0].subIssues).toHaveLength(2);
+  });
+
+  it('should suggest completing epic when no sub-issues are open', async () => {
+    const { workflowNext } = await import('../workflow-next.js');
+    
+    // Mock empty issue search
+    mockExecSync.mockImplementation((cmd: string) => {
+      if (cmd === 'gh auth token') return 'mock-token\n';
+      if (cmd === 'gh api user --jq .login') return 'testuser\n';
+      if (cmd === 'gh repo view --json owner,name') {
+        return JSON.stringify({ owner: { login: 'jwilger' }, name: 'event_modeler' });
+      }
+      if (cmd === 'git status --porcelain') return '';
+      if (cmd === 'git branch --show-current') return 'main\n';
+      if (cmd.startsWith('gh pr list --head')) return '[]';
+      if (cmd.includes('gh issue list --search')) {
+        return '[]'; // No sub-issues found
+      }
+      return '';
+    });
+    
+    mockGraphql.mockResolvedValue({
+      user: {
+        projectV2: {
+          items: {
+            nodes: [{
+              id: 'epic-item-id',
+              content: {
+                number: 100,
+                title: 'Epic: Completed Epic',
+                body: 'Epic with no open issues',
+                state: 'OPEN',
+                assignees: {
+                  nodes: [{ login: 'testuser' }]
+                },
+                labels: {
+                  nodes: [{ name: 'epic' }]
+                }
+              },
+              fieldValues: {
+                nodes: [{
+                  name: 'In Progress',
+                  field: { name: 'Status' }
+                }]
+              }
+            }]
+          }
+        }
+      }
+    });
+
+    const result = await workflowNext();
+
+    expect(result.requestedData.nextSteps[0]).toMatchObject({
+      action: 'complete_epic',
+      epicNumber: 100,
+      epicTitle: 'Epic: Completed Epic',
+      suggestion: 'No open issues found for this epic. Consider marking it as done.'
     });
   });
 });

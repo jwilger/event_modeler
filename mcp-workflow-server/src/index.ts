@@ -5,6 +5,8 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 
 import { workflowStatusTool } from './tools/workflow-status.js';
 import { workflowNext } from './tools/workflow-next.js';
+import { workflowDecide } from './tools/workflow-decide.js';
+import { workflowConfigure } from './tools/workflow-configure.js';
 import { WorkflowResponse } from './types.js';
 
 const server = new Server(
@@ -43,6 +45,64 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: [],
         },
       },
+      {
+        name: 'workflow_decide',
+        description:
+          'Submit a decision for a previous LLM decision request from workflow_next',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            decisionId: {
+              type: 'string',
+              description: 'The decision ID from the requires_llm_decision response',
+            },
+            selectedChoice: {
+              type: ['string', 'number'],
+              description: 'The ID of the selected choice',
+            },
+            reasoning: {
+              type: 'string',
+              description: 'Optional reasoning for the decision',
+            },
+          },
+          required: ['decisionId', 'selectedChoice'],
+        },
+      },
+      {
+        name: 'workflow_configure',
+        description:
+          'Configure the MCP workflow server with project-specific settings',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            projectNumber: {
+              type: 'number',
+              description: 'GitHub project number',
+            },
+            projectId: {
+              type: 'string',
+              description: 'GitHub project ID (e.g., PVT_...)',
+            },
+            statusFieldId: {
+              type: 'string',
+              description: 'ID of the Status field in the project',
+            },
+            todoOptionId: {
+              type: 'string',
+              description: 'ID of the Todo status option',
+            },
+            inProgressOptionId: {
+              type: 'string',
+              description: 'ID of the In Progress status option',
+            },
+            doneOptionId: {
+              type: 'string',
+              description: 'ID of the Done status option',
+            },
+          },
+          required: [],
+        },
+      },
     ],
   };
 });
@@ -60,6 +120,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       case 'workflow_next':
         result = await workflowNext();
+        break;
+      case 'workflow_decide':
+        result = await workflowDecide(request.params.arguments as any || {});
+        break;
+      case 'workflow_configure':
+        result = await workflowConfigure(request.params.arguments as any || {});
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);
