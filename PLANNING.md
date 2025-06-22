@@ -6,6 +6,12 @@ This document tracks current work and critical development processes for the Eve
 
 **ALWAYS create a todo list using TodoWrite as your VERY FIRST action when starting work.**
 
+**IMPORTANT**: Since CLAUDE.md is only loaded at conversation start, review the critical rules in [CLAUDE.md](CLAUDE.md):
+- Always create feature branches before committing
+- Always use `nutype` for domain types
+- Never use `.unwrap()` or `.expect()` on validation
+- Always run `cargo fmt` and `cargo clippy` before commits
+
 ## Current Status
 
 **Last Updated**: 2025-06-22
