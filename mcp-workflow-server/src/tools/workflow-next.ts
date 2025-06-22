@@ -172,24 +172,60 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
     
     // Check if any of my PRs need Copilot re-review requested
     for (const pr of allOpenPRs.filter(p => p.author === currentUser)) {
-      const copilotReview = pr.reviews.find(r => 
-        r.reviewer === 'copilot-pull-request-reviewer[bot]' || 
-        r.reviewer === 'copilot-pull-request-reviewer'
-      );
+      // Get all Copilot reviews sorted by date
+      const copilotReviews = pr.reviews
+        .filter(r => 
+          r.reviewer === 'copilot-pull-request-reviewer[bot]' || 
+          r.reviewer === 'copilot-pull-request-reviewer'
+        )
+        .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
       
-      if (copilotReview) {
-        // Check if PR was updated after Copilot's review
-        const reviewDate = new Date(copilotReview.submittedAt);
+      if (copilotReviews.length > 0) {
+        const latestCopilotReview = copilotReviews[0];
+        const reviewDate = new Date(latestCopilotReview.submittedAt);
         const prLastUpdated = new Date(pr.lastUpdated);
         
+        // Check if PR was updated after Copilot's latest review
         if (prLastUpdated > reviewDate) {
-          // PR was updated after Copilot's review, request re-review
-          automaticActions.push(`PR #${pr.prNumber} was updated after Copilot's review, requesting re-review`);
-          const reReviewRequested = await requestCopilotReReview(pr.prNumber);
-          if (reReviewRequested) {
-            automaticActions.push(`Successfully requested Copilot re-review for PR #${pr.prNumber}`);
-          } else {
-            issuesFound.push(`Failed to request Copilot re-review for PR #${pr.prNumber}`);
+          // Get commit count to see if there are actual new commits
+          try {
+            const { owner: ownerName, repo: repoName } = getRepoInfo();
+            
+            // Get commits since the review
+            const commitsQuery = `
+              query($owner: String!, $repo: String!, $prNumber: Int!, $since: GitTimestamp!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $prNumber) {
+                    commits(first: 1, since: $since) {
+                      totalCount
+                    }
+                  }
+                }
+              }
+            `;
+            
+            const result = await octokit.graphql(commitsQuery, {
+              owner: ownerName,
+              repo: repoName,
+              prNumber: pr.prNumber,
+              since: reviewDate.toISOString()
+            });
+            
+            const newCommitCount = (result as any).repository.pullRequest.commits.totalCount;
+            
+            if (newCommitCount > 0) {
+              // Only request re-review if there are actual new commits
+              automaticActions.push(`PR #${pr.prNumber} has ${newCommitCount} new commits since Copilot's last review, requesting re-review`);
+              const reReviewRequested = await requestCopilotReReview(pr.prNumber);
+              if (reReviewRequested) {
+                automaticActions.push(`Successfully requested Copilot re-review for PR #${pr.prNumber}`);
+              } else {
+                issuesFound.push(`Failed to request Copilot re-review for PR #${pr.prNumber}`);
+              }
+            }
+          } catch (error) {
+            // If we can't check commits, skip re-review request
+            console.error('Failed to check for new commits:', error);
           }
         }
       }
@@ -203,7 +239,7 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       return {
         requestedData: {
           nextSteps: [{
-            action: 'address_pr_feedback' as any,
+            action: 'address_pr_feedback',
             prNumber: pr.prNumber,
             title: pr.title,
             reviewStatus: pr.reviewStatus,
@@ -232,7 +268,7 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       return {
         requestedData: {
           nextSteps: [{
-            action: 'review_pr' as any,
+            action: 'review_pr',
             prNumber: pr.prNumber,
             title: pr.title,
             author: pr.author,

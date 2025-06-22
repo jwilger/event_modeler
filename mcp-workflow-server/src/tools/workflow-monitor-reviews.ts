@@ -4,6 +4,9 @@ import { WorkflowResponse } from '../types.js';
 import { getProjectConfig } from '../config.js';
 import { getRepoInfo } from '../utils/github.js';
 
+// GitHub bot IDs
+const COPILOT_BOT_ID = 'BOT_kgDOCnlnWA';
+
 interface MonitorReviewsInput {
   includeApproved?: boolean; // Include already approved PRs in response
   includeDrafts?: boolean;   // Include draft PRs in monitoring
@@ -150,7 +153,7 @@ export async function requestCopilotReReview(prNumber: number): Promise<boolean>
 
     await octokit.graphql(requestReviewMutation, {
       pullRequestId: prNodeId,
-      botIds: ["BOT_kgDOCnlnWA"] // Copilot's bot ID
+      botIds: [COPILOT_BOT_ID]
     });
 
     console.log('Requested Copilot re-review for PR #' + prNumber);
