@@ -28,8 +28,6 @@ We will implement an MCP (Model Context Protocol) server for development automat
 - **No automatic triggers**: Developers must manually invoke the MCP tools rather than having automatic responses to GitHub events
 
 ## Rationale
-The primary driver for this decision is the high maintenance burden of the GitHub integration with Claude Max accounts. OAuth tokens expire frequently, requiring manual intervention to refresh them. This defeats the purpose of automation.
+The decision to implement an MCP server is driven by the challenges outlined in the "Consequences" section, including the high maintenance burden of OAuth token management and the economic inefficiency of using the standard Claude API alongside a Claude Max subscription.
 
-Additionally, using the standard Claude API would mean paying for API usage on top of an already expensive Claude Max subscription, which is not economically sensible.
-
-The MCP approach allows us to achieve the same automation goals while working within the constraints of the Claude Max subscription model.
+By leveraging the MCP approach, we can achieve the same automation goals while avoiding these issues and working within the constraints of the Claude Max subscription model.
