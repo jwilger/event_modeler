@@ -37,6 +37,7 @@
             pre-commit
             nodejs_22
             glow
+            jq
           ];
 
           RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library";
