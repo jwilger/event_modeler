@@ -1,29 +1,25 @@
-# Event Modeler MCP Workflow Server
+# MCP Workflow Server
 
-An MCP (Model Context Protocol) server that manages the Event Modeler development workflow, providing deterministic guidance and automated GitHub/Git operations.
-
-## Overview
-
-This MCP server automates and streamlines the development workflow for Event Modeler by:
-- Providing proactive monitoring of PR status, CI checks, and review feedback
-- Automating PR chain management and rebasing
-- Giving deterministic next-step instructions
-- Handling GitHub API interactions directly
+An MCP (Model Context Protocol) server that helps manage the Event Modeler development workflow by providing intelligent status monitoring and automation tools.
 
 ## Features
 
-### Phase 1: Project Setup & Smart Status (Current)
-- Intelligent status monitoring of git and GitHub state
-- Detection of stale branches and needed rebases
-- Comprehensive PR status overview
+### Phase 1: Workflow Status (Complete)
+The `workflow/status` tool provides comprehensive repository and PR status monitoring:
 
-### Planned Features
-- Phase 2: Context-aware next step guidance
-- Phase 3: Automated PR creation with monitoring
-- Phase 4: Active review and CI monitoring
-- Phase 5: Automated merge handling and PR chain management
+- **Git Status**: Current branch, uncommitted changes, ahead/behind status
+- **PR Monitoring**: CI status, review comments, rebase needs
+- **Stale Branch Detection**: Identifies branches created before recent main merges
+- **State Persistence**: Tracks changes between invocations to detect new issues
 
-## Installation
+## Installation & Setup
+
+### Prerequisites
+- Node.js 18+ 
+- Claude Code CLI
+- GitHub CLI (`gh`) for authentication
+
+### Building the Server
 
 ```bash
 cd mcp-workflow-server
@@ -31,39 +27,63 @@ npm install
 npm run build
 ```
 
+### Integration with Claude Code
+
+The MCP server is automatically configured for this project via `.mcp.json` in the project root. When you open this project in Claude Code, it will detect and offer to use the workflow server.
+
+To manually verify the configuration:
+
+```bash
+# From project root
+claude mcp list
+```
+
+You should see the `workflow` server listed.
+
 ## Usage
 
-The server provides MCP tools that can be accessed through any MCP-compatible client:
+Once integrated, you can use the workflow tools in Claude Code:
 
-- `workflow/status` - Get comprehensive status of current branch, PRs, and CI
+```
+Use the workflow/status tool to check my current work status
+```
+
+The tool will return:
+- Current branch and Git status
+- Any active PRs and their CI/review status
+- Detected issues (stale branches, failing CI, etc.)
+- Suggested actions based on the current state
 
 ## Development
 
+### Running Tests
 ```bash
-# Run in development mode with hot reload
-npm run dev
-
-# Run tests
 npm test
+```
 
-# Lint code
+### Development Mode
+```bash
+npm run dev
+```
+
+### Linting & Formatting
+```bash
 npm run lint
-
-# Format code
 npm run format
 ```
 
 ## Architecture
 
-Every MCP tool response includes:
-```typescript
-{
-  requestedData: {...},      // What was asked for
-  automaticActions: [...],   // What MCP did automatically  
-  issuesFound: [...],        // Problems detected
-  suggestedActions: [...],   // What LLM should do
-  allPRStatus: [...]         // Always include PR overview
-}
-```
+The server implements the MCP protocol with:
+- **Tools**: Exposed functionality (currently `workflow/status`)
+- **State Store**: Persistent tracking of PR reviews and branch dates
+- **Utilities**: Git and GitHub API integrations
 
-This proactive monitoring architecture ensures that every interaction provides comprehensive context for decision-making.
+## Roadmap
+
+- **Phase 2**: Intelligent next-step guidance
+- **Phase 3**: Smart PR creation
+- **Phase 4**: Active review monitoring
+- **Phase 5**: Automated merge & rebase operations
+
+See [PLANNING.md](../PLANNING.md) for detailed implementation plans.
