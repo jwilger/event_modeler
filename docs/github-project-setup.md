@@ -11,6 +11,11 @@ This document describes the GitHub Project configuration for Event Modeler devel
 
 ## Custom Fields
 
+### Status (Built-in)
+- Todo - Not yet started
+- In Progress - Currently being worked on
+- Done - Completed
+
 ### Priority (Single Select)
 - 🔴 P0: Critical - Must be done immediately
 - 🟠 P1: High - Should be done soon  
@@ -70,25 +75,17 @@ This document describes the GitHub Project configuration for Event Modeler devel
 
 Configure these workflows in the GitHub UI (Settings → Workflows):
 
-1. **When PR opened**
-   - Filter: Item type is Pull Request
-   - Action: Set Status to "In Review"
-
-2. **When issue assigned**
+1. **When issue assigned**
    - Filter: Item type is Issue, Assignees is not empty
    - Action: Set Status to "In Progress"
 
-3. **Auto-archive Done items**
+2. **Auto-archive Done items**
    - Filter: Status is Done, Updated in the last 30 days
    - Action: Archive item
 
-4. **Set Type for Epics**
+3. **Set Type for Epics**
    - Filter: Item has sub-issues
    - Action: Set Type to "🎯 Epic"
-
-5. **PR linked to issue**
-   - Filter: Item has linked pull requests
-   - Action: Set Status to "In Review"
 
 ## MCP Integration
 
