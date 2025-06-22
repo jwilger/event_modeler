@@ -193,6 +193,7 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
 
     // Check if we need to create a new branch
     let branchCreated = false;
+    let branchSwitched = false;
     if (!hasUncommittedChanges && currentBranch !== branchName) {
       try {
         // Check if branch already exists locally
@@ -200,12 +201,14 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
         // Branch exists, switch to it
         execSync(`git checkout ${branchName}`, { encoding: 'utf8' });
         automaticActions.push(`Switched to existing branch: ${branchName}`);
+        branchSwitched = true;
       } catch {
         // Branch doesn't exist, create it
         try {
           execSync(`git checkout -b ${branchName}`, { encoding: 'utf8' });
           automaticActions.push(`Created and switched to new branch: ${branchName}`);
           branchCreated = true;
+          branchSwitched = true;
         } catch (error) {
           automaticActions.push(`Could not create branch: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
@@ -224,8 +227,10 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
             hasUncommittedChanges ? 
             'Commit current changes before switching branches.' : 
             branchCreated ? 
-            `Now on branch: ${branchName}` :
-            `Ready to work on: ${branchName}`
+            `Created and switched to new branch: ${branchName}` :
+            branchSwitched ? 
+            `Switched to existing branch: ${branchName}` :
+            `Ready to work on branch: ${branchName}`
           }`
         }],
         decision: {
