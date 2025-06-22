@@ -4,6 +4,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 import { workflowStatusTool } from './tools/workflow-status.js';
+import { workflowNext } from './tools/workflow-next.js';
 import { WorkflowResponse } from './types.js';
 
 const server = new Server(
@@ -32,6 +33,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: [],
         },
       },
+      {
+        name: 'workflow_next',
+        description:
+          'Get context-aware guidance on what to work on next based on assigned GitHub issues',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
     ],
   };
 });
@@ -46,6 +57,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (name) {
       case 'workflow_status':
         result = await workflowStatusTool();
+        break;
+      case 'workflow_next':
+        result = await workflowNext();
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);

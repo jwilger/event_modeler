@@ -6,6 +6,7 @@ import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 vi.mock('@modelcontextprotocol/sdk/server/index.js');
 vi.mock('@modelcontextprotocol/sdk/server/stdio.js');
 vi.mock('../tools/workflow-status.js');
+vi.mock('../tools/workflow-next.js');
 
 describe('MCP Server Index', () => {
   let mockServer: any;
@@ -37,11 +38,26 @@ describe('MCP Server Index', () => {
     // Call the handler to get the tools list
     const result = await listToolsHandler();
 
-    // Verify the workflow_status tool is registered with correct name
-    expect(result.tools).toHaveLength(1);
-    expect(result.tools[0]).toMatchObject({
+    // Verify both tools are registered
+    expect(result.tools).toHaveLength(2);
+    
+    // Find workflow_status tool
+    const statusTool = result.tools.find((t: any) => t.name === 'workflow_status');
+    expect(statusTool).toMatchObject({
       name: 'workflow_status',
       description: expect.stringContaining('comprehensive status'),
+      inputSchema: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    });
+    
+    // Find workflow_next tool
+    const nextTool = result.tools.find((t: any) => t.name === 'workflow_next');
+    expect(nextTool).toMatchObject({
+      name: 'workflow_next',
+      description: expect.stringContaining('context-aware guidance'),
       inputSchema: {
         type: 'object',
         properties: {},
