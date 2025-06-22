@@ -20,9 +20,9 @@ export async function workflowStatusTool(): Promise<WorkflowResponse> {
     
     // Check if branch is stale or merged
     const isStale = await isCurrentBranchStale();
-    const isMerged = await isBranchMerged(gitStatus.currentBranch);
     
     if (gitStatus.currentBranch !== 'main') {
+      const isMerged = await isBranchMerged(gitStatus.currentBranch);
       if (isMerged) {
         issuesFound.push(`Branch '${gitStatus.currentBranch}' has been merged to main`);
         suggestedActions.push('[NEXT] Switch to main: git checkout main && git pull origin main');
@@ -132,8 +132,12 @@ export async function workflowStatusTool(): Promise<WorkflowResponse> {
         suggestedActions.push('[NEXT] Create a new feature branch for your next task');
       } else if (allPRs.some(pr => pr.branch === gitStatus.currentBranch)) {
         suggestedActions.push('[NEXT] Continue implementing features on current branch');
-      } else if (!isMerged) {
-        suggestedActions.push('[NEXT] Create a PR for your current branch');
+      } else {
+        // Only suggest creating PR if branch isn't merged
+        const branchMerged = await isBranchMerged(gitStatus.currentBranch);
+        if (!branchMerged) {
+          suggestedActions.push('[NEXT] Create a PR for your current branch');
+        }
       }
     }
 

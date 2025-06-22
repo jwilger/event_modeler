@@ -148,11 +148,24 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       if (isMerged) {
         automaticActions.push(`Current branch '${currentBranch}' has been merged to main`);
         
+        const suggestedActions = [];
+        const issuesFound = [`Branch '${currentBranch}' has been merged - switch to main`];
+        
+        if (hasUncommittedChanges) {
+          issuesFound.push('You have uncommitted changes that need to be handled before switching branches');
+          suggestedActions.push('Commit or stash your changes: git commit -am "Save work" OR git stash');
+        }
+        
+        suggestedActions.push(
+          'Run: git checkout main && git pull origin main',
+          'Then run workflow_next again to find next task'
+        );
+        
         return {
           requestedData: {
             nextSteps: [{
               action: 'select_work',
-              suggestion: `Your branch '${currentBranch}' has been merged. Switch to main and pull latest changes before starting new work.`,
+              suggestion: `Your branch '${currentBranch}' has been merged. ${hasUncommittedChanges ? 'Commit or stash your changes, then s' : 'S'}witch to main and pull latest changes before starting new work.`,
               reason: 'Current branch has been merged to main'
             }],
             context: {
@@ -162,11 +175,8 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
             }
           },
           automaticActions,
-          issuesFound: [`Branch '${currentBranch}' has been merged - switch to main`],
-          suggestedActions: [
-            'Run: git checkout main && git pull origin main',
-            'Then run workflow_next again to find next task'
-          ],
+          issuesFound,
+          suggestedActions,
           allPRStatus: []
         };
       }
