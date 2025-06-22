@@ -5,7 +5,7 @@ An MCP (Model Context Protocol) server that helps manage the Event Modeler devel
 ## Features
 
 ### Phase 1: Workflow Status (Complete)
-The `workflow/status` tool provides comprehensive repository and PR status monitoring:
+The `workflow_status` tool provides comprehensive repository and PR status monitoring:
 
 - **Git Status**: Current branch, uncommitted changes, ahead/behind status
 - **PR Monitoring**: CI status, review comments, rebase needs
@@ -45,7 +45,7 @@ You should see the `workflow` server listed.
 Once integrated, you can use the workflow tools in Claude Code:
 
 ```
-Use the workflow/status tool to check my current work status
+Use the workflow_status tool to check my current work status
 ```
 
 The tool will return:
@@ -75,7 +75,7 @@ npm run format
 ## Architecture
 
 The server implements the MCP protocol with:
-- **Tools**: Exposed functionality (currently `workflow/status`)
+- **Tools**: Exposed functionality (currently `workflow_status`)
 - **State Store**: Persistent tracking of PR reviews and branch dates
 - **Utilities**: Git and GitHub API integrations
 
