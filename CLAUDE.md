@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 3. **NEVER use `.unwrap()` or `.expect()` on validation**
 4. **ALWAYS run `cargo fmt` and `cargo clippy` before suggesting commits**
 5. **NEVER use `#[allow(...)]` without explicit user permission**
-6. **Check [PLANNING.md](PLANNING.md) for current work and process rules**
+6. **Check GitHub issues and epics for current work** (see Project Workflow section)
 
 ## Collaboration Style
 
@@ -22,16 +22,16 @@ Act as a peer programmer, not an assistant:
 
 ## Conversation Compaction
 
-When the conversation is compacted (manual or auto-compact), ensure both [CLAUDE.md](CLAUDE.md) and [PLANNING.md](PLANNING.md) are reviewed to maintain awareness of:
+When the conversation is compacted (manual or auto-compact), ensure [CLAUDE.md](CLAUDE.md) is reviewed and check GitHub issues to maintain awareness of:
 - Critical development rules and architecture principles
-- Current work status and next steps
+- Current work status via GitHub issues and epics
 - Active PRs and their status
 
 ## Repository Overview
 
 Event Modeler is a CLI application that converts YAML-based event model descriptions (`.eventmodel` files) into visual diagrams (SVG/PDF format).
 
-**Current Status**: Major rewrite in progress - transitioning from simple text format to rich YAML-based event modeling language. See [PLANNING.md](PLANNING.md) for detailed implementation plan and current phase.
+**Current Status**: Major rewrite in progress - transitioning from simple text format to rich YAML-based event modeling language. Work is tracked via GitHub issues with epics for major phases.
 
 ## Development Setup
 
@@ -139,9 +139,41 @@ When modifying YAML support:
 - Run `cargo fmt` and `cargo clippy` before every commit
 - Preserve existing type signatures when implementing `todo!()`
 
+## Project Workflow
+
+### GitHub Issues & Epics
+
+Development work is tracked using GitHub issues with the following structure:
+
+1. **Epics**: Major phases labeled with "epic" 
+   - Track overall progress for large features
+   - Contain multiple sub-issues
+   - Examples: "Phase 6: Diagram Module Rewrite", "MCP Workflow Server Development"
+
+2. **Sub-Issues**: Individual work items
+   - Linked to epics using GitHub's sub-issue feature
+   - Include acceptance criteria, dependencies, and implementation notes
+   - Use "Depends on #X" pattern for dependencies
+
+3. **Finding Work**: 
+   - Check epic issues for overall progress
+   - Look for sub-issues with met dependencies
+   - Use MCP `workflow_status` tool for current state
+   - Use MCP `workflow_next` tool for guidance (when implemented)
+
+### PR-Driven Development
+
+1. Create feature branches from issues
+2. Make commits frequently with clear messages
+3. Create PRs early (not as draft)
+4. Monitor and address all reviews
+5. Merge triggers next work item
+
 ## References
 
-- **Current Work & Process**: [PLANNING.md](PLANNING.md)
 - **Architecture & Contributing**: [README.md](README.md)
-- **Development Priorities**: [ROADMAP.md](ROADMAP.md)
+- **Development Process**: [DEVELOPMENT_PROCESS.md](DEVELOPMENT_PROCESS.md)
+- **Roadmap & Vision**: [ROADMAP.md](ROADMAP.md)
 - **YAML Syntax**: [docs/yaml-syntax-guide.md](docs/yaml-syntax-guide.md)
+- **Current Epics**: Check GitHub issues labeled "epic"
+- **Active Work**: Use `gh issue list --state open` or MCP tools
