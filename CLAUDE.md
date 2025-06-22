@@ -107,25 +107,18 @@ See [README.md#architecture](README.md#architecture) for the core architecture p
 - **Type-Driven Development**: Leverage Rust's type system to eliminate bugs at compile time (see ADR 20250617-type-driven-testing.md)
 - **Parse, Don't Validate**: All validation happens at system boundaries through parse functions
 - **Make Illegal States Unrepresentable**: Design types so invalid states cannot be constructed
-- **Incremental Implementation**: Implement functionality while preserving type signatures
 - **Testing Strategy**: Test only behaviors that cannot be encoded in types (parsing, rendering output)
-- Always consider if new domain types can eliminate error cases
 
-### Development Management for Claude
+### Development Workflow
 
-See [README.md#contributing](README.md#contributing) for the development workflow.
+See [PLANNING.md](PLANNING.md) for:
+- Current implementation status and roadmap
+- PR-driven workflow details
+- Todo list management requirements
+- Branch management and rebasing procedures
+- Visual development rules for diagram work
 
-Claude-specific notes:
-- Check [ROADMAP.md](ROADMAP.md) for current development priorities
-- Use TodoWrite tool to track implementation progress
-- Preserve existing type signatures when adding implementations
-
-### Active Development
-
-- Focus on one module implementation at a time
-- Use TodoWrite tool for tracking progress within a session
-- Implement functions while preserving their type signatures
-- Add tests for new implementations
+See [README.md#contributing](README.md#contributing) for general contribution guidelines.
 
 ## Development Guidelines
 
@@ -208,89 +201,21 @@ cross build --release --target x86_64-pc-windows-gnu
 - Support standard terminal screen readers
 - Follow terminal color scheme preferences
 
-## Claude-Specific Git Instructions
+## Git Commit Guidelines
 
 - Always make high-quality git commits that explain the _why_ not just the how
-- Commit whenever all tests are passing rather than waiting to complete a full story
 - NEVER add prefixes to commit message subject lines (no "feat:", "fix:", "chore:", etc.)
 - Keep commits focused and atomic
 - Use the commit message format shown in README.md
 
-### CRITICAL: PR Chain Management
-
-When working with chained PRs (where PR B is based on PR A), **ALWAYS** rebase downstream PRs after a base PR is merged:
-
-#### The Problem
-When we squash-merge a PR, GitHub combines all commits into a single commit. This breaks the chain for downstream PRs because:
-1. PR A has commits C1, C2, C3
-2. PR B is based on PR A, so it includes C1, C2, C3 + new commits C4, C5
-3. When PR A is squash-merged, GitHub creates a new commit C123 on main
-4. PR B still references the old commits C1, C2, C3 which no longer exist on main
-5. PR B becomes impossible to merge cleanly
-
-#### The Solution
-**IMMEDIATELY** after any base PR is merged:
-
-1. **Check for downstream PRs**:
-   ```bash
-   gh pr list --author @me
-   ```
-
-2. **For each downstream PR, rebase onto main**:
-   ```bash
-   # Check out the downstream PR branch
-   git checkout feature/downstream-branch
-   
-   # Fetch latest changes
-   git fetch origin
-   
-   # Rebase onto main (not the old base branch)
-   git rebase origin/main
-   
-   # Resolve conflicts by keeping the downstream PR changes (use --theirs)
-   git checkout --theirs <conflicted-file>
-   git add <conflicted-file>
-   git rebase --continue
-   
-   # Force push the rebased branch
-   git push --force-with-lease
-   
-   # Update the PR base reference
-   gh pr edit <PR-number> --base main
-   ```
-
-3. **Common Conflict Resolution**:
-   - Always use `git checkout --theirs` to keep the downstream PR's changes
-   - The conflicts occur because git sees the same changes in different commits
-   - The downstream PR's version is always the one we want to keep
-
-#### Example Workflow
-```bash
-# PR #15 just got merged, now rebase PR #17 and PR #18
-git checkout feature/domain-extensions
-git fetch origin
-git rebase origin/main
-# Resolve conflicts with --theirs
-git push --force-with-lease
-gh pr edit 17 --base main
-
-git checkout feature/flow-layout  
-git rebase origin/main
-# Resolve conflicts with --theirs
-git push --force-with-lease
-gh pr edit 18 --base main
-```
-
-#### Prevention
-- **Monitor PR status**: Check `gh pr list` regularly during development
-- **Immediate action**: Rebase downstream PRs as soon as base PRs merge
-- **Never ignore**: This issue will only get worse if not addressed immediately
+For detailed PR workflow and branch management, see [PLANNING.md](PLANNING.md#pr-driven-development-workflow).
 
 ## Code Quality Guidelines for Claude
 
 See [README.md#development-standards](README.md#development-standards) for standards.
 
 Additional Claude-specific rules:
+
 - Never use `#[allow(...)]` without getting explicit user permission
 - Always run `cargo fmt` and `cargo clippy` before suggesting commits
 - Document ALL public items with rustdoc comments
@@ -301,16 +226,19 @@ Additional Claude-specific rules:
 Core principles are in [README.md#architecture](README.md#architecture). When implementing:
 
 ### Parse, Don't Validate
+
 - Use the types in `src/infrastructure/types.rs` module
 - Create parse functions that return `Result<ValidType, ParseError>`
 - Never use `.unwrap()` or `.expect()` on validation
 
 ### Making Illegal States Unrepresentable
+
 - Always check if a runtime `if` statement could be a compile-time type
 - Use phantom types (see `TypedPath` in infrastructure/types.rs)
 - Use the typestate pattern (see `EntityRegistry` in event_model/registry.rs)
 
 ### Test-Driven Type Refinement Process
+
 1. Write test first (TDD)
 2. Make it pass with simple implementation
 3. Ask: "Can this test failure be made into a compile error?"
@@ -318,6 +246,7 @@ Core principles are in [README.md#architecture](README.md#architecture). When im
 5. Document what compile-time guarantee replaced the test
 
 ### Examples in This Codebase
+
 - `NonEmpty<T>` - eliminates empty collection checks
 - `TypedPath<F,P,E>` - compile-time path validation
 - `ThemedRenderer<T>` - compile-time theme selection
@@ -345,17 +274,20 @@ Event Modeler uses a rich YAML format for `.eventmodel` files. The implementatio
 #### When Adding YAML Features
 
 1. **Update Parsing Types** (`yaml_parser.rs`):
+
    - Add fields to the appropriate `Yaml*` struct
    - Use `Option<T>` for optional fields
    - Use `IndexMap` to preserve order
    - Add `#[serde(default)]` for collections
 
 2. **Update Domain Types** (`yaml_types.rs`):
+
    - Use nutype wrappers for all strings (e.g., `EventName`, `CommandName`)
    - Use `NonEmpty<T>` for required collections
    - All types should be validated at construction
 
 3. **Update Converter** (`yaml_converter.rs`):
+
    - Add conversion logic in appropriate `convert_*` function
    - Validate all constraints (non-empty strings, valid references)
    - Provide helpful error messages with field names
