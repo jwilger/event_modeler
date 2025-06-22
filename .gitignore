@@ -1,5 +1,7 @@
 node_modules
 
+# Claude Code local settings
+.claude/settings.local.json
 
 # Added by cargo
 
