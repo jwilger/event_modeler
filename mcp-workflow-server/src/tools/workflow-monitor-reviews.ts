@@ -198,26 +198,33 @@ export async function workflowMonitorReviews(input: MonitorReviewsInput = {}): P
     const approvedPRs: number[] = [];
     const stalePRs: number[] = [];
 
-    // Process each PR
-    for (const pr of prs.data) {
+    // Fetch reviews and comments for all PRs in parallel
+    const reviewPromises = prs.data.map(pr => {
       if (!input.includeDrafts && pr.draft) {
-        continue;
+        return null; // Skip drafts if not included
       }
+      return Promise.all([
+        octokit.pulls.listReviews({
+          owner,
+          repo,
+          pull_number: pr.number
+        }),
+        octokit.pulls.listReviewComments({
+          owner,
+          repo,
+          pull_number: pr.number
+        })
+      ]).then(([reviews, reviewComments]) => ({ pr, reviews, reviewComments }));
+    }).filter(Boolean); // Remove null values
 
-      // Get reviews for this PR
-      const reviews = await octokit.pulls.listReviews({
-        owner,
-        repo,
-        pull_number: pr.number
-      });
+    const reviewResults = await Promise.all(reviewPromises);
 
-      // Get review comments
-      const reviewComments = await octokit.pulls.listReviewComments({
-        owner,
-        repo,
-        pull_number: pr.number
-      });
-
+    // Process each PR's review data
+    for (const result of reviewResults) {
+      if (!result) continue;
+      
+      const { pr, reviews, reviewComments } = result;
+      
       // Process reviews
       const reviewInfos: ReviewInfo[] = [];
       
