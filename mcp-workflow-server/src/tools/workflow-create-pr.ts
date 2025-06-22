@@ -104,6 +104,21 @@ export async function workflowCreatePR(input: CreatePRInput = {}): Promise<Workf
     const token = execSync('gh auth token', { encoding: 'utf8' }).trim();
     const octokit = new Octokit({ auth: token });
 
+    // Check if branch is pushed to remote
+    try {
+      execSync(`git rev-parse origin/${currentBranch}`, { encoding: 'utf8' });
+      automaticActions.push('Branch already exists on remote');
+    } catch {
+      // Branch doesn't exist on remote, push it
+      automaticActions.push('Pushing branch to remote...');
+      try {
+        execSync(`git push -u origin ${currentBranch}`, { encoding: 'utf8' });
+        automaticActions.push('Branch pushed successfully');
+      } catch (pushError) {
+        throw new Error(`Failed to push branch: ${pushError instanceof Error ? pushError.message : 'Unknown error'}`);
+      }
+    }
+
     // Check if PR already exists for this branch
     const existingPRs = await octokit.pulls.list({
       owner,

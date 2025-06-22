@@ -185,6 +185,33 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
     const gitStatus = execSync('git status --porcelain', { encoding: 'utf8' });
     const hasUncommittedChanges = gitStatus.length > 0;
 
+    // Generate branch name
+    const branchName = `feature/${issue.title.toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .substring(0, 50)}-${issue.number}`;
+
+    // Check if we need to create a new branch
+    let branchCreated = false;
+    if (!hasUncommittedChanges && currentBranch !== branchName) {
+      try {
+        // Check if branch already exists locally
+        execSync(`git rev-parse --verify ${branchName}`, { encoding: 'utf8' });
+        // Branch exists, switch to it
+        execSync(`git checkout ${branchName}`, { encoding: 'utf8' });
+        automaticActions.push(`Switched to existing branch: ${branchName}`);
+      } catch {
+        // Branch doesn't exist, create it
+        try {
+          execSync(`git checkout -b ${branchName}`, { encoding: 'utf8' });
+          automaticActions.push(`Created and switched to new branch: ${branchName}`);
+          branchCreated = true;
+        } catch (error) {
+          automaticActions.push(`Could not create branch: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+    }
+
     // Return the next steps
     return {
       requestedData: {
@@ -196,7 +223,9 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
           suggestion: `Issue #${issue.number} assigned and marked as "In Progress". ${
             hasUncommittedChanges ? 
             'Commit current changes before switching branches.' : 
-            `Create a feature branch for issue #${issue.number}.`
+            branchCreated ? 
+            `Now on branch: ${branchName}` :
+            `Ready to work on: ${branchName}`
           }`
         }],
         decision: {
