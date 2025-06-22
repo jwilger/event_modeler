@@ -58,16 +58,37 @@ This document describes the GitHub Project configuration for Event Modeler devel
 - **Group by**: Quarter
 - **Purpose**: Long-term planning view
 
-## Automation Recommendations
+## Project Workflows
 
-While GitHub Projects doesn't support built-in automation rules via API, you can:
+### Currently Enabled (Default)
+1. **Item closed** - Moves items to Done when closed
+2. **Pull request merged** - Updates status when PR merges
+3. **Auto-close issue** - Closes issues when moved to Done
+4. **Auto-add sub-issues to project** - Automatically adds sub-issues
 
-1. Use GitHub Actions to update project fields when:
-   - Issues are opened/closed
-   - PRs are created/merged
-   - Labels are added/removed
+### Recommended Additional Workflows
 
-2. The MCP workflow server can update fields via GraphQL API
+Configure these workflows in the GitHub UI (Settings → Workflows):
+
+1. **When PR opened**
+   - Filter: Item type is Pull Request
+   - Action: Set Status to "In Review"
+
+2. **When issue assigned**
+   - Filter: Item type is Issue, Assignees is not empty
+   - Action: Set Status to "In Progress"
+
+3. **Auto-archive Done items**
+   - Filter: Status is Done, Updated in the last 30 days
+   - Action: Archive item
+
+4. **Set Type for Epics**
+   - Filter: Item has sub-issues
+   - Action: Set Type to "🎯 Epic"
+
+5. **PR linked to issue**
+   - Filter: Item has linked pull requests
+   - Action: Set Status to "In Review"
 
 ## MCP Integration
 
