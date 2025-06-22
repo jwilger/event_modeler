@@ -50,14 +50,26 @@ function extractIssueNumber(branchName: string): number | null {
   const patterns = [
     /issue-(\d+)/i,
     /\/#?(\d+)/,
-    /phase-(\d+)/i,
-    /-(\d+)$/
+    /-(\d+)$/,
+    /phase-(\d+)/i
   ];
   
   for (const pattern of patterns) {
     const match = branchName.match(pattern);
     if (match) {
-      return parseInt(match[1]);
+      const num = parseInt(match[1]);
+      // For phase patterns, we need to look up the actual issue number
+      // Phase 3 corresponds to issue 70 based on our epic
+      if (pattern.toString().includes('phase')) {
+        const phaseToIssue: Record<number, number> = {
+          2: 69,
+          3: 70,
+          4: 71,
+          5: 72
+        };
+        return phaseToIssue[num] || null;
+      }
+      return num;
     }
   }
   
@@ -151,14 +163,15 @@ export async function workflowCreatePR(input: CreatePRInput = {}): Promise<Workf
     automaticActions.push(`Base branch: ${baseBranch}`);
 
     // Get commits between base and current branch
-    const commits = execSync(`git log ${baseBranch}..HEAD --pretty=format:"%H|%s|%b" --reverse`, { encoding: 'utf8' })
+    const commits = execSync(`git log ${baseBranch}..HEAD --pretty=format:"%H%x00%s%x00%b%x00" --reverse`, { encoding: 'utf8' })
       .trim()
-      .split('\n')
+      .split('\x00\n')
       .filter(line => line.length > 0)
       .map(line => {
-        const [hash, subject, body] = line.split('|');
-        return { hash, subject, body };
-      });
+        const [hash, subject, body] = line.split('\x00');
+        return { hash, subject: subject || '', body: body || '' };
+      })
+      .filter(commit => commit.hash); // Filter out empty commits
 
     if (commits.length === 0) {
       throw new Error('No commits found between base branch and current branch. Make sure you have commits to create a PR.');
