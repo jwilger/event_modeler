@@ -2,6 +2,7 @@ import { Octokit } from '@octokit/rest';
 import { execSync } from 'child_process';
 import { WorkflowResponse } from '../types.js';
 import { getProjectConfig, getMissingConfigFields, createConfigRequest } from '../config.js';
+import { workflowMonitorReviews } from './workflow-monitor-reviews.js';
 
 interface TodoItem {
   text: string;
@@ -10,7 +11,7 @@ interface TodoItem {
 }
 
 interface NextStepAction {
-  action: 'work_on_todo' | 'todos_complete' | 'select_work' | 'epic_analysis' | 'complete_epic' | 'requires_llm_decision' | 'requires_config';
+  action: 'work_on_todo' | 'todos_complete' | 'select_work' | 'epic_analysis' | 'complete_epic' | 'requires_llm_decision' | 'requires_config' | 'address_pr_feedback' | 'review_pr';
   issueNumber?: number;
   title?: string;
   status?: string;
@@ -44,6 +45,12 @@ interface NextStepAction {
   // Fields for config requests
   missingConfig?: string[];
   configSuggestions?: string[];
+  // Fields for PR feedback
+  prNumber?: number;
+  reviewStatus?: string;
+  reviews?: any[];
+  prUrl?: string;
+  author?: string;
 }
 
 interface WorkflowNextResponse extends WorkflowResponse {
@@ -132,6 +139,103 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
     const name = repoMatch[2];
     automaticActions.push(`Working in repository: ${owner.login}/${name}`);
 
+    // Get current git status early as we need it for context
+    const gitStatus = execSync('git status --porcelain', { encoding: 'utf8' });
+    const currentBranch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
+    const hasUncommittedChanges = gitStatus.length > 0;
+
+    // First, check if there are any PRs needing attention
+    const reviewStatus = await workflowMonitorReviews({ includeApproved: false, includeDrafts: false });
+    const allOpenPRs = reviewStatus.requestedData.reviewsNeedingAttention;
+    
+    // Separate PRs by author and review status
+    const myPRsNeedingAttention = allOpenPRs.filter(pr => 
+      pr.author === currentUser && 
+      (pr.reviewStatus === 'changes_requested' || pr.reviewStatus === 'has_comments')
+    );
+    
+    const othersPRsToReview = allOpenPRs.filter(pr => {
+      if (pr.author === currentUser) return false;
+      
+      // Check if current user has already reviewed
+      const myReview = pr.reviews.find(r => r.reviewer === currentUser);
+      
+      if (!myReview) {
+        // User hasn't reviewed yet
+        return true;
+      }
+      
+      // Check if there are new changes since user's review
+      const myReviewDate = new Date(myReview.submittedAt);
+      const prLastUpdated = new Date(pr.lastUpdated);
+      
+      // PR was updated after user's review
+      return prLastUpdated > myReviewDate;
+    });
+    
+    // Prioritize: 1) My PRs with feedback, 2) Others' PRs needing review
+    if (myPRsNeedingAttention.length > 0) {
+      const pr = myPRsNeedingAttention[0]; // Take the highest priority PR
+      automaticActions.push(`Found PR #${pr.prNumber} authored by you with review feedback needing attention`);
+      
+      return {
+        requestedData: {
+          nextSteps: [{
+            action: 'address_pr_feedback' as any,
+            prNumber: pr.prNumber,
+            title: pr.title,
+            reviewStatus: pr.reviewStatus,
+            reviews: pr.reviews,
+            suggestion: `Address review feedback on your PR #${pr.prNumber}: ${pr.suggestedAction}`,
+            prUrl: pr.url
+          }],
+          context: {
+            currentBranch,
+            hasUncommittedChanges,
+            myPRsNeedingAttention,
+            othersPRsToReview
+          }
+        },
+        automaticActions,
+        issuesFound,
+        suggestedActions: [`Address ${pr.reviewStatus === 'changes_requested' ? 'requested changes' : 'review comments'} on PR #${pr.prNumber}`],
+        allPRStatus: []
+      };
+    } else if (othersPRsToReview.length > 0) {
+      const pr = othersPRsToReview[0];
+      const hasReviewedBefore = pr.reviews.some(r => r.reviewer === currentUser);
+      
+      automaticActions.push(`Found PR #${pr.prNumber} by ${pr.author} needing review`);
+      
+      return {
+        requestedData: {
+          nextSteps: [{
+            action: 'review_pr' as any,
+            prNumber: pr.prNumber,
+            title: pr.title,
+            author: pr.author,
+            reviewStatus: pr.reviewStatus,
+            suggestion: hasReviewedBefore 
+              ? `Check new updates on PR #${pr.prNumber} by ${pr.author} since your last review`
+              : `Review PR #${pr.prNumber} by ${pr.author}`,
+            prUrl: pr.url
+          }],
+          context: {
+            currentBranch,
+            hasUncommittedChanges,
+            myPRsNeedingAttention,
+            othersPRsToReview
+          }
+        },
+        automaticActions,
+        issuesFound,
+        suggestedActions: [hasReviewedBefore 
+          ? `Check new updates on PR #${pr.prNumber}`
+          : `Review PR #${pr.prNumber} by ${pr.author}`],
+        allPRStatus: []
+      };
+    }
+
     // Query project for issues assigned to current user
     const projectQuery = `
       query($owner: String!, $projectNumber: Int!) {
@@ -216,11 +320,6 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
     });
 
     automaticActions.push(`Found ${inProgressIssues.length} issues assigned to ${currentUser} in progress`);
-
-    // Get current git status
-    const gitStatus = execSync('git status --porcelain', { encoding: 'utf8' });
-    const currentBranch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
-    const hasUncommittedChanges = gitStatus.length > 0;
     
     // Check for existing PR on current branch using GraphQL
     let existingPR = null;

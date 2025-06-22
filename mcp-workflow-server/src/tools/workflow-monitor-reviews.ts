@@ -218,8 +218,9 @@ export async function workflowMonitorReviews(input: MonitorReviewsInput = {}): P
         if (daysSinceUpdate > 7) {
           stalePRs.push(pr.number);
           prStatus.suggestedAction = 'PR is stale - consider pinging reviewers';
-          reviewsNeedingAttention.push(prStatus);
         }
+        // Always include pending_review PRs so workflow_next can decide what to do
+        reviewsNeedingAttention.push(prStatus);
       }
     }
 
