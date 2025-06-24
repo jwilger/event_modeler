@@ -100,6 +100,49 @@ export async function getAllPRs(): Promise<PRStatus[]> {
           // If we can't get reviews, assume false
         }
 
+        // Also check for unresolved review threads (e.g., Copilot comments)
+        try {
+          const reviewThreadsQuery = `
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $number) {
+                  reviewThreads(first: 100) {
+                    nodes {
+                      isResolved
+                    }
+                  }
+                }
+              }
+            }
+          `;
+
+          const reviewThreadsData = await octokit.graphql(reviewThreadsQuery, {
+            owner,
+            repo,
+            number: pr.number,
+          });
+
+          interface ReviewThreadsResult {
+            repository: {
+              pullRequest: {
+                reviewThreads: {
+                  nodes: Array<{ isResolved: boolean }>;
+                };
+              };
+            };
+          }
+
+          const threads = (reviewThreadsData as ReviewThreadsResult).repository.pullRequest.reviewThreads.nodes;
+          const hasUnresolvedThreads = threads.some(thread => !thread.isResolved);
+          
+          // Set hasUnresolvedReviews to true if there are unresolved threads
+          if (hasUnresolvedThreads) {
+            hasUnresolvedReviews = true;
+          }
+        } catch {
+          // If we can't get review threads, continue with existing value
+        }
+
         // Check if PR needs rebase - we'll need to get detailed PR info for this
         let needsRebase = false;
         let isMergeable = false;

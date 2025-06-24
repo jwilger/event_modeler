@@ -118,10 +118,10 @@ export async function workflowStatusTool(): Promise<WorkflowResponse> {
     // Check for PRs with unresolved reviews
     const prsWithChangesRequested = allPRs.filter(pr => pr.hasUnresolvedReviews);
     if (prsWithChangesRequested.length > 0) {
-      issuesFound.push(`🟡 HIGH: ${prsWithChangesRequested.length} PRs have unresolved review comments`);
+      issuesFound.push(`🟡 HIGH: ${prsWithChangesRequested.length} PRs have unresolved review comments or conversations`);
       prsWithChangesRequested.forEach(pr => {
         suggestedActions.push(
-          `[HIGH] Address review feedback in PR #${pr.number} (${pr.branch})`
+          `[HIGH] Address review feedback or unresolved conversations in PR #${pr.number} (${pr.branch})`
         );
       });
     }
