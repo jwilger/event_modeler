@@ -4,12 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Critical Rules for Claude Code
 
-1. **ALWAYS create a feature branch before making commits**
-2. **ALWAYS use `nutype` for domain-specific types** (never raw primitives)
-3. **NEVER use `.unwrap()` or `.expect()` on validation**
-4. **ALWAYS run `cargo fmt` and `cargo clippy` before suggesting commits**
-5. **NEVER use `#[allow(...)]` without explicit user permission**
-6. **Check GitHub issues and epics for current work** (see Project Workflow section)
+1. **ALWAYS use MCP workflow tools** (`workflow_next`, `workflow_status`, etc.) for project workflow
+2. **ALWAYS create a feature branch before making commits**
+3. **ALWAYS use `nutype` for domain-specific types** (never raw primitives)
+4. **NEVER use `.unwrap()` or `.expect()` on validation**
+5. **ALWAYS run `cargo fmt` and `cargo clippy` before suggesting commits**
+6. **NEVER use `#[allow(...)]` without explicit user permission**
+7. **Check GitHub issues and epics for current work** (see Project Workflow section)
 
 ## Collaboration Style
 
@@ -156,10 +157,11 @@ Development work is tracked using GitHub issues with the following structure:
    - Use "Depends on #X" pattern for dependencies
 
 3. **Finding Work**: 
-   - Check epic issues for overall progress
-   - Look for sub-issues with met dependencies
-   - Use MCP `workflow_status` tool for current state
-   - Use MCP `workflow_next` tool for guidance (when implemented)
+   - ALWAYS use MCP `workflow_next` tool to determine what to work on
+   - Use MCP `workflow_status` tool to check current state
+   - Use MCP `workflow_create_pr` tool to create pull requests
+   - Use MCP `workflow_monitor_reviews` to check PR review status
+   - The workflow tools enforce proper PR review discipline
 
 ### PR-Driven Development
 
