@@ -492,7 +492,7 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
             currentBranch,
             hasUncommittedChanges,
             totalOpenPRs: allOpenPRs.length,
-            myOpenPRs: myOpenPRs.length,
+            myOpenPRs: [] as PRReviewStatus[],
             otherOpenPRs: otherPRCount
           }
         },
@@ -664,8 +664,7 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       if (prs.length > 0) {
         existingPR = {
           number: prs[0].number,
-          title: prs[0].title,
-          state: prs[0].state
+          title: prs[0].title
         };
       }
     } catch {
@@ -677,6 +676,9 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       if (inProgressEpics.length > 0) {
         // Analyze the first epic
         const epic = inProgressEpics[0].content;
+        if (!epic) {
+          throw new Error('Epic content is undefined');
+        }
         
         // Get all sub-issues linked to this epic
         const epicQuery = `
@@ -956,6 +958,9 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
 
     // Process the first in-progress issue
     const issue = inProgressIssues[0].content;
+    if (!issue) {
+      throw new Error('Issue content is undefined');
+    }
     const todos = parseTodoItems(issue.body || '');
     const completedTodos = todos.filter(t => t.checked).length;
     const nextTodo = todos.find(t => !t.checked);

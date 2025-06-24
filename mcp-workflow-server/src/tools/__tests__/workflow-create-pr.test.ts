@@ -9,8 +9,8 @@ vi.mock('child_process');
 vi.mock('@octokit/rest');
 vi.mock('../../config.js');
 
-const mockExecSync = execSync as jest.MockedFunction<typeof execSync>;
-const mockOctokit = Octokit as jest.MockedClass<typeof Octokit>;
+const mockExecSync = vi.mocked(execSync);
+const mockOctokit = vi.mocked(Octokit);
 const mockGetProjectConfig = vi.mocked(config.getProjectConfig);
 
 interface MockOctokitInstance {
@@ -47,7 +47,7 @@ describe('workflowCreatePR', () => {
       graphql: vi.fn()
     };
 
-    mockOctokit.mockImplementation(() => mockOctokitInstance);
+    mockOctokit.mockImplementation(() => mockOctokitInstance as any);
 
     // Default config mock - complete configuration
     mockGetProjectConfig.mockReturnValue({

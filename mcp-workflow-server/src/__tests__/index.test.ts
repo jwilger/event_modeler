@@ -47,7 +47,7 @@ describe('MCP Server Index', () => {
     expect(listToolsHandler).toBeDefined();
 
     // Call the handler to get the tools list
-    const result = await listToolsHandler();
+    const result = await (listToolsHandler as () => Promise<{ tools: Tool[] }>)();
 
     // Verify all tools are registered
     expect(result.tools).toHaveLength(6);
@@ -98,14 +98,15 @@ describe('MCP Server Index', () => {
     expect(callToolHandler).toBeDefined();
 
     // Call the handler with workflow_status tool
-    const result = await callToolHandler({
+    const result = await (callToolHandler as (request: { params: { name: string; arguments?: Record<string, unknown> } }) => Promise<unknown>)({
       params: { name: 'workflow_status' },
     });
 
     // Verify the response
-    expect(result.content).toHaveLength(1);
-    expect(result.content[0].type).toBe('text');
-    expect(JSON.parse(result.content[0].text)).toMatchObject({
+    const typedResult = result as { content: Array<{ type: string; text: string }> };
+    expect(typedResult.content).toHaveLength(1);
+    expect(typedResult.content[0].type).toBe('text');
+    expect(JSON.parse(typedResult.content[0].text)).toMatchObject({
       requestedData: expect.any(Object),
       automaticActions: expect.any(Array),
     });
@@ -121,13 +122,14 @@ describe('MCP Server Index', () => {
     const callToolHandler = handlers.get(CallToolRequestSchema);
     
     // Call with unknown tool
-    const result = await callToolHandler({
+    const result = await (callToolHandler as (request: { params: { name: string; arguments?: Record<string, unknown> } }) => Promise<unknown>)({
       params: { name: 'unknown_tool' },
     });
 
     // Verify error response
-    expect(result.content[0].type).toBe('text');
-    const response = JSON.parse(result.content[0].text);
+    const typedResult = result as { content: Array<{ type: string; text: string }> };
+    expect(typedResult.content[0].type).toBe('text');
+    const response = JSON.parse(typedResult.content[0].text);
     expect(response.issuesFound).toContain('Error: Unknown tool: unknown_tool');
   });
 });

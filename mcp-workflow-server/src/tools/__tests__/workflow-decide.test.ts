@@ -146,7 +146,7 @@ describe('workflowDecide', () => {
           },
         },
       }),
-    }) as unknown as typeof Octokit);
+    }) as any);
     
     const input = {
       decisionId: 'epic-68-next-issue-123456',

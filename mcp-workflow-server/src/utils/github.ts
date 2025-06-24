@@ -79,7 +79,7 @@ export async function getAllPRs(): Promise<PRStatus[]> {
               checks.pending++;
             }
           });
-        } catch {
+        } catch (error) {
           console.error(`Failed to retrieve check runs for PR with SHA ${pr.head.sha}:`, error);
           // If we can't get checks, leave them at 0
         }

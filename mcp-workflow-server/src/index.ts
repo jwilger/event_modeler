@@ -162,7 +162,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await workflowNext();
         break;
       case 'workflow_decide':
-        result = await workflowDecide(request.params.arguments || {});
+        result = await workflowDecide(request.params.arguments as { decisionId: string; selectedChoice: string | number; reasoning?: string });
         break;
       case 'workflow_configure':
         result = await workflowConfigure(request.params.arguments || {});
