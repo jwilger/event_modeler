@@ -9,12 +9,25 @@ vi.mock('child_process');
 vi.mock('@octokit/rest');
 vi.mock('../../config.js');
 
-const mockExecSync = execSync as any;
-const mockOctokit = Octokit as any;
+const mockExecSync = execSync as jest.MockedFunction<typeof execSync>;
+const mockOctokit = Octokit as jest.MockedClass<typeof Octokit>;
 const mockGetProjectConfig = vi.mocked(config.getProjectConfig);
 
+interface MockOctokitInstance {
+  pulls: {
+    create: ReturnType<typeof vi.fn>;
+    list: ReturnType<typeof vi.fn>;
+  };
+  issues: {
+    get: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+    addAssignees: ReturnType<typeof vi.fn>;
+  };
+  graphql: ReturnType<typeof vi.fn>;
+}
+
 describe('workflowCreatePR', () => {
-  let mockOctokitInstance: any;
+  let mockOctokitInstance: MockOctokitInstance;
 
   beforeEach(() => {
     // Reset all mocks

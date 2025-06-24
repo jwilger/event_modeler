@@ -19,17 +19,18 @@ vi.mock('simple-git', () => {
 import { simpleGit } from 'simple-git';
 
 describe('Git Utilities', () => {
+  type GitMethod = (...args: unknown[]) => unknown;
   let mockGit: {
-    revparse: MockedFunction<any>;
-    status: MockedFunction<any>;
-    raw: MockedFunction<any>;
-    log: MockedFunction<any>;
+    revparse: MockedFunction<GitMethod>;
+    status: MockedFunction<GitMethod>;
+    raw: MockedFunction<GitMethod>;
+    log: MockedFunction<GitMethod>;
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
     // Get the mocked git instance
-    mockGit = (simpleGit as any)();
+    mockGit = (simpleGit as unknown as () => typeof mockGit)();
   });
 
   describe('getGitStatus', () => {

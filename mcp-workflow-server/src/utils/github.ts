@@ -10,7 +10,7 @@ function getGitHubToken(): string {
       throw new Error('No GitHub token found');
     }
     return token;
-  } catch (error) {
+  } catch {
     throw new Error('Failed to get GitHub token. Make sure gh CLI is authenticated.');
   }
 }
@@ -30,7 +30,7 @@ export function getRepoInfo(): { owner: string; repo: string } {
       owner: match[1],
       repo: match[2],
     };
-  } catch (error) {
+  } catch {
     throw new Error('Failed to get repository info from git remote');
   }
 }
@@ -62,7 +62,7 @@ export async function getAllPRs(): Promise<PRStatus[]> {
     const prStatuses = await Promise.all(
       pulls.map(async (pr) => {
         // Get check runs
-        let checks = { total: 0, passed: 0, failed: 0, pending: 0 };
+        const checks = { total: 0, passed: 0, failed: 0, pending: 0 };
         try {
           const { data: checkRuns } = await octokit.checks.listForRef({
             owner,
@@ -79,7 +79,7 @@ export async function getAllPRs(): Promise<PRStatus[]> {
               checks.pending++;
             }
           });
-        } catch (error) {
+        } catch {
           console.error(`Failed to retrieve check runs for PR with SHA ${pr.head.sha}:`, error);
           // If we can't get checks, leave them at 0
         }

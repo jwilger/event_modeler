@@ -25,7 +25,7 @@ async function getCurrentUser(): Promise<string> {
   try {
     const output = execSync('gh api user --jq .login', { encoding: 'utf8' });
     return output.trim();
-  } catch (error) {
+  } catch {
     throw new Error('Failed to get current GitHub user. Make sure gh CLI is authenticated.');
   }
 }
@@ -184,7 +184,7 @@ export async function workflowCreatePR(input: CreatePRInput = {}): Promise<Workf
         issue = issueResponse.data;
         issueBody = issue.body || '';
         automaticActions.push(`Found related issue #${issueNumber}: ${issue.title}`);
-      } catch (error) {
+      } catch {
         automaticActions.push(`Could not fetch issue #${issueNumber}`);
       }
     }
@@ -346,7 +346,7 @@ export async function workflowCreatePR(input: CreatePRInput = {}): Promise<Workf
           contentId: pr.data.node_id
         });
         
-        const itemId = (addResult as any).addProjectV2ItemById.item.id;
+        const itemId = (addResult as { addProjectV2ItemById: { item: { id: string } } }).addProjectV2ItemById.item.id;
         automaticActions.push('Added PR to project board');
         
         // Then update the status to "In Progress" (since PR is in review)
@@ -385,7 +385,7 @@ export async function workflowCreatePR(input: CreatePRInput = {}): Promise<Workf
       try {
         const labelNames = issue.labels
           .filter(label => typeof label !== 'string')
-          .map(label => (label as any).name);
+          .map(label => (label as { name: string }).name);
         
         await octokit.issues.update({
           owner,
@@ -394,7 +394,7 @@ export async function workflowCreatePR(input: CreatePRInput = {}): Promise<Workf
           labels: labelNames
         });
         automaticActions.push(`Applied ${labelNames.length} labels from issue`);
-      } catch (error) {
+      } catch {
         automaticActions.push('Could not apply labels from issue');
       }
     }

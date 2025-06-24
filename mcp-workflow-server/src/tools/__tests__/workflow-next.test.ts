@@ -61,7 +61,7 @@ describe('workflowNext', () => {
     // Mock Octokit constructor
     vi.mocked(Octokit).mockImplementation(() => ({
       graphql: mockGraphql
-    }) as any);
+    }) as unknown as Octokit);
     
     // Default mock setup for execSync
     mockExecSync.mockImplementation((cmd: string) => {

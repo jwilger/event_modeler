@@ -25,8 +25,8 @@ vi.mock('@octokit/rest', () => ({
           body: 'This is a test issue\n\nPart of #68',
           assignees: [],
         },
-      }) as any,
-      addAssignees: vi.fn().mockResolvedValue({}) as any,
+      }),
+      addAssignees: vi.fn().mockResolvedValue({}),
     },
     graphql: vi.fn().mockResolvedValue({
       user: {
@@ -39,7 +39,7 @@ vi.mock('@octokit/rest', () => ({
           },
         },
       },
-    }) as any,
+    }),
   })),
 }));
 
@@ -146,7 +146,7 @@ describe('workflowDecide', () => {
           },
         },
       }),
-    }) as any);
+    }) as unknown as typeof Octokit);
     
     const input = {
       decisionId: 'epic-68-next-issue-123456',

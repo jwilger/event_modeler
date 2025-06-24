@@ -64,7 +64,7 @@ export async function workflowStatusTool(): Promise<WorkflowResponse> {
                           pr.checks.pending > 0 ? 'pending' : 'success';
         stateStore.updatePRStatus(pr.number, reviewCount, checkStatus);
       }
-    } catch (error) {
+    } catch {
       // If GitHub API fails, continue with empty PR list
       issuesFound.push('Unable to retrieve PR status from GitHub');
       suggestedActions.push('Ensure gh CLI is authenticated: gh auth status');

@@ -8,9 +8,20 @@ vi.mock('@modelcontextprotocol/sdk/server/stdio.js');
 vi.mock('../tools/workflow-status.js');
 vi.mock('../tools/workflow-next.js');
 
+interface MockServer {
+  setRequestHandler: ReturnType<typeof vi.fn>;
+  connect: ReturnType<typeof vi.fn>;
+}
+
+interface Tool {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+}
+
 describe('MCP Server Index', () => {
-  let mockServer: any;
-  let handlers: Map<any, any>;
+  let mockServer: MockServer;
+  let handlers: Map<unknown, unknown>;
 
   beforeEach(() => {
     handlers = new Map();
@@ -21,7 +32,7 @@ describe('MCP Server Index', () => {
       connect: vi.fn(),
     };
     
-    vi.mocked(Server).mockImplementation(() => mockServer);
+    vi.mocked(Server).mockImplementation(() => mockServer as unknown as Server);
     
     // Clear module cache to ensure fresh import
     vi.resetModules();
@@ -42,7 +53,7 @@ describe('MCP Server Index', () => {
     expect(result.tools).toHaveLength(6);
     
     // Find workflow_status tool
-    const statusTool = result.tools.find((t: any) => t.name === 'workflow_status');
+    const statusTool = result.tools.find((t: Tool) => t.name === 'workflow_status');
     expect(statusTool).toMatchObject({
       name: 'workflow_status',
       description: expect.stringContaining('comprehensive status'),
@@ -54,7 +65,7 @@ describe('MCP Server Index', () => {
     });
     
     // Find workflow_next tool
-    const nextTool = result.tools.find((t: any) => t.name === 'workflow_next');
+    const nextTool = result.tools.find((t: Tool) => t.name === 'workflow_next');
     expect(nextTool).toMatchObject({
       name: 'workflow_next',
       description: expect.stringContaining('context-aware guidance'),
