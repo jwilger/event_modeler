@@ -47,7 +47,7 @@ describe('workflowCreatePR', () => {
       graphql: vi.fn()
     };
 
-    mockOctokit.mockImplementation(() => mockOctokitInstance as any);
+    mockOctokit.mockImplementation(() => mockOctokitInstance as unknown as Octokit);
 
     // Default config mock - complete configuration
     mockGetProjectConfig.mockReturnValue({
