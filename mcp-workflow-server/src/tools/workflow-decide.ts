@@ -22,6 +22,20 @@ interface NextStepAction {
   issueBody?: string;
 }
 
+interface WorkflowContext {
+  currentBranch?: string;
+  hasUncommittedChanges?: boolean;
+  isAssignedToMe?: boolean;
+  issueStatus?: string;
+  issueDetails?: {
+    number: number;
+    title: string;
+    body: string;
+    url: string;
+    epicNumber: number;
+  };
+}
+
 interface WorkflowDecideResponse extends WorkflowResponse {
   requestedData: {
     nextSteps: NextStepAction[];
@@ -30,7 +44,7 @@ interface WorkflowDecideResponse extends WorkflowResponse {
       selectedChoice: string | number;
       reasoning?: string;
     };
-    context: Record<string, unknown>;
+    context: WorkflowContext;
   };
 }
 
