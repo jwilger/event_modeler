@@ -10,6 +10,25 @@ vi.mock('child_process', () => ({
 // Mock Octokit
 vi.mock('@octokit/rest');
 
+// Mock config
+vi.mock('../../config.js', () => ({
+  getProjectConfig: vi.fn(() => ({
+    config: {
+      github: {
+        projectNumber: 9,
+        projectId: 'PVT_test',
+        statusFieldId: 'PVTSSF_test',
+        statusOptions: {
+          todo: 'PVTSSO_todo',
+          inProgress: 'PVTSSO_inprogress',
+          done: 'PVTSSO_done',
+        },
+      },
+    },
+    isComplete: true,
+  })),
+}));
+
 describe('workflowNext', () => {
   let mockGraphql: ReturnType<typeof vi.fn>;
   let mockExecSync: ReturnType<typeof vi.fn>;
