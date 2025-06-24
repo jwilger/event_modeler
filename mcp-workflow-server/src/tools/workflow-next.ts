@@ -6,6 +6,10 @@ import { workflowMonitorReviews, requestCopilotReReview, type ReviewInfo } from 
 import { getRepoInfo } from '../utils/github.js';
 import { isBranchMerged } from '../utils/git.js';
 
+// Constants for bot reviewer names
+const COPILOT_BOT_REVIEWER = 'copilot-pull-request-reviewer[bot]';
+const COPILOT_HUMAN_REVIEWER = 'copilot-pull-request-reviewer';
+
 interface TodoItem {
   text: string;
   checked: boolean;
@@ -183,13 +187,23 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
     }
 
     // First, check if there are any PRs needing attention
-    const reviewStatus = await workflowMonitorReviews({ includeApproved: false, includeDrafts: false });
+    const reviewStatus = await workflowMonitorReviews({ includeApproved: true, includeDrafts: false });
     const allOpenPRs = reviewStatus.requestedData.reviewsNeedingAttention;
     
-    // Separate PRs by author and review status
-    const myPRsNeedingAttention = allOpenPRs.filter(pr => 
-      pr.author === currentUser && 
-      (pr.reviewStatus === 'changes_requested' || pr.reviewStatus === 'has_comments')
+    // Get all my open PRs (not just ones needing attention)
+    const myOpenPRs = allOpenPRs.filter(pr => pr.author === currentUser);
+    
+    // Categorize my PRs by what action is needed
+    const myPRsNeedingAttention = myOpenPRs.filter(pr => 
+      pr.reviewStatus === 'changes_requested' || pr.reviewStatus === 'has_comments'
+    );
+    
+    const myPRsWithoutReview = myOpenPRs.filter(pr => 
+      pr.reviewStatus === 'pending_review'
+    );
+    
+    const myPRsApproved = myOpenPRs.filter(pr => 
+      pr.reviewStatus === 'approved'
     );
     
     const othersPRsToReview = allOpenPRs.filter(pr => {
@@ -216,8 +230,8 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       // Get all Copilot reviews sorted by date
       const copilotReviews = pr.reviews
         .filter(r => 
-          r.reviewer === 'copilot-pull-request-reviewer[bot]' || 
-          r.reviewer === 'copilot-pull-request-reviewer'
+          r.reviewer === COPILOT_BOT_REVIEWER || 
+          r.reviewer === COPILOT_HUMAN_REVIEWER
         )
         .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
       
@@ -272,7 +286,7 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       }
     }
     
-    // Prioritize: 1) My PRs with feedback, 2) Others' PRs needing review
+    // Priority 1: My PRs with feedback that need addressing
     if (myPRsNeedingAttention.length > 0) {
       const pr = myPRsNeedingAttention[0]; // Take the highest priority PR
       automaticActions.push(`Found PR #${pr.prNumber} authored by you with review feedback needing attention`);
@@ -291,8 +305,9 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
           context: {
             currentBranch,
             hasUncommittedChanges,
-            myPRsNeedingAttention,
-            othersPRsToReview
+            myOpenPRs,
+            othersPRsToReview,
+            totalOpenPRs: allOpenPRs.length
           }
         },
         automaticActions,
@@ -300,7 +315,80 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         suggestedActions: [`Address ${pr.reviewStatus === 'changes_requested' ? 'requested changes' : 'review comments'} on PR #${pr.prNumber}`],
         allPRStatus: []
       };
-    } else if (othersPRsToReview.length > 0) {
+    } 
+    
+    // Priority 2: My PRs without any reviews yet
+    if (myPRsWithoutReview.length > 0) {
+      const pr = myPRsWithoutReview[0];
+      const hasCopilotReview = pr.reviews.some(r => 
+        r.reviewer === COPILOT_BOT_REVIEWER || 
+        r.reviewer === COPILOT_HUMAN_REVIEWER
+      );
+      
+      automaticActions.push(`Found PR #${pr.prNumber} authored by you awaiting review`);
+      
+      return {
+        requestedData: {
+          nextSteps: [{
+            action: 'work_on_todo',  // Using existing action type that suggests waiting
+            prNumber: pr.prNumber,
+            title: pr.title,
+            reviewStatus: pr.reviewStatus,
+            suggestion: hasCopilotReview 
+              ? `PR #${pr.prNumber} is awaiting human review. Consider reviewing the PR yourself or wait for team review.`
+              : `PR #${pr.prNumber} is awaiting review. Wait for Copilot and/or team review before proceeding.`,
+            prUrl: pr.url
+          }],
+          context: {
+            currentBranch,
+            hasUncommittedChanges,
+            myOpenPRs,
+            othersPRsToReview,
+            totalOpenPRs: allOpenPRs.length
+          }
+        },
+        automaticActions,
+        issuesFound: [`You have ${myPRsWithoutReview.length} PR(s) awaiting review`],
+        suggestedActions: [
+          `Wait for review on PR #${pr.prNumber}`,
+          'Meanwhile, you could review other team members\' PRs'
+        ],
+        allPRStatus: []
+      };
+    }
+    
+    // Priority 3: My approved PRs ready to merge
+    if (myPRsApproved.length > 0) {
+      const pr = myPRsApproved[0];
+      automaticActions.push(`Found PR #${pr.prNumber} authored by you that is approved`);
+      
+      return {
+        requestedData: {
+          nextSteps: [{
+            action: 'todos_complete',  // Using existing action type for completion
+            prNumber: pr.prNumber,
+            title: pr.title,
+            reviewStatus: pr.reviewStatus,
+            suggestion: `PR #${pr.prNumber} is approved and ready to merge. Review and merge when ready.`,
+            prUrl: pr.url
+          }],
+          context: {
+            currentBranch,
+            hasUncommittedChanges,
+            myOpenPRs,
+            othersPRsToReview,
+            totalOpenPRs: allOpenPRs.length
+          }
+        },
+        automaticActions,
+        issuesFound: [],
+        suggestedActions: [`Review and merge PR #${pr.prNumber}: ${pr.url}`],
+        allPRStatus: []
+      };
+    }
+    
+    // Priority 4: Others' PRs needing my review
+    if (othersPRsToReview.length > 0) {
       const pr = othersPRsToReview[0];
       const hasReviewedBefore = pr.reviews.some(r => r.reviewer === currentUser);
       
@@ -331,6 +419,45 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         suggestedActions: [hasReviewedBefore 
           ? `Check new updates on PR #${pr.prNumber}`
           : `Review PR #${pr.prNumber} by ${pr.author}`],
+        allPRStatus: []
+      };
+    }
+    
+    // If we reach here but there are still open PRs, block new work
+    if (allOpenPRs.length > 0) {
+      automaticActions.push(`Found ${allOpenPRs.length} total open PRs in the repository`);
+      
+      // Provide a summary of the PR status
+      const prSummary = [];
+      if (myOpenPRs.length > 0) {
+        prSummary.push(`${myOpenPRs.length} of your PRs`);
+      }
+      const otherPRCount = allOpenPRs.length - myOpenPRs.length;
+      if (otherPRCount > 0) {
+        prSummary.push(`${otherPRCount} PRs by other team members`);
+      }
+      
+      return {
+        requestedData: {
+          nextSteps: [{
+            action: 'select_work',
+            suggestion: `Cannot suggest new work while there are ${allOpenPRs.length} open PRs (${prSummary.join(' and ')}). All PRs should be reviewed and merged before starting new work.`,
+            reason: 'Open PRs exist that need attention'
+          }],
+          context: {
+            currentBranch,
+            hasUncommittedChanges,
+            totalOpenPRs: allOpenPRs.length,
+            myOpenPRs: myOpenPRs.length,
+            otherOpenPRs: otherPRCount
+          }
+        },
+        automaticActions,
+        issuesFound: [`${allOpenPRs.length} open PRs blocking new work`],
+        suggestedActions: [
+          'Review the open PRs in your repository',
+          'Help get PRs reviewed and merged before starting new work'
+        ],
         allPRStatus: []
       };
     }
