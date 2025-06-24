@@ -11,13 +11,32 @@ interface DecisionInput {
 }
 
 interface NextStepAction {
-  action: 'epic_analysis' | 'work_on_issue' | 'assign_and_start';
+  action: 'epic_analysis' | 'work_on_issue' | 'assign_and_start' | 'review_issue' | 'requires_llm_decision';
   issueNumber?: number;
   title?: string;
   status?: string;
   suggestion?: string;
   epicNumber?: number;
   epicTitle?: string;
+  decisionType?: 'confirm_issue_start';
+  decisionId?: string;
+  issueBody?: string;
+  issueUrl?: string;
+  choices?: Array<{
+    id: string;
+    title: string;
+    description: string;
+  }>;
+  decisionContext?: {
+    prompt: string;
+    issueDetails?: {
+      number: number;
+      title: string;
+      body: string;
+      url: string;
+      epicNumber?: number;
+    };
+  };
 }
 
 interface WorkflowDecideResponse extends WorkflowResponse {
@@ -28,7 +47,7 @@ interface WorkflowDecideResponse extends WorkflowResponse {
       selectedChoice: string | number;
       reasoning?: string;
     };
-    context: Record<string, any>;
+    context: Record<string, unknown>;
   };
 }
 
@@ -68,12 +87,66 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
       automaticActions.push(`Reasoning: ${input.reasoning}`);
     }
 
-    // Extract epic number from decision ID (format: epic-{number}-next-issue-{timestamp})
-    const epicMatch = input.decisionId.match(/epic-(\d+)-next-issue/);
-    if (!epicMatch) {
-      throw new Error('Invalid decision ID format');
+    let epicNumber: number;
+
+    // Check if this is a confirmation decision for starting work
+    if (input.decisionId.includes('confirm-start-issue-')) {
+      // Handle review/start decision
+      const confirmMatch = input.decisionId.match(/confirm-start-issue-(\d+)-epic-(\d+)/);
+      if (!confirmMatch) {
+        throw new Error('Invalid confirmation decision ID format');
+      }
+      const issueNumber = parseInt(confirmMatch[1]);
+      epicNumber = parseInt(confirmMatch[2]);
+      
+      if (input.selectedChoice === 'review') {
+        // User wants to review the issue first
+        const { owner, repo } = getRepoInfo();
+        const issueUrl = `https://github.com/${owner}/${repo}/issues/${issueNumber}`;
+        
+        return {
+          requestedData: {
+            nextSteps: [{
+              action: 'review_issue',
+              issueNumber: issueNumber,
+              issueUrl: issueUrl,
+              suggestion: 'Please review the issue and add any necessary details. When ready, run workflow_next again to continue.'
+            }],
+            decision: {
+              decisionId: input.decisionId,
+              selectedChoice: input.selectedChoice,
+              reasoning: input.reasoning
+            },
+            context: {
+              awaitingReview: true,
+              issueNumber: issueNumber
+            }
+          },
+          automaticActions,
+          issuesFound,
+          suggestedActions: [
+            `Open issue #${issueNumber} in your browser: ${issueUrl}`,
+            'Add any clarifications or implementation notes to the issue',
+            'When ready, run workflow_next to continue with this issue'
+          ],
+          allPRStatus: []
+        };
+      }
+      
+      // If we get here, user selected 'start' - we need to proceed with assignment
+      // Set selectedChoice to the issue number for the rest of the logic
+      input.selectedChoice = issueNumber;
+      
+      // Continue with normal flow - skip the review prompt check
+      automaticActions.push('User confirmed to start work immediately');
+    } else {
+      // Extract epic number from decision ID (format: epic-{number}-next-issue-{timestamp})
+      const epicMatch = input.decisionId.match(/epic-(\d+)-next-issue/);
+      if (!epicMatch) {
+        throw new Error('Invalid decision ID format');
+      }
+      epicNumber = parseInt(epicMatch[1]);
     }
-    const epicNumber = parseInt(epicMatch[1]);
 
     // Get GitHub token and set up Octokit
     const token = execSync('gh auth token', { encoding: 'utf8' }).trim();
@@ -92,6 +165,68 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
       repo,
       issue_number: input.selectedChoice as number
     });
+
+    // Check if this is NOT a confirmation for starting work
+    if (!input.decisionId.includes('confirm-start-issue-')) {
+      // First time seeing this issue - prompt for review
+      const issueUrl = `https://github.com/${owner}/${repo}/issues/${issue.number}`;
+      const confirmDecisionId = `confirm-start-issue-${issue.number}-epic-${epicNumber}-${Date.now()}`;
+      
+      automaticActions.push(`Presenting issue #${issue.number} for review before starting work`);
+      
+      return {
+        requestedData: {
+          nextSteps: [{
+            action: 'requires_llm_decision',
+            decisionType: 'confirm_issue_start',
+            decisionId: confirmDecisionId,
+            issueNumber: issue.number,
+            title: issue.title,
+            choices: [
+              {
+                id: 'review',
+                title: 'Review issue first',
+                description: 'Open the issue in browser to review or add details before starting'
+              },
+              {
+                id: 'start',
+                title: 'Start work immediately',
+                description: 'Proceed with assignment and branch creation'
+              }
+            ],
+            decisionContext: {
+              prompt: 'Would you like to review this issue before starting work, or proceed immediately?',
+              issueDetails: {
+                number: issue.number,
+                title: issue.title,
+                body: issue.body || 'No description provided',
+                url: issueUrl,
+                epicNumber: epicNumber
+              }
+            }
+          }],
+          decision: {
+            decisionId: input.decisionId,
+            selectedChoice: input.selectedChoice,
+            reasoning: input.reasoning
+          },
+          context: {
+            currentBranch: execSync('git branch --show-current', { encoding: 'utf8' }).trim(),
+            hasUncommittedChanges: execSync('git status --porcelain', { encoding: 'utf8' }).length > 0,
+            issueUrl,
+            epicNumber
+          }
+        },
+        automaticActions,
+        issuesFound,
+        suggestedActions: [
+          `Issue #${issue.number}: ${issue.title}`,
+          `URL: ${issueUrl}`,
+          'Choose whether to review the issue or start work immediately'
+        ],
+        allPRStatus: []
+      };
+    }
 
     // Check if issue is assigned to current user
     const isAssignedToMe = issue.assignees?.some(assignee => assignee.login === currentUser);
