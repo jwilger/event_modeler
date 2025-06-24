@@ -38,8 +38,8 @@ describe('MCP Server Index', () => {
     // Call the handler to get the tools list
     const result = await listToolsHandler();
 
-    // Verify both tools are registered
-    expect(result.tools).toHaveLength(2);
+    // Verify all tools are registered
+    expect(result.tools).toHaveLength(6);
     
     // Find workflow_status tool
     const statusTool = result.tools.find((t: any) => t.name === 'workflow_status');
