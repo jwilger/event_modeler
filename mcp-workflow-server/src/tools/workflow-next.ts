@@ -6,6 +6,10 @@ import { workflowMonitorReviews, requestCopilotReReview, type ReviewInfo } from 
 import { getRepoInfo } from '../utils/github.js';
 import { isBranchMerged } from '../utils/git.js';
 
+// Constants for bot reviewer names
+const COPILOT_BOT_REVIEWER = 'copilot-pull-request-reviewer[bot]';
+const COPILOT_HUMAN_REVIEWER = 'copilot-pull-request-reviewer';
+
 interface TodoItem {
   text: string;
   checked: boolean;
@@ -226,8 +230,8 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       // Get all Copilot reviews sorted by date
       const copilotReviews = pr.reviews
         .filter(r => 
-          r.reviewer === 'copilot-pull-request-reviewer[bot]' || 
-          r.reviewer === 'copilot-pull-request-reviewer'
+          r.reviewer === COPILOT_BOT_REVIEWER || 
+          r.reviewer === COPILOT_HUMAN_REVIEWER
         )
         .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
       
@@ -317,8 +321,8 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
     if (myPRsWithoutReview.length > 0) {
       const pr = myPRsWithoutReview[0];
       const hasCopilotReview = pr.reviews.some(r => 
-        r.reviewer === 'copilot-pull-request-reviewer[bot]' || 
-        r.reviewer === 'copilot-pull-request-reviewer'
+        r.reviewer === COPILOT_BOT_REVIEWER || 
+        r.reviewer === COPILOT_HUMAN_REVIEWER
       );
       
       automaticActions.push(`Found PR #${pr.prNumber} authored by you awaiting review`);
