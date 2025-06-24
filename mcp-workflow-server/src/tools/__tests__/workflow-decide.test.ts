@@ -25,8 +25,8 @@ vi.mock('@octokit/rest', () => ({
           body: 'This is a test issue\n\nPart of #68',
           assignees: [],
         },
-      }),
-      addAssignees: vi.fn().mockResolvedValue({}),
+      }) as any,
+      addAssignees: vi.fn().mockResolvedValue({}) as any,
     },
     graphql: vi.fn().mockResolvedValue({
       user: {
@@ -39,7 +39,7 @@ vi.mock('@octokit/rest', () => ({
           },
         },
       },
-    }),
+    }) as any,
   })),
 }));
 
@@ -75,7 +75,10 @@ describe('workflowDecide', () => {
     vi.clearAllMocks();
   });
 
-  it('should prompt for review when first selecting an issue', async () => {
+  it('should immediately assign and start work when selecting an issue', async () => {
+    const { Octokit } = await import('@octokit/rest');
+    const mockOctokit = vi.mocked(Octokit);
+    
     const input = {
       decisionId: 'epic-68-next-issue-123456',
       selectedChoice: 123,
@@ -84,80 +87,15 @@ describe('workflowDecide', () => {
 
     const result = await workflowDecide(input);
 
-    // Should return a review prompt decision
-    expect(result.requestedData.nextSteps).toHaveLength(1);
-    expect(result.requestedData.nextSteps[0]).toMatchObject({
-      action: 'requires_llm_decision',
-      decisionType: 'confirm_issue_start',
-      issueNumber: 123,
-      title: 'Test Issue',
-      choices: [
-        {
-          id: 'review',
-          title: 'Review issue first',
-          description: 'Open the issue in browser to review or add details before starting',
-        },
-        {
-          id: 'start',
-          title: 'Start work immediately',
-          description: 'Proceed with assignment and branch creation',
-        },
-      ],
-    });
-
-    // Check the decision context includes issue details
-    expect(result.requestedData.nextSteps[0].decisionContext).toMatchObject({
-      prompt: 'Would you like to review this issue before starting work, or proceed immediately?',
-      issueDetails: {
-        number: 123,
-        title: 'Test Issue',
-        body: 'This is a test issue\n\nPart of #68',
-        url: 'https://github.com/testuser/testrepo/issues/123',
-        epicNumber: 68,
-      },
-    });
-  });
-
-  it('should handle review choice', async () => {
-    const input = {
-      decisionId: 'confirm-start-issue-123-epic-68-123456',
-      selectedChoice: 'review',
-    };
-
-    const result = await workflowDecide(input);
-
-    // Should return review_issue action
-    expect(result.requestedData.nextSteps).toHaveLength(1);
-    expect(result.requestedData.nextSteps[0]).toMatchObject({
-      action: 'review_issue',
-      issueNumber: 123,
-      issueUrl: 'https://github.com/testuser/testrepo/issues/123',
-      suggestion: 'Please review the issue and add any necessary details. When ready, run workflow_next again to continue.',
-    });
-
-    expect(result.suggestedActions).toContain('Open issue #123 in your browser: https://github.com/testuser/testrepo/issues/123');
-    expect(result.suggestedActions).toContain('Add any clarifications or implementation notes to the issue');
-    expect(result.suggestedActions).toContain('When ready, run workflow_next to continue with this issue');
-  });
-
-  it('should handle start work choice', async () => {
-    const { Octokit } = await import('@octokit/rest');
-    const mockOctokit = vi.mocked(Octokit);
-    
-    const input = {
-      decisionId: 'confirm-start-issue-123-epic-68-123456',
-      selectedChoice: 'start',
-    };
-
-    const result = await workflowDecide(input);
-
-    // Should proceed with assignment
+    // Should return assign_and_start action
     expect(result.requestedData.nextSteps).toHaveLength(1);
     expect(result.requestedData.nextSteps[0]).toMatchObject({
       action: 'assign_and_start',
       issueNumber: 123,
       title: 'Test Issue',
       epicNumber: 68,
+      issueUrl: 'https://github.com/testuser/testrepo/issues/123',
+      issueBody: 'This is a test issue\n\nPart of #68',
     });
 
     // Verify issue was assigned
@@ -169,7 +107,61 @@ describe('workflowDecide', () => {
       assignees: ['testuser'],
     });
 
-    expect(result.automaticActions).toContain('User confirmed to start work immediately');
+    // Check the context includes issue details
+    expect(result.requestedData.context.issueDetails).toMatchObject({
+      number: 123,
+      title: 'Test Issue',
+      body: 'This is a test issue\n\nPart of #68',
+      url: 'https://github.com/testuser/testrepo/issues/123',
+      epicNumber: 68,
+    });
+  });
+
+  it('should handle when issue is already assigned to user', async () => {
+    const { Octokit } = await import('@octokit/rest');
+    const mockOctokit = vi.mocked(Octokit);
+    
+    // Mock issue already assigned to user
+    mockOctokit.mockImplementationOnce(() => ({
+      issues: {
+        get: vi.fn().mockResolvedValue({
+          data: {
+            number: 123,
+            title: 'Test Issue',
+            body: 'This is a test issue\n\nPart of #68',
+            assignees: [{ login: 'testuser' }],
+          },
+        }),
+        addAssignees: vi.fn().mockResolvedValue({}),
+      },
+      graphql: vi.fn().mockResolvedValue({
+        user: {
+          projectV2: {
+            items: {
+              nodes: [{
+                id: 'PVTI_test',
+                content: { number: 123 },
+              }],
+            },
+          },
+        },
+      }),
+    }) as any);
+    
+    const input = {
+      decisionId: 'epic-68-next-issue-123456',
+      selectedChoice: 123,
+    };
+
+    const result = await workflowDecide(input);
+
+    // Should still proceed but not call addAssignees
+    expect(result.requestedData.nextSteps).toHaveLength(1);
+    expect(result.requestedData.nextSteps[0].action).toBe('assign_and_start');
+
+    // Verify issue was NOT reassigned
+    const octokitInstance = mockOctokit.mock.results[0].value;
+    expect(octokitInstance.issues.addAssignees).not.toHaveBeenCalled();
   });
 
   it('should handle invalid decision ID format', async () => {
@@ -185,7 +177,18 @@ describe('workflowDecide', () => {
 
   it('should handle missing configuration', async () => {
     vi.mocked(getProjectConfig).mockReturnValueOnce({
-      config: {},
+      config: {
+        github: {
+          projectNumber: undefined,
+          projectId: undefined,
+          statusFieldId: undefined,
+          statusOptions: {
+            todo: undefined,
+            inProgress: undefined,
+            done: undefined,
+          },
+        },
+      },
       isComplete: false,
     });
 
