@@ -270,7 +270,7 @@ describe('workflowManageSubissues', () => {
 
     it('should handle unknown action', async () => {
       const result = await workflowManageSubissues({
-        action: 'invalid' as any,
+        action: 'invalid' as 'link' | 'unlink' | 'list',
         epicNumber: 68,
       });
 

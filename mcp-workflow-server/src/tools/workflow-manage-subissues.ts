@@ -17,6 +17,45 @@ interface SubIssue {
   assignees: string[];
 }
 
+// GraphQL response types
+interface GetIssueResponse {
+  repository: {
+    issue: {
+      id: string;
+      title: string;
+    } | null;
+  };
+}
+
+interface CheckCircularResponse {
+  node: {
+    parentIssue?: {
+      id: string;
+    };
+  } | null;
+}
+
+interface GetSubIssuesResponse {
+  repository: {
+    issue: {
+      title: string;
+      subIssues: {
+        nodes: Array<{
+          number: number;
+          title: string;
+          state: string;
+          url: string;
+          assignees: {
+            nodes: Array<{
+              login: string;
+            }>;
+          };
+        }>;
+      };
+    } | null;
+  };
+}
+
 interface WorkflowManageSubissuesResponse extends WorkflowResponse {
   requestedData: {
     action: string;
@@ -45,13 +84,13 @@ async function getIssueNodeId(
     }
   `;
 
-  const result = await octokit.graphql(query, {
+  const result = await octokit.graphql<GetIssueResponse>(query, {
     owner,
     repo,
     number: issueNumber,
   });
 
-  const issue = (result as any).repository.issue;
+  const issue = result.repository.issue;
   if (!issue) {
     throw new Error(`Issue #${issueNumber} not found`);
   }
@@ -78,8 +117,8 @@ async function checkCircularDependency(
   `;
 
   // Check if parent has a parent that is the child (would create circular reference)
-  const result = await octokit.graphql(query, { nodeId: parentId });
-  const parentIssue = (result as any).node?.parentIssue;
+  const result = await octokit.graphql<CheckCircularResponse>(query, { nodeId: parentId });
+  const parentIssue = result.node?.parentIssue;
   
   if (parentIssue && parentIssue.id === childId) {
     return true; // Would create circular dependency
@@ -245,23 +284,23 @@ export async function workflowManageSubissues(
         }
       `;
 
-      const result = await octokit.graphql(query, {
+      const result = await octokit.graphql<GetSubIssuesResponse>(query, {
         owner,
         repo,
         number: epicNumber,
       });
 
-      const epic = (result as any).repository.issue;
+      const epic = result.repository.issue;
       if (!epic) {
         throw new Error(`Epic #${epicNumber} not found`);
       }
 
-      const subIssues: SubIssue[] = epic.subIssues.nodes.map((issue: any) => ({
+      const subIssues: SubIssue[] = epic.subIssues.nodes.map((issue) => ({
         number: issue.number,
         title: issue.title,
         state: issue.state,
         url: issue.url,
-        assignees: issue.assignees.nodes.map((a: any) => a.login),
+        assignees: issue.assignees.nodes.map((a) => a.login),
       }));
 
       automaticActions.push(`Found ${subIssues.length} sub-issues for epic #${epicNumber}`);
