@@ -10,6 +10,7 @@ import { workflowConfigure } from './tools/workflow-configure.js';
 import { workflowCreatePR } from './tools/workflow-create-pr.js';
 import { workflowMonitorReviews } from './tools/workflow-monitor-reviews.js';
 import { workflowReplyReview, workflowReplyReviewTool } from './tools/workflow-reply-review.js';
+import { workflowManageSubissues } from './tools/workflow-manage-subissues.js';
 import { WorkflowResponse } from './types.js';
 
 const server = new Server(
@@ -145,6 +146,30 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       workflowReplyReviewTool,
+      {
+        name: 'workflow_manage_subissues',
+        description:
+          'Manage GitHub sub-issues: link issues to epics, unlink sub-issues, or list all sub-issues for an epic',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            action: {
+              type: 'string',
+              enum: ['link', 'unlink', 'list'],
+              description: 'The action to perform',
+            },
+            epicNumber: {
+              type: 'number',
+              description: 'The epic issue number',
+            },
+            issueNumber: {
+              type: 'number',
+              description: 'The issue number to link/unlink (required for link/unlink actions)',
+            },
+          },
+          required: ['action', 'epicNumber'],
+        },
+      },
     ],
   };
 });
@@ -177,6 +202,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       case 'workflow_reply_review':
         result = await workflowReplyReview(request.params.arguments as { prNumber: number; commentId: number; body: string });
+        break;
+      case 'workflow_manage_subissues':
+        result = await workflowManageSubissues(request.params.arguments as { action: 'link' | 'unlink' | 'list'; epicNumber: number; issueNumber?: number });
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);
