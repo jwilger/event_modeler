@@ -10,7 +10,8 @@ function getGitHubToken(): string {
       throw new Error('No GitHub token found');
     }
     return token;
-  } catch {
+  } catch (error) {
+    console.error('Error while getting GitHub token:', error);
     throw new Error('Failed to get GitHub token. Make sure gh CLI is authenticated.');
   }
 }
