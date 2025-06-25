@@ -32,12 +32,12 @@ export class StateStore {
       if (existsSync(STATE_PATH)) {
         const data = readFileSync(STATE_PATH, 'utf-8');
         const loaded = JSON.parse(data) as WorkflowState;
-        
+
         // Handle version migrations if needed
         if (loaded.version !== STATE_VERSION) {
           return this.migrateState(loaded);
         }
-        
+
         return loaded;
       }
     } catch (error) {
@@ -55,18 +55,18 @@ export class StateStore {
 
   /**
    * Migrates the state from an older version to the current version.
-   * 
+   *
    * This method is called when the loaded state version does not match the current
    * `STATE_VERSION`. The migration logic should transform the old state into a format
    * compatible with the current version. Each version upgrade should be handled explicitly
    * to ensure data integrity and compatibility.
-   * 
+   *
    * TODO: Implement migration logic for future state version updates.
    * Example:
    * if (_oldState.version === 1) {
    *   // Perform migration from version 1 to version 2
    * }
-   * 
+   *
    * @param _oldState - The state object from a previous version.
    * @returns The migrated state object compatible with the current version.
    */
@@ -88,7 +88,7 @@ export class StateStore {
       if (!existsSync(dir)) {
         mkdirSync(dir, { recursive: true });
       }
-      
+
       writeFileSync(STATE_PATH, JSON.stringify(this.state, null, 2));
     } catch (error) {
       console.error('Failed to save state:', error);

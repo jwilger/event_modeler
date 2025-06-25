@@ -65,7 +65,7 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
   try {
     // Check configuration first
     const { config, isComplete } = getProjectConfig();
-    
+
     if (!isComplete) {
       throw new Error('Configuration is incomplete. Please run workflow_configure first.');
     }
@@ -79,7 +79,7 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
 
     automaticActions.push(`Processing decision for ID: ${input.decisionId}`);
     automaticActions.push(`Selected choice: ${input.selectedChoice}`);
-    
+
     if (input.reasoning) {
       automaticActions.push(`Reasoning: ${input.reasoning}`);
     }
@@ -106,7 +106,7 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
     const { data: issue } = await octokit.issues.get({
       owner,
       repo,
-      issue_number: input.selectedChoice as number
+      issue_number: input.selectedChoice as number,
     });
 
     // Get issue URL for reference
@@ -114,8 +114,8 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
     automaticActions.push(`Selected issue #${issue.number} for work`);
 
     // Check if issue is assigned to current user
-    const isAssignedToMe = issue.assignees?.some(assignee => assignee.login === currentUser);
-    
+    const isAssignedToMe = issue.assignees?.some((assignee) => assignee.login === currentUser);
+
     if (!isAssignedToMe) {
       // Assign the issue to current user
       automaticActions.push(`Assigning issue #${issue.number} to ${currentUser}`);
@@ -123,7 +123,7 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
         owner,
         repo,
         issue_number: issue.number,
-        assignees: [currentUser]
+        assignees: [currentUser],
       });
       suggestedActions.push(`Issue #${issue.number} has been assigned to you`);
     }
@@ -131,7 +131,7 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
     // Update issue status to "In Progress" in the project
     try {
       automaticActions.push(`Updating issue #${issue.number} status to "In Progress"`);
-      
+
       // First, get the project item ID for this issue
       const projectQuery = `
         query($owner: String!, $projectNumber: Int!) {
@@ -151,23 +151,24 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
           }
         }
       `;
-      
+
       const projectData = await octokit.graphql(projectQuery, {
         owner: owner,
-        projectNumber: config.github.projectNumber!
+        projectNumber: config.github.projectNumber!,
       });
-      
+
       interface ProjectItem {
         id: string;
         content?: {
           number: number;
         };
       }
-      const items = (projectData as { user: { projectV2: { items: { nodes: ProjectItem[] } } } }).user.projectV2.items.nodes;
-      const projectItem = items.find((item: ProjectItem) => 
-        item.content && item.content.number === issue.number
+      const items = (projectData as { user: { projectV2: { items: { nodes: ProjectItem[] } } } })
+        .user.projectV2.items.nodes;
+      const projectItem = items.find(
+        (item: ProjectItem) => item.content && item.content.number === issue.number
       );
-      
+
       if (projectItem) {
         // Update the status field
         const updateMutation = `
@@ -184,21 +185,25 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
             }
           }
         `;
-        
+
         await octokit.graphql(updateMutation, {
           projectId: config.github.projectId!,
           itemId: projectItem.id,
           fieldId: config.github.statusFieldId!,
-          value: { singleSelectOptionId: config.github.statusOptions!.inProgress! }
+          value: { singleSelectOptionId: config.github.statusOptions!.inProgress! },
         });
-        
+
         suggestedActions.push(`Issue #${issue.number} status updated to "In Progress"`);
         automaticActions.push('Project status successfully updated');
       } else {
-        automaticActions.push('Could not find issue in project - may need to be added to project first');
+        automaticActions.push(
+          'Could not find issue in project - may need to be added to project first'
+        );
       }
     } catch (error) {
-      automaticActions.push(`Could not update project status: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      automaticActions.push(
+        `Could not update project status: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
 
     // Get current git status
@@ -207,7 +212,8 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
     const hasUncommittedChanges = gitStatus.length > 0;
 
     // Generate branch name
-    const branchName = `feature/${issue.title.toLowerCase()
+    const branchName = `feature/${issue.title
+      .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '')
       .substring(0, 50)}-${issue.number}`;
@@ -231,7 +237,9 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
           branchCreated = true;
           branchSwitched = true;
         } catch (error) {
-          automaticActions.push(`Could not create branch: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          automaticActions.push(
+            `Could not create branch: ${error instanceof Error ? error.message : 'Unknown error'}`
+          );
         }
       }
     }
@@ -239,27 +247,29 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
     // Return the next steps
     return {
       requestedData: {
-        nextSteps: [{
-          action: 'assign_and_start',
-          issueNumber: issue.number,
-          title: issue.title,
-          epicNumber: epicNumber,
-          issueUrl: issueUrl,
-          issueBody: issue.body || 'No description provided',
-          suggestion: `Issue #${issue.number} assigned and marked as "In Progress". ${
-            hasUncommittedChanges ? 
-            'Commit current changes before switching branches.' : 
-            branchCreated ? 
-            `Created and switched to new branch: ${branchName}` :
-            branchSwitched ? 
-            `Switched to existing branch: ${branchName}` :
-            `Ready to work on branch: ${branchName}`
-          }`
-        }],
+        nextSteps: [
+          {
+            action: 'assign_and_start',
+            issueNumber: issue.number,
+            title: issue.title,
+            epicNumber: epicNumber,
+            issueUrl: issueUrl,
+            issueBody: issue.body || 'No description provided',
+            suggestion: `Issue #${issue.number} assigned and marked as "In Progress". ${
+              hasUncommittedChanges
+                ? 'Commit current changes before switching branches.'
+                : branchCreated
+                  ? `Created and switched to new branch: ${branchName}`
+                  : branchSwitched
+                    ? `Switched to existing branch: ${branchName}`
+                    : `Ready to work on branch: ${branchName}`
+            }`,
+          },
+        ],
         decision: {
           decisionId: input.decisionId,
           selectedChoice: input.selectedChoice,
-          reasoning: input.reasoning
+          reasoning: input.reasoning,
         },
         context: {
           currentBranch,
@@ -271,37 +281,37 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
             title: issue.title,
             body: issue.body || 'No description provided',
             url: issueUrl,
-            epicNumber: epicNumber
-          }
-        }
+            epicNumber: epicNumber,
+          },
+        },
       },
       automaticActions,
       issuesFound,
       suggestedActions: [
         `Work on issue #${issue.number}: ${issue.title}`,
-        hasUncommittedChanges ? 
-          'Commit or stash current changes before creating a new branch' : 
-          `Create branch: git checkout -b feature/issue-${issue.number}`
+        hasUncommittedChanges
+          ? 'Commit or stash current changes before creating a new branch'
+          : `Create branch: git checkout -b feature/issue-${issue.number}`,
       ],
-      allPRStatus: []
+      allPRStatus: [],
     };
   } catch (error) {
     issuesFound.push(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    
+
     return {
       requestedData: {
         nextSteps: [],
         decision: {
           decisionId: input.decisionId || 'unknown',
           selectedChoice: input.selectedChoice || 'none',
-          reasoning: input.reasoning
+          reasoning: input.reasoning,
         },
-        context: {}
+        context: {},
       },
       automaticActions,
       issuesFound,
       suggestedActions: ['Fix the error and try again'],
-      allPRStatus: []
+      allPRStatus: [],
     };
   }
 }

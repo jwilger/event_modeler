@@ -31,9 +31,9 @@ describe('MCP Server Index', () => {
       }),
       connect: vi.fn(),
     };
-    
+
     vi.mocked(Server).mockImplementation(() => mockServer as unknown as Server);
-    
+
     // Clear module cache to ensure fresh import
     vi.resetModules();
   });
@@ -51,7 +51,7 @@ describe('MCP Server Index', () => {
 
     // Verify all tools are registered
     expect(result.tools).toHaveLength(7);
-    
+
     // Find workflow_status tool
     const statusTool = result.tools.find((t: Tool) => t.name === 'workflow_status');
     expect(statusTool).toMatchObject({
@@ -63,7 +63,7 @@ describe('MCP Server Index', () => {
         required: [],
       },
     });
-    
+
     // Find workflow_next tool
     const nextTool = result.tools.find((t: Tool) => t.name === 'workflow_next');
     expect(nextTool).toMatchObject({
@@ -80,7 +80,7 @@ describe('MCP Server Index', () => {
   it('should handle workflow_status tool execution', async () => {
     const { CallToolRequestSchema } = await import('@modelcontextprotocol/sdk/types.js');
     const { workflowStatusTool } = await import('../tools/workflow-status.js');
-    
+
     // Mock the workflow status tool
     vi.mocked(workflowStatusTool).mockResolvedValue({
       requestedData: { gitStatus: null, currentBranch: 'main', openPRCount: 0 },
@@ -98,7 +98,11 @@ describe('MCP Server Index', () => {
     expect(callToolHandler).toBeDefined();
 
     // Call the handler with workflow_status tool
-    const result = await (callToolHandler as (request: { params: { name: string; arguments?: Record<string, unknown> } }) => Promise<unknown>)({
+    const result = await (
+      callToolHandler as (request: {
+        params: { name: string; arguments?: Record<string, unknown> };
+      }) => Promise<unknown>
+    )({
       params: { name: 'workflow_status' },
     });
 
@@ -114,15 +118,19 @@ describe('MCP Server Index', () => {
 
   it('should return error for unknown tool', async () => {
     const { CallToolRequestSchema } = await import('@modelcontextprotocol/sdk/types.js');
-    
+
     // Import the module to trigger registration
     await import('../index.js');
 
     // Get the CallToolRequestSchema handler
     const callToolHandler = handlers.get(CallToolRequestSchema);
-    
+
     // Call with unknown tool
-    const result = await (callToolHandler as (request: { params: { name: string; arguments?: Record<string, unknown> } }) => Promise<unknown>)({
+    const result = await (
+      callToolHandler as (request: {
+        params: { name: string; arguments?: Record<string, unknown> };
+      }) => Promise<unknown>
+    )({
       params: { name: 'unknown_tool' },
     });
 

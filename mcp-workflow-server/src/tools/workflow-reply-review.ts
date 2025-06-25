@@ -19,14 +19,16 @@ interface WorkflowReplyReviewResponse extends WorkflowResponse {
   };
 }
 
-export async function workflowReplyReview(input: ReplyReviewInput): Promise<WorkflowReplyReviewResponse> {
+export async function workflowReplyReview(
+  input: ReplyReviewInput
+): Promise<WorkflowReplyReviewResponse> {
   const automaticActions: string[] = [];
   const issuesFound: string[] = [];
   const suggestedActions: string[] = [];
 
   try {
     const { prNumber, commentId, body } = input;
-    
+
     if (!prNumber || !commentId || !body) {
       throw new Error('Missing required parameters: prNumber, commentId, and body are required');
     }
@@ -45,7 +47,7 @@ export async function workflowReplyReview(input: ReplyReviewInput): Promise<Work
       repo,
       pull_number: prNumber,
       comment_id: commentId,
-      body
+      body,
     });
 
     automaticActions.push(`Successfully replied to review comment ${commentId} on PR #${prNumber}`);
@@ -55,28 +57,28 @@ export async function workflowReplyReview(input: ReplyReviewInput): Promise<Work
         replied: true,
         prNumber,
         commentId,
-        replyUrl: response.data.html_url
+        replyUrl: response.data.html_url,
       },
       automaticActions,
       issuesFound,
       suggestedActions,
-      allPRStatus: []
+      allPRStatus: [],
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     issuesFound.push(`Failed to reply to review comment: ${errorMessage}`);
-    
+
     return {
       requestedData: {
         replied: false,
         prNumber: input.prNumber || 0,
         commentId: input.commentId || 0,
-        error: errorMessage
+        error: errorMessage,
       },
       automaticActions,
       issuesFound,
       suggestedActions,
-      allPRStatus: []
+      allPRStatus: [],
     };
   }
 }
@@ -90,17 +92,17 @@ export const workflowReplyReviewTool = {
     properties: {
       prNumber: {
         type: 'number',
-        description: 'Pull request number'
+        description: 'Pull request number',
       },
       commentId: {
         type: 'number',
-        description: 'Review comment ID to reply to'
+        description: 'Review comment ID to reply to',
       },
       body: {
         type: 'string',
-        description: 'Reply message (e.g., "Fixed in commit abc123")'
-      }
+        description: 'Reply message (e.g., "Fixed in commit abc123")',
+      },
     },
-    required: ['prNumber', 'commentId', 'body']
-  }
+    required: ['prNumber', 'commentId', 'body'],
+  },
 };
