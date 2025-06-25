@@ -52,7 +52,8 @@ interface NextStepAction {
     | 'requires_llm_decision'
     | 'requires_config'
     | 'address_pr_feedback'
-    | 'review_pr';
+    | 'review_pr'
+    | 'merge_pr';
   issueNumber?: number;
   title?: string;
   status?: string;
@@ -84,6 +85,10 @@ interface NextStepAction {
   reviews?: ReviewInfo[];
   prUrl?: string;
   author?: string;
+  // Fields for merge-ready PRs
+  ciStatus?: 'success' | 'pending' | 'failure' | 'unknown';
+  mergeable?: boolean;
+  mergeableState?: string;
 }
 
 interface WorkflowContext {
@@ -133,6 +138,141 @@ function parseTodoItems(body: string): TodoItem[] {
   }
 
   return todos;
+}
+
+interface PRMergeReadiness {
+  isMergeReady: boolean;
+  ciStatus: 'success' | 'pending' | 'failure' | 'unknown';
+  mergeable: boolean;
+  mergeableState: string;
+  hasApprovals: boolean;
+  hasUnresolvedComments: boolean;
+  blockingReasons: string[];
+}
+
+async function checkPRMergeReadiness(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  pr: PRReviewStatus
+): Promise<PRMergeReadiness> {
+  const blockingReasons: string[] = [];
+  
+  try {
+    // Get detailed PR information including mergeable state
+    const { data: prDetails } = await octokit.pulls.get({
+      owner,
+      repo,
+      pull_number: prNumber,
+    });
+
+    // Check CI status from commit status
+    let ciStatus: 'success' | 'pending' | 'failure' | 'unknown' = 'unknown';
+    if (prDetails.head.sha) {
+      try {
+        const { data: combinedStatus } = await octokit.repos.getCombinedStatusForRef({
+          owner,
+          repo,
+          ref: prDetails.head.sha,
+        });
+        
+        if (combinedStatus.state === 'success') {
+          ciStatus = 'success';
+        } else if (combinedStatus.state === 'pending') {
+          ciStatus = 'pending';
+          blockingReasons.push('CI checks are still running');
+        } else if (combinedStatus.state === 'failure' || combinedStatus.state === 'error') {
+          ciStatus = 'failure';
+          blockingReasons.push('CI checks are failing');
+        }
+      } catch {
+        // If status checks fail, try check runs as fallback
+        try {
+          const { data: checkRuns } = await octokit.checks.listForRef({
+            owner,
+            repo,
+            ref: prDetails.head.sha,
+          });
+          
+          if (checkRuns.total_count > 0) {
+            const hasFailures = checkRuns.check_runs.some(run => 
+              run.status === 'completed' && run.conclusion !== 'success' && run.conclusion !== 'skipped'
+            );
+            const hasPending = checkRuns.check_runs.some(run => run.status !== 'completed');
+            
+            if (hasFailures) {
+              ciStatus = 'failure';
+              blockingReasons.push('CI checks are failing');
+            } else if (hasPending) {
+              ciStatus = 'pending';
+              blockingReasons.push('CI checks are still running');
+            } else {
+              ciStatus = 'success';
+            }
+          }
+        } catch {
+          // Unable to get CI status
+        }
+      }
+    }
+
+    // Check mergeable state
+    const mergeable = prDetails.mergeable === true;
+    const mergeableState = prDetails.mergeable_state || 'unknown';
+    
+    if (!mergeable) {
+      if (mergeableState === 'conflicting') {
+        blockingReasons.push('Has merge conflicts');
+      } else if (mergeableState === 'blocked') {
+        blockingReasons.push('Merge is blocked by branch protection rules');
+      } else {
+        blockingReasons.push('Not mergeable');
+      }
+    }
+
+    // Check review status
+    const hasApprovals = pr.reviewStatus === 'approved';
+    if (!hasApprovals) {
+      blockingReasons.push('Needs approval');
+    }
+
+    // Check for unresolved comments
+    const hasUnresolvedComments = pr.commentSummary ? pr.commentSummary.unresolved > 0 : false;
+    if (hasUnresolvedComments) {
+      blockingReasons.push(`Has ${pr.commentSummary?.unresolved || 0} unresolved comments`);
+    }
+
+    const isMergeReady = 
+      hasApprovals && 
+      !hasUnresolvedComments && 
+      mergeable && 
+      ciStatus === 'success' &&
+      mergeableState === 'clean';
+
+    return {
+      isMergeReady,
+      ciStatus,
+      mergeable,
+      mergeableState,
+      hasApprovals,
+      hasUnresolvedComments,
+      blockingReasons,
+    };
+  } catch (error) {
+    // Log the error for better observability
+    console.error('Error during merge readiness check:', error);
+    // If we can't determine merge readiness, assume it's not ready
+    return {
+      isMergeReady: false,
+      ciStatus: 'unknown',
+      mergeable: false,
+      mergeableState: 'unknown',
+      hasApprovals: pr.reviewStatus === 'approved',
+      hasUnresolvedComments: pr.commentSummary ? pr.commentSummary.unresolved > 0 : false,
+      blockingReasons: ['Unable to determine merge readiness'],
+    };
+  }
 }
 
 async function getCurrentUser(): Promise<string> {
@@ -485,36 +625,97 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       };
     }
 
-    // Priority 3: My approved PRs ready to merge
+    // Priority 3: Check for truly merge-ready PRs
     if (myPRsApproved.length > 0) {
-      const pr = myPRsApproved[0];
-      automaticActions.push(`Found PR #${pr.prNumber} authored by you that is approved`);
+      // Check merge readiness, short-circuiting when we find a ready PR
+      let mergeReadyPR = null;
+      const notYetReadyPRs = [];
 
-      return {
-        requestedData: {
-          nextSteps: [
-            {
-              action: 'todos_complete', // Using existing action type for completion
-              prNumber: pr.prNumber,
-              title: pr.title,
-              reviewStatus: pr.reviewStatus,
-              suggestion: `PR #${pr.prNumber} is approved and ready to merge. Review and merge when ready.`,
-              prUrl: pr.url,
+      for (const pr of myPRsApproved) {
+        const readiness = await checkPRMergeReadiness(octokit, owner.login, name, pr.prNumber, pr);
+        if (readiness.isMergeReady) {
+          mergeReadyPR = { pr, readiness };
+          break;
+        } else {
+          notYetReadyPRs.push({ pr, readiness });
+        }
+      }
+
+      // If we have a truly merge-ready PR, prioritize it
+      if (mergeReadyPR) {
+        const { pr, readiness } = mergeReadyPR;
+        automaticActions.push(
+          `Found PR #${pr.prNumber} authored by you that is fully ready to merge (approved, CI passing, no conflicts)`
+        );
+
+        return {
+          requestedData: {
+            nextSteps: [
+              {
+                action: 'merge_pr',
+                prNumber: pr.prNumber,
+                title: pr.title,
+                reviewStatus: pr.reviewStatus,
+                suggestion: `PR #${pr.prNumber} is fully ready to merge! All checks passed, approved, and no conflicts. Review and merge when ready.`,
+                prUrl: pr.url,
+                ciStatus: readiness.ciStatus,
+                mergeable: readiness.mergeable,
+                mergeableState: readiness.mergeableState,
+              },
+            ],
+            context: {
+              currentBranch,
+              hasUncommittedChanges,
+              myOpenPRs,
+              othersPRsToReview,
+              totalOpenPRs: allOpenPRs.length,
             },
-          ],
-          context: {
-            currentBranch,
-            hasUncommittedChanges,
-            myOpenPRs,
-            othersPRsToReview,
-            totalOpenPRs: allOpenPRs.length,
           },
-        },
-        automaticActions,
-        issuesFound: [],
-        suggestedActions: [`Review and merge PR #${pr.prNumber}: ${pr.url}`],
-        allPRStatus: [],
-      };
+          automaticActions,
+          issuesFound: [],
+          suggestedActions: [`Merge PR #${pr.prNumber}: ${pr.url}`],
+          allPRStatus: [],
+        };
+      }
+
+      // If we have approved PRs that aren't fully ready, show what's blocking them
+      if (notYetReadyPRs.length > 0) {
+        const { pr, readiness } = notYetReadyPRs[0];
+        const blockingReasons = readiness.blockingReasons.join(', ');
+        
+        automaticActions.push(
+          `Found PR #${pr.prNumber} authored by you that is approved but not ready to merge: ${blockingReasons}`
+        );
+
+        return {
+          requestedData: {
+            nextSteps: [
+              {
+                action: 'work_on_todo',
+                prNumber: pr.prNumber,
+                title: pr.title,
+                reviewStatus: pr.reviewStatus,
+                suggestion: `PR #${pr.prNumber} is approved but cannot be merged yet: ${blockingReasons}`,
+                prUrl: pr.url,
+                ciStatus: readiness.ciStatus,
+                mergeable: readiness.mergeable,
+                mergeableState: readiness.mergeableState,
+              },
+            ],
+            context: {
+              currentBranch,
+              hasUncommittedChanges,
+              myOpenPRs,
+              othersPRsToReview,
+              totalOpenPRs: allOpenPRs.length,
+            },
+          },
+          automaticActions,
+          issuesFound: readiness.blockingReasons,
+          suggestedActions: [`Address issues with PR #${pr.prNumber}: ${blockingReasons}`],
+          allPRStatus: [],
+        };
+      }
     }
 
     // Priority 4: Others' PRs needing my review
