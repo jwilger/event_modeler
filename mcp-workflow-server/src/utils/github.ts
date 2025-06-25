@@ -20,13 +20,13 @@ function getGitHubToken(): string {
 export function getRepoInfo(): { owner: string; repo: string } {
   try {
     const remoteUrl = execSync('git config --get remote.origin.url', { encoding: 'utf-8' }).trim();
-    
+
     // Parse GitHub URL (supports both HTTPS and SSH)
     const match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/);
     if (!match) {
       throw new Error('Not a GitHub repository');
     }
-    
+
     return {
       owner: match[1],
       repo: match[2],
@@ -94,9 +94,7 @@ export async function getAllPRs(): Promise<PRStatus[]> {
             pull_number: pr.number,
           });
 
-          hasUnresolvedReviews = reviews.some(
-            (review) => review.state === 'CHANGES_REQUESTED'
-          );
+          hasUnresolvedReviews = reviews.some((review) => review.state === 'CHANGES_REQUESTED');
         } catch {
           // If we can't get reviews, assume false
         }
@@ -133,9 +131,10 @@ export async function getAllPRs(): Promise<PRStatus[]> {
             };
           }
 
-          const threads = (reviewThreadsData as ReviewThreadsResult).repository.pullRequest.reviewThreads.nodes;
-          const hasUnresolvedThreads = threads.some(thread => !thread.isResolved);
-          
+          const threads = (reviewThreadsData as ReviewThreadsResult).repository.pullRequest
+            .reviewThreads.nodes;
+          const hasUnresolvedThreads = threads.some((thread) => !thread.isResolved);
+
           // Set hasUnresolvedReviews to true if there are unresolved threads
           if (hasUnresolvedThreads) {
             hasUnresolvedReviews = true;
@@ -147,15 +146,16 @@ export async function getAllPRs(): Promise<PRStatus[]> {
         // Check if PR needs rebase - we'll need to get detailed PR info for this
         let needsRebase = false;
         let isMergeable = false;
-        
+
         try {
           const { data: prDetail } = await octokit.pulls.get({
             owner,
             repo,
             pull_number: pr.number,
           });
-          
-          needsRebase = prDetail.mergeable_state === 'behind' || prDetail.mergeable_state === 'dirty';
+
+          needsRebase =
+            prDetail.mergeable_state === 'behind' || prDetail.mergeable_state === 'dirty';
           isMergeable = prDetail.mergeable === true;
         } catch {
           // If we can't get PR details, use defaults

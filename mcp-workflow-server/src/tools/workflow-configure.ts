@@ -18,7 +18,9 @@ interface WorkflowConfigureResponse extends WorkflowResponse {
   };
 }
 
-export async function workflowConfigure(input: ConfigureInput = {}): Promise<WorkflowConfigureResponse> {
+export async function workflowConfigure(
+  input: ConfigureInput = {}
+): Promise<WorkflowConfigureResponse> {
   const automaticActions: string[] = [];
   const issuesFound: string[] = [];
   const suggestedActions: string[] = [];
@@ -81,18 +83,22 @@ export async function workflowConfigure(input: ConfigureInput = {}): Promise<Wor
 
     // Check what's still missing
     const missingFields = getMissingConfigFields(config);
-    
+
     if (missingFields.length > 0) {
       suggestedActions.push('Still missing configuration for: ' + missingFields.join(', '));
-      
+
       if (missingFields.includes('github.projectNumber')) {
         suggestedActions.push('Run: gh project list --owner <owner> to find your project number');
       }
       if (missingFields.includes('github.projectId')) {
-        suggestedActions.push('Run: gh project list --owner <owner> --format json | jq \'.projects[] | select(.number == <number>) | .id\'');
+        suggestedActions.push(
+          "Run: gh project list --owner <owner> --format json | jq '.projects[] | select(.number == <number>) | .id'"
+        );
       }
       if (missingFields.includes('github.statusFieldId')) {
-        suggestedActions.push('Run: gh project field-list <project-number> --owner <owner> to find the Status field ID');
+        suggestedActions.push(
+          'Run: gh project field-list <project-number> --owner <owner> to find the Status field ID'
+        );
       }
     } else {
       automaticActions.push('All required configuration is present');
@@ -102,26 +108,26 @@ export async function workflowConfigure(input: ConfigureInput = {}): Promise<Wor
       requestedData: {
         config,
         missingFields,
-        updated
+        updated,
       },
       automaticActions,
       issuesFound,
       suggestedActions,
-      allPRStatus: []
+      allPRStatus: [],
     };
   } catch (error) {
     issuesFound.push(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    
+
     return {
       requestedData: {
         config: { github: {} },
         missingFields: [],
-        updated: false
+        updated: false,
       },
       automaticActions,
       issuesFound,
       suggestedActions: ['Fix the error and try again'],
-      allPRStatus: []
+      allPRStatus: [],
     };
   }
 }
