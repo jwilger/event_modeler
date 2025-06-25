@@ -12,6 +12,7 @@ import { workflowMonitorReviews } from './tools/workflow-monitor-reviews.js';
 import { workflowReplyReview, workflowReplyReviewTool } from './tools/workflow-reply-review.js';
 import { workflowManageSubissues } from './tools/workflow-manage-subissues.js';
 import { gitBranch } from './tools/git-branch.js';
+import { gitCommit } from './tools/git-commit.js';
 import { WorkflowResponse } from './types.js';
 
 const server = new Server(
@@ -199,6 +200,39 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['action'],
         },
       },
+      {
+        name: 'git_commit',
+        description:
+          'Git commit operations: stage files, create commits with auto-formatting, amend commits, and run pre-commit checks',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            action: {
+              type: 'string',
+              enum: ['stage', 'unstage', 'status', 'commit', 'amend'],
+              description: 'The git commit operation to perform',
+            },
+            files: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Files to stage/unstage (optional - defaults to all)',
+            },
+            message: {
+              type: 'string',
+              description: 'Commit message (required for commit/amend)',
+            },
+            issueNumber: {
+              type: 'number',
+              description: 'Issue number to reference (auto-detected if not provided)',
+            },
+            all: {
+              type: 'boolean',
+              description: 'For stage - stage all tracked files',
+            },
+          },
+          required: ['action'],
+        },
+      },
     ],
   };
 });
@@ -237,6 +271,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       case 'git_branch':
         result = await gitBranch(request.params.arguments as { action: 'checkout' | 'create' | 'pull' | 'push' | 'list' | 'start-work'; branch?: string; issueNumber?: number; force?: boolean });
+        break;
+      case 'git_commit':
+        result = await gitCommit(request.params.arguments as { action: 'stage' | 'unstage' | 'status' | 'commit' | 'amend'; files?: string[]; message?: string; issueNumber?: number; all?: boolean });
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);
