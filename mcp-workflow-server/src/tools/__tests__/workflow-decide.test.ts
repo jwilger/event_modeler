@@ -5,7 +5,6 @@ import { getProjectConfig } from '../../config.js';
 // Mock child_process
 vi.mock('child_process', () => ({
   execSync: vi.fn((cmd: string) => {
-    if (cmd === 'gh auth token') return 'test-token';
     if (cmd === 'gh api user --jq .login') return 'testuser';
     if (cmd === 'git branch --show-current') return 'main';
     if (cmd === 'git status --porcelain') return '';
@@ -16,6 +15,11 @@ vi.mock('child_process', () => ({
     if (cmd.startsWith('git checkout -b feature/')) return '';
     return '';
   }),
+}));
+
+// Mock auth
+vi.mock('../../utils/auth.js', () => ({
+  getGitHubToken: vi.fn(() => 'test-token'),
 }));
 
 // Mock @octokit/rest

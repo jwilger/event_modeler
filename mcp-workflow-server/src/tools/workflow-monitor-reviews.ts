@@ -1,8 +1,8 @@
-import { execSync } from 'child_process';
 import { Octokit } from '@octokit/rest';
 import { WorkflowResponse } from '../types.js';
 import { getProjectConfig } from '../config.js';
 import { getRepoInfo } from '../utils/github.js';
+import { getGitHubToken } from '../utils/auth.js';
 
 // GitHub bot IDs
 const COPILOT_BOT_ID = 'BOT_kgDOCnlnWA';
@@ -220,7 +220,7 @@ function suggestAction(
 export async function requestCopilotReReview(prNumber: number): Promise<boolean> {
   try {
     const { owner, repo } = getRepoInfo();
-    const token = execSync('gh auth token', { encoding: 'utf8' }).trim();
+    const token = getGitHubToken();
     const octokit = new Octokit({ auth: token });
 
     // First, get the PR node ID
@@ -297,7 +297,7 @@ export async function workflowMonitorReviews(
     const { owner, repo } = getRepoInfo();
 
     // Set up GitHub API
-    const token = execSync('gh auth token', { encoding: 'utf8' }).trim();
+    const token = getGitHubToken();
     const octokit = new Octokit({ auth: token });
 
     // Get all open PRs

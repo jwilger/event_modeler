@@ -9,6 +9,11 @@ vi.mock('child_process');
 vi.mock('@octokit/rest');
 vi.mock('../../config.js');
 
+// Mock auth
+vi.mock('../../utils/auth.js', () => ({
+  getGitHubToken: vi.fn(() => 'test-token'),
+}));
+
 const mockExecSync = vi.mocked(execSync);
 const mockOctokit = vi.mocked(Octokit);
 const mockGetProjectConfig = vi.mocked(config.getProjectConfig);
@@ -77,7 +82,6 @@ describe('workflowCreatePR', () => {
       if (cmd === 'git branch --show-current') return 'feature/test-branch-94';
       if (cmd === 'git status --porcelain') return '';
       if (cmd === 'git config --get remote.origin.url') return 'git@github.com:owner/repo.git';
-      if (cmd === 'gh auth token') return 'test-token';
       if (cmd.startsWith('git rev-parse origin/')) throw new Error('Branch not on remote');
       if (cmd.startsWith('git push')) return '';
       if (cmd.startsWith('git log')) return 'hash1\x00Test commit\x00\x00';
@@ -122,8 +126,7 @@ describe('workflowCreatePR', () => {
         if (cmd === 'git branch --show-current') return 'feature/test-branch-94';
         if (cmd === 'git status --porcelain') return '';
         if (cmd === 'git config --get remote.origin.url') return 'git@github.com:owner/repo.git';
-        if (cmd === 'gh auth token') return 'test-token';
-        if (cmd.startsWith('git rev-parse origin/')) throw new Error('Branch not on remote');
+          if (cmd.startsWith('git rev-parse origin/')) throw new Error('Branch not on remote');
         if (cmd.startsWith('git push')) return '';
         if (cmd.startsWith('git log')) return 'hash1\x00Test commit\x00\x00';
         if (cmd.startsWith('git diff')) return ' file1.ts | 10 ++++\n file2.ts | 5 ---\n';
@@ -275,8 +278,7 @@ describe('workflowCreatePR', () => {
         if (cmd === 'git branch --show-current') return 'feature/test-branch-94';
         if (cmd === 'git status --porcelain') return '';
         if (cmd === 'git config --get remote.origin.url') return 'git@github.com:owner/repo.git';
-        if (cmd === 'gh auth token') return 'test-token';
-        if (cmd.startsWith('git rev-parse origin/')) throw new Error('Branch not on remote');
+          if (cmd.startsWith('git rev-parse origin/')) throw new Error('Branch not on remote');
         if (cmd.startsWith('git push')) return '';
         if (cmd.startsWith('git log')) return 'hash1\x00Test commit\x00\x00';
         if (cmd.startsWith('git diff')) return ' file1.ts | 10 ++++\n file2.ts | 5 ---\n';

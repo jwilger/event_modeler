@@ -9,6 +9,11 @@ vi.mock('child_process');
 vi.mock('@octokit/rest');
 vi.mock('../../utils/github.js');
 
+// Mock auth
+vi.mock('../../utils/auth.js', () => ({
+  getGitHubToken: vi.fn(() => 'test-token'),
+}));
+
 const mockExecSync = vi.mocked(execSync);
 const mockOctokit = vi.mocked(Octokit);
 const mockGetRepoInfo = vi.mocked(github.getRepoInfo);
@@ -37,8 +42,7 @@ describe('workflowReplyReview', () => {
       repo: 'testrepo'
     });
 
-    mockExecSync.mockImplementation((cmd: string) => {
-      if (cmd === 'gh auth token') return 'test-token';
+    mockExecSync.mockImplementation(() => {
       return '';
     });
   });

@@ -2,6 +2,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { initializeAuth } from './utils/auth.js';
 
 import { workflowStatusTool } from './tools/workflow-status.js';
 import { workflowNext } from './tools/workflow-next.js';
@@ -10,6 +11,7 @@ import { workflowConfigure } from './tools/workflow-configure.js';
 import { workflowCreatePR } from './tools/workflow-create-pr.js';
 import { workflowMonitorReviews } from './tools/workflow-monitor-reviews.js';
 import { workflowReplyReview, workflowReplyReviewTool } from './tools/workflow-reply-review.js';
+import { workflowRequestReview, workflowRequestReviewTool } from './tools/workflow-request-review.js';
 import { workflowManageSubissues } from './tools/workflow-manage-subissues.js';
 import { workflowCreateIssue } from './tools/workflow-create-issue.js';
 import { gitBranch } from './tools/git-branch.js';
@@ -31,6 +33,7 @@ const server = new Server(
 
 // Register available tools
 server.setRequestHandler(ListToolsRequestSchema, async () => {
+  console.error('ListTools handler called - returning tools');
   return {
     tools: [
       {
@@ -150,6 +153,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       workflowReplyReviewTool,
+      workflowRequestReviewTool,
       {
         name: 'workflow_manage_subissues',
         description:
@@ -347,6 +351,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'workflow_reply_review':
         result = await workflowReplyReview(request.params.arguments as { prNumber: number; commentId: number; body: string });
         break;
+      case 'workflow_request_review':
+        result = await workflowRequestReview(request.params.arguments as { prNumber: number; reviewers?: string[]; skipBots?: boolean });
+        break;
       case 'workflow_manage_subissues':
         result = await workflowManageSubissues(request.params.arguments as { action: 'link' | 'unlink' | 'list'; epicNumber: number; issueNumber?: number });
         break;
@@ -397,8 +404,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
+// Initialize authentication at startup
+initializeAuth();
+
 // Start the server
 const transport = new StdioServerTransport();
 server.connect(transport);
 
 console.error('Event Modeler MCP Workflow Server started');
+console.error('Handlers registered');

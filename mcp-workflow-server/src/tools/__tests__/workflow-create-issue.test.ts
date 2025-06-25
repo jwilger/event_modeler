@@ -1,13 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { workflowCreateIssue } from '../workflow-create-issue.js';
 
-// Mock child_process
+// Mock child_process for git commands
 vi.mock('child_process', () => ({
   execSync: vi.fn((cmd: string) => {
-    if (cmd === 'gh auth token') return 'test-token';
     if (cmd === 'git config --get remote.origin.url') return 'https://github.com/testuser/testrepo.git';
     return '';
   }),
+}));
+
+// Mock auth
+vi.mock('../../utils/auth.js', () => ({
+  getGitHubToken: vi.fn(() => 'test-token'),
 }));
 
 // Mock @octokit/rest

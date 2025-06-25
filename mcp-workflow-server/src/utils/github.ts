@@ -1,20 +1,7 @@
 import { Octokit } from '@octokit/rest';
 import { execSync } from 'child_process';
 import { PRStatus } from '../types.js';
-
-// Get GitHub token from gh CLI config
-function getGitHubToken(): string {
-  try {
-    const token = execSync('gh auth token', { encoding: 'utf-8' }).trim();
-    if (!token) {
-      throw new Error('No GitHub token found');
-    }
-    return token;
-  } catch (error) {
-    console.error('Error while getting GitHub token:', error);
-    throw new Error('Failed to get GitHub token. Make sure gh CLI is authenticated.');
-  }
-}
+import { getGitHubToken } from './auth.js';
 
 // Get repository info from git remote
 export function getRepoInfo(): { owner: string; repo: string } {
