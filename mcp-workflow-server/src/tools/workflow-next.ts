@@ -243,6 +243,18 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       }
     }
 
+    // Parse issue number from branch name
+    let branchIssueNumber: number | null = null;
+    if (currentBranch !== 'main' && currentBranch !== 'master') {
+      // Try to extract issue number from branch name
+      // Common patterns: feature/some-feature-123, fix/issue-123, issue-123, etc.
+      const issueNumberMatch = currentBranch.match(/(\d+)(?:[^\d]|$)/);
+      if (issueNumberMatch) {
+        branchIssueNumber = parseInt(issueNumberMatch[1], 10);
+        automaticActions.push(`Detected issue #${branchIssueNumber} from branch name: ${currentBranch}`);
+      }
+    }
+
     // First, check if there are any PRs needing attention
     const reviewStatus = await workflowMonitorReviews({
       includeApproved: true,
@@ -750,6 +762,58 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       }
     } catch {
       // No PR found or error checking
+    }
+
+    // Check if the branch corresponds to an in-progress issue without a PR
+    if (branchIssueNumber && !existingPR) {
+      // Check if this issue is in the in-progress list
+      const branchIssue = allInProgressIssues.find(
+        (item) => item.content?.number === branchIssueNumber
+      );
+
+      if (branchIssue) {
+        automaticActions.push(
+          `Current branch corresponds to in-progress issue #${branchIssueNumber} but no PR exists`
+        );
+
+        // Check if there are commits on this branch
+        let hasCommits = false;
+        try {
+          const commitCount = execSync(
+            `git rev-list --count origin/main..HEAD`,
+            { encoding: 'utf8' }
+          ).trim();
+          hasCommits = parseInt(commitCount, 10) > 0;
+        } catch {
+          // If the command fails, assume we have commits (safer assumption)
+          hasCommits = true;
+        }
+
+        if (hasCommits) {
+          return {
+            requestedData: {
+              nextSteps: [
+                {
+                  action: 'todos_complete',
+                  issueNumber: branchIssueNumber,
+                  title: branchIssue.content!.title,
+                  status: 'In Progress',
+                  suggestion: `You have commits for issue #${branchIssueNumber} on branch '${currentBranch}'. Create a PR before moving to the next issue.`,
+                },
+              ],
+              context: {
+                currentBranch,
+                hasUncommittedChanges,
+                existingPR: null,
+              },
+            },
+            automaticActions,
+            issuesFound: [`Branch '${currentBranch}' has commits but no PR`],
+            suggestedActions: [`Create a PR for issue #${branchIssueNumber}`],
+            allPRStatus: [],
+          };
+        }
+      }
     }
 
     if (inProgressIssues.length === 0) {
