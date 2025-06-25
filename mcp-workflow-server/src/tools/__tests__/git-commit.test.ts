@@ -233,7 +233,7 @@ describe('gitCommit', () => {
         if (cmd.includes('npm run lint')) {
           return '';
         }
-        if (cmd.includes('npm run typecheck')) {
+        if (cmd.includes('npm run build')) {
           return '';
         }
         if (cmd === 'git rev-parse HEAD') {
@@ -250,7 +250,7 @@ describe('gitCommit', () => {
       });
 
       expect(result.automaticActions).toContain('npm run lint: ✓');
-      expect(result.automaticActions).toContain('npm run typecheck: ✓');
+      expect(result.automaticActions).toContain('TypeScript build: ✓');
     });
   });
 

@@ -138,9 +138,9 @@ async function runPreCommitChecks(files: string[]): Promise<{ passed: boolean; o
         execSync(`cd ${mcpDir} && npm run lint`, { encoding: 'utf8' });
         output += 'npm run lint: ✓\n';
         
-        // Run npm run typecheck
-        execSync(`cd ${mcpDir} && npm run typecheck`, { encoding: 'utf8' });
-        output += 'npm run typecheck: ✓\n';
+        // Run TypeScript build to check types
+        execSync(`cd ${mcpDir} && npm run build`, { encoding: 'utf8' });
+        output += 'TypeScript build: ✓\n';
       }
     } catch (error) {
       output += `TypeScript checks: ✗ (${error instanceof Error ? error.message : 'unknown error'})\n`;
