@@ -32,11 +32,11 @@ interface GitStashResponse extends WorkflowResponse {
 
 function parseStashList(): StashInfo[] {
   try {
-    const output = execSync('git stash list --format="%gd|%h|%gs|%ci"', { encoding: 'utf8' });
+    const output = execSync('git stash list --format="%gd\0%h\0%gs\0%ci"', { encoding: 'utf8' });
     if (!output.trim()) return [];
 
     return output.trim().split('\n').map(line => {
-      const [ref, hash, subject, date] = line.split('|');
+      const [ref, hash, subject, date] = line.split('\0');
       // Extract branch and message from subject (format: "On branch: message" or "WIP on branch: message")
       const subjectMatch = subject.match(/^(?:WIP )?[Oo]n (.+?):\s*(.+)$/);
       const branch = subjectMatch?.[1] || 'unknown';

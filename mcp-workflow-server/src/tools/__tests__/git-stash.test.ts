@@ -23,8 +23,8 @@ describe('gitStash', () => {
 
     it('should parse and return stashes', async () => {
       mockExecSync.mockReturnValue(
-        'stash@{0}|abc123|WIP on feature-branch: Initial commit|2024-01-20 10:00:00 +0000\n' +
-        'stash@{1}|def456|On main: Fix bug|2024-01-19 15:30:00 +0000'
+        'stash@{0}\u0000abc123\u0000WIP on feature-branch: Initial commit\u00002024-01-20 10:00:00 +0000\n' +
+        'stash@{1}\u0000def456\u0000On main: Fix bug\u00002024-01-19 15:30:00 +0000'
       );
 
       const result = await gitStash({ action: 'list' });
