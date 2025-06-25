@@ -28,3 +28,24 @@ repos:
         language: system
         files: \.rs$
         pass_filenames: false
+
+      - id: mcp-server-lint
+        name: MCP Server lint
+        entry: bash -c 'cd mcp-workflow-server && npm run lint'
+        language: system
+        files: ^mcp-workflow-server/.*\.ts$
+        pass_filenames: false
+
+      - id: mcp-server-build
+        name: MCP Server build
+        entry: bash -c 'cd mcp-workflow-server && npm run build'
+        language: system
+        files: ^mcp-workflow-server/.*\.ts$
+        pass_filenames: false
+
+      - id: mcp-server-test
+        name: MCP Server test
+        entry: bash -c 'cd mcp-workflow-server && npm test'
+        language: system
+        files: ^mcp-workflow-server/.*\.ts$
+        pass_filenames: false
