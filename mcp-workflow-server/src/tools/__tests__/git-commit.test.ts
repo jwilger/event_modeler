@@ -8,15 +8,13 @@ vi.mock('fs', () => ({
   promises: {
     writeFile: vi.fn(),
     unlink: vi.fn(),
-    access: vi.fn(),
   },
 }));
 
 describe('gitCommit', () => {
   const mockExecSync = vi.mocked(execSync);
   const mockWriteFile = vi.mocked(fs.writeFile);
-  vi.mocked(fs.unlink);
-  const mockAccess = vi.mocked(fs.access);
+  const mockUnlink = vi.mocked(fs.unlink);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -210,8 +208,11 @@ describe('gitCommit', () => {
         if (cmd === 'git status --porcelain') {
           return 'A  src/file.rs';
         }
-        if (cmd === 'cargo fmt -- --check') {
-          throw new Error('Formatting required');
+        if (cmd.includes('git commit')) {
+          const error = new Error('Command failed') as Error & { stdout: string; stderr: string };
+          error.stdout = '';
+          error.stderr = 'cargo fmt.........Failed\n- hook id: cargo-fmt\n- exit code: 1\n\nFormatting required';
+          throw error;
         }
         return '';
       });
@@ -222,19 +223,16 @@ describe('gitCommit', () => {
       });
 
       expect(result.issuesFound).toContain('Pre-commit checks failed');
-      expect(result.automaticActions).toContain('cargo fmt: ✗ (run `cargo fmt` to fix)');
+      expect(result.suggestedActions).toContain('Run `cargo fmt` to fix formatting issues');
     });
 
-    it('should handle TypeScript pre-commit checks', async () => {
+    it('should handle successful commit with pre-commit hooks', async () => {
       mockExecSync.mockImplementation((cmd) => {
         if (cmd === 'git status --porcelain') {
           return 'A  src/file.ts';
         }
-        if (cmd.includes('npm run lint')) {
-          return '';
-        }
-        if (cmd.includes('npm run build')) {
-          return '';
+        if (cmd.includes('git commit')) {
+          return 'MCP Server lint..........................................................Passed\nMCP Server build.........................................................Passed\n[feature-branch abc123] Test commit\n 1 file changed, 10 insertions(+)';
         }
         if (cmd === 'git rev-parse HEAD') {
           return 'abc123';
@@ -242,15 +240,17 @@ describe('gitCommit', () => {
         return '';
       });
 
-      mockAccess.mockResolvedValue(undefined); // mcp-workflow-server exists
+      mockWriteFile.mockResolvedValue(undefined);
+      mockUnlink.mockResolvedValue(undefined);
 
       const result = await gitCommit({
         action: 'commit',
         message: 'Test commit',
       });
 
-      expect(result.automaticActions).toContain('npm run lint: ✓');
-      expect(result.automaticActions).toContain('TypeScript build: ✓');
+      expect(result.requestedData.commitHash).toBe('abc123');
+      expect(result.automaticActions).toContain('MCP Server lint..........................................................Passed');
+      expect(result.automaticActions).toContain('MCP Server build.........................................................Passed');
     });
   });
 
