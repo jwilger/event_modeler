@@ -252,6 +252,71 @@ describe('gitCommit', () => {
       expect(result.automaticActions).toContain('MCP Server lint..........................................................Passed');
       expect(result.automaticActions).toContain('MCP Server build.........................................................Passed');
     });
+
+    it('should parse detailed TypeScript errors from pre-commit', async () => {
+      mockExecSync.mockImplementation((cmd) => {
+        if (cmd === 'git status --porcelain') {
+          return 'A  src/file.ts';
+        }
+        if (cmd.includes('git commit')) {
+          const error = new Error('Command failed') as Error & { stdout: string; stderr: string };
+          error.stdout = '';
+          error.stderr = `MCP Server build.........................................................Failed
+- hook id: mcp-server-build
+- exit code: 1
+
+src/tools/example.ts(42,5): error TS2339: Property 'foo' does not exist on type 'Bar'.
+src/tools/example.ts(78,12): error TS2304: Cannot find name 'undefined_var'.`;
+          throw error;
+        }
+        return '';
+      });
+
+      const result = await gitCommit({
+        action: 'commit',
+        message: 'Test commit',
+      });
+
+      expect(result.issuesFound).toContain('Pre-commit checks failed: TypeScript');
+      expect(result.automaticActions).toContain('Pre-commit hook failures:');
+      expect(result.automaticActions).toContain('TypeScript check failed with 2 errors:');
+      expect(result.automaticActions).toContain("  src/tools/example.ts:42:5 [error] - Property 'foo' does not exist on type 'Bar'. (TS2339)");
+      expect(result.automaticActions).toContain("  src/tools/example.ts:78:12 [error] - Cannot find name 'undefined_var'. (TS2304)");
+      expect(result.suggestedActions).toContain('Fix TypeScript errors in the affected files');
+      expect(result.suggestedActions).toContain('Run `npm run build` to see full error details');
+    });
+
+    it('should parse ESLint errors from pre-commit', async () => {
+      mockExecSync.mockImplementation((cmd) => {
+        if (cmd === 'git status --porcelain') {
+          return 'A  src/file.ts';
+        }
+        if (cmd.includes('git commit')) {
+          const error = new Error('Command failed') as Error & { stdout: string; stderr: string };
+          error.stdout = '';
+          error.stderr = `MCP Server lint..........................................................Failed
+- hook id: mcp-server-lint
+- exit code: 1
+
+/home/user/project/src/tools/example.ts
+  10:5  error  'foo' is defined but never used  @typescript-eslint/no-unused-vars
+  25:10  warning  Missing return type on function  @typescript-eslint/explicit-function-return-type`;
+          throw error;
+        }
+        return '';
+      });
+
+      const result = await gitCommit({
+        action: 'commit',
+        message: 'Test commit',
+      });
+
+      expect(result.issuesFound).toContain('Pre-commit checks failed: ESLint');
+      expect(result.automaticActions).toContain('ESLint found 2 issues:');
+      expect(result.automaticActions).toContain("  /home/user/project/src/tools/example.ts:10:5 [error] - 'foo' is defined but never used (@typescript-eslint/no-unused-vars)");
+      expect(result.suggestedActions).toContain('Fix ESLint issues in the affected files');
+      expect(result.suggestedActions).toContain('Run `npm run lint -- --fix` to auto-fix some issues');
+    });
   });
 
   describe('amend action', () => {
