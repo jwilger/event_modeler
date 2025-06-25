@@ -13,6 +13,7 @@ import { workflowReplyReview, workflowReplyReviewTool } from './tools/workflow-r
 import { workflowManageSubissues } from './tools/workflow-manage-subissues.js';
 import { gitBranch } from './tools/git-branch.js';
 import { gitCommit } from './tools/git-commit.js';
+import { gitStash } from './tools/git-stash.js';
 import { WorkflowResponse } from './types.js';
 
 const server = new Server(
@@ -233,6 +234,42 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['action'],
         },
       },
+      {
+        name: 'git_stash',
+        description:
+          'Git stash operations: save, pop, apply, list, drop, clear stashes with auto-generated messages',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            action: {
+              type: 'string',
+              enum: ['list', 'save', 'pop', 'apply', 'drop', 'clear', 'show'],
+              description: 'The git stash operation to perform',
+            },
+            message: {
+              type: 'string',
+              description: 'Custom message for save action (auto-generated if not provided)',
+            },
+            stashRef: {
+              type: ['string', 'number'],
+              description: 'Stash reference for pop/apply/drop/show (index or stash@{n})',
+            },
+            includeUntracked: {
+              type: 'boolean',
+              description: 'Include untracked files when saving (--include-untracked)',
+            },
+            keepIndex: {
+              type: 'boolean',
+              description: 'Keep staged changes in index when saving (--keep-index)',
+            },
+            quiet: {
+              type: 'boolean',
+              description: 'Suppress output for pop/apply operations',
+            },
+          },
+          required: ['action'],
+        },
+      },
     ],
   };
 });
@@ -274,6 +311,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       case 'git_commit':
         result = await gitCommit(request.params.arguments as { action: 'stage' | 'unstage' | 'status' | 'commit' | 'amend'; files?: string[]; message?: string; issueNumber?: number; all?: boolean });
+        break;
+      case 'git_stash':
+        result = await gitStash(request.params.arguments as { action: 'list' | 'save' | 'pop' | 'apply' | 'drop' | 'clear' | 'show'; message?: string; stashRef?: string | number; includeUntracked?: boolean; keepIndex?: boolean; quiet?: boolean });
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);

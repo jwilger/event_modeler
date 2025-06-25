@@ -4,13 +4,58 @@ An MCP (Model Context Protocol) server that helps manage the Event Modeler devel
 
 ## Features
 
-### Phase 1: Workflow Status (Complete)
-The `workflow_status` tool provides comprehensive repository and PR status monitoring:
+### Workflow Tools
 
+#### `workflow_status` (Phase 1 - Complete)
+Provides comprehensive repository and PR status monitoring:
 - **Git Status**: Current branch, uncommitted changes, ahead/behind status
 - **PR Monitoring**: CI status, review comments, rebase needs
 - **Stale Branch Detection**: Identifies branches created before recent main merges
 - **State Persistence**: Tracks changes between invocations to detect new issues
+
+#### `workflow_next` (Phase 2 - Complete)
+Intelligent guidance on what to work on next based on assigned GitHub issues.
+
+#### `workflow_create_pr` (Phase 3 - Complete)
+Smart PR creation with automatic title and description generation from commits and issues.
+
+#### `workflow_monitor_reviews` (Phase 4 - Complete)
+Monitor PR reviews across the repository and detect feedback needing attention.
+
+### Git Tools
+
+#### `git_branch`
+Manage Git branches with operations:
+- `checkout`: Switch branches with uncommitted change detection
+- `create`: Create new branches, optionally from issue numbers
+- `pull`: Pull latest changes
+- `push`: Push branches to remote
+- `list`: List all branches with tracking info
+- `start-work`: High-level action to start work on an issue
+
+#### `git_commit`
+Git commit operations with smart formatting:
+- `stage`: Stage files for commit
+- `unstage`: Unstage files
+- `status`: Show current Git status
+- `commit`: Create commits with auto-generated messages
+- `amend`: Amend the last commit
+
+#### `git_stash`
+Git stash operations for managing work in progress:
+- `list`: Show all stashes
+- `save`: Stash changes with auto-generated descriptions
+- `pop`: Apply and remove a stash
+- `apply`: Apply a stash without removing it
+- `drop`: Remove a specific stash
+- `clear`: Remove all stashes
+- `show`: Display stash contents
+
+Features:
+- Auto-generates stash descriptions from current branch and issue context
+- Warns before stashing changes related to current issue
+- Integrates with branch switching workflow
+- Handles stash conflicts gracefully
 
 ## Installation & Setup
 
