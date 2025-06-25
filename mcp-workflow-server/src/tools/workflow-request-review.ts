@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { execSync } from "child_process";
 import { Octokit } from "@octokit/rest";
 import { getRepoInfo } from "../utils/github.js";
 import type { WorkflowResponse } from "../types.js";
@@ -73,6 +72,18 @@ interface ReviewerInfo {
   nodeId: string;
 }
 
+// Helper function to collect reviewer info
+function collectReviewerInfo(reviewer: GitHubUser | null): ReviewerInfo | null {
+  if (!reviewer) return null;
+  const isBot = reviewer.id.startsWith("BOT_");
+  return {
+    login: reviewer.login,
+    id: reviewer.id,
+    isBot,
+    nodeId: reviewer.id,
+  };
+}
+
 export async function workflowRequestReview(
   input: RequestReviewInput
 ): Promise<WorkflowResponse> {
@@ -83,7 +94,10 @@ export async function workflowRequestReview(
 
   try {
     // Get GitHub token
-    const token = execSync("gh auth token", { encoding: "utf8" }).trim();
+    const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+    if (!token) {
+      throw new Error("GitHub token not found in environment variables (GH_TOKEN or GITHUB_TOKEN).");
+    }
     const octokit = new Octokit({ auth: token });
     const { owner, repo } = getRepoInfo();
 
@@ -179,42 +193,26 @@ export async function workflowRequestReview(
 
     // Collect reviewers from review requests
     pullRequest.reviewRequests.nodes.forEach((node) => {
-      if (node.requestedReviewer) {
-        const reviewer = node.requestedReviewer;
-        const isBot = reviewer.id.startsWith("BOT_");
-        allReviewers.set(reviewer.login, {
-          login: reviewer.login,
-          id: reviewer.id,
-          isBot,
-          nodeId: reviewer.id,
-        });
+      const reviewerInfo = collectReviewerInfo(node.requestedReviewer);
+      if (reviewerInfo) {
+        allReviewers.set(reviewerInfo.login, reviewerInfo);
       }
     });
 
     // Collect reviewers from actual reviews
     pullRequest.reviews.nodes.forEach((review) => {
-      if (review.author) {
-        const isBot = review.author.id.startsWith("BOT_");
-        allReviewers.set(review.author.login, {
-          login: review.author.login,
-          id: review.author.id,
-          isBot,
-          nodeId: review.author.id,
-        });
+      const reviewerInfo = collectReviewerInfo(review.author);
+      if (reviewerInfo) {
+        allReviewers.set(reviewerInfo.login, reviewerInfo);
       }
     });
 
     // Collect reviewers from review comments
     pullRequest.reviewThreads.nodes.forEach((thread) => {
       thread.comments.nodes.forEach((comment) => {
-        if (comment.author) {
-          const isBot = comment.author.id.startsWith("BOT_");
-          allReviewers.set(comment.author.login, {
-            login: comment.author.login,
-            id: comment.author.id,
-            isBot,
-            nodeId: comment.author.id,
-          });
+        const reviewerInfo = collectReviewerInfo(comment.author);
+        if (reviewerInfo) {
+          allReviewers.set(reviewerInfo.login, reviewerInfo);
         }
       });
     });

@@ -1,9 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { workflowRequestReview } from "../workflow-request-review.js";
-import { execSync } from "child_process";
 import { Octokit } from "@octokit/rest";
 
-vi.mock("child_process");
 vi.mock("@octokit/rest");
 vi.mock("../../utils/github.js", () => ({
   getRepoInfo: (): { owner: string; repo: string } => ({ owner: "test-owner", repo: "test-repo" }),
@@ -19,12 +17,12 @@ interface MockOctokit {
 
 describe("workflowRequestReview", () => {
   let mockOctokit: MockOctokit;
-  let mockExecSync: ReturnType<typeof vi.fn>;
+  const originalEnv = process.env;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockExecSync = vi.mocked(execSync);
-    mockExecSync.mockReturnValue("test-token");
+    // Set up environment variable for tests
+    process.env = { ...originalEnv, GH_TOKEN: "test-token" };
 
     mockOctokit = {
       pulls: {
@@ -34,6 +32,11 @@ describe("workflowRequestReview", () => {
       graphql: vi.fn(),
     };
     vi.mocked(Octokit).mockImplementation(() => mockOctokit as unknown as Octokit);
+  });
+
+  afterEach(() => {
+    // Restore original environment
+    process.env = originalEnv;
   });
 
   it("should request reviews from all previous reviewers by default", async (): Promise<void> => {
@@ -411,6 +414,21 @@ describe("workflowRequestReview", () => {
     });
     expect(result.automaticActions).toContain(
       "reviewer1 already has a pending review request"
+    );
+  });
+
+  it("should handle missing GitHub token", async (): Promise<void> => {
+    // Remove the token from environment
+    delete process.env.GH_TOKEN;
+    delete process.env.GITHUB_TOKEN;
+
+    const result = await workflowRequestReview({
+      prNumber: 123,
+    });
+
+    expect(result.requestedData).toBeNull();
+    expect(result.issuesFound).toContain(
+      "Error: GitHub token not found in environment variables (GH_TOKEN or GITHUB_TOKEN)."
     );
   });
 
