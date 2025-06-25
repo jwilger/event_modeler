@@ -14,6 +14,7 @@ import { workflowReplyReview, workflowReplyReviewTool } from './tools/workflow-r
 import { workflowRequestReview, workflowRequestReviewTool } from './tools/workflow-request-review.js';
 import { workflowManageSubissues } from './tools/workflow-manage-subissues.js';
 import { workflowCreateIssue } from './tools/workflow-create-issue.js';
+import { workflowUpdateIssue } from './tools/workflow-update-issue.js';
 import { gitBranch } from './tools/git-branch.js';
 import { gitCommit } from './tools/git-commit.js';
 import { gitStash } from './tools/git-stash.js';
@@ -222,6 +223,36 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: 'workflow_update_issue',
+        description:
+          'Update GitHub issue project fields (status, type, priority) without needing GraphQL knowledge',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            issueNumber: {
+              type: 'number',
+              description: 'Issue number to update',
+            },
+            status: {
+              type: 'string',
+              enum: ['todo', 'in_progress', 'done'],
+              description: 'Update issue status (optional)',
+            },
+            type: {
+              type: 'string',
+              enum: ['epic', 'feature', 'bug', 'enhancement', 'documentation', 'question'],
+              description: 'Update issue type (optional)',
+            },
+            priority: {
+              type: 'string',
+              enum: ['low', 'medium', 'high', 'urgent'],
+              description: 'Update issue priority (optional)',
+            },
+          },
+          required: ['issueNumber'],
+        },
+      },
+      {
         name: 'git_branch',
         description:
           'Manage Git branches: checkout, create, pull, push, list branches, or start work on an issue',
@@ -359,6 +390,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       case 'workflow_create_issue':
         result = await workflowCreateIssue(request.params.arguments as { title: string; body: string; epicNumber?: number; type?: 'bug' | 'feature' | 'enhancement' | 'documentation' | 'question'; priority?: 'low' | 'medium' | 'high' | 'urgent'; labels?: string[]; assignees?: string[] });
+        break;
+      case 'workflow_update_issue':
+        result = await workflowUpdateIssue(request.params.arguments as { issueNumber: number; status?: 'todo' | 'in_progress' | 'done'; type?: 'epic' | 'feature' | 'bug' | 'enhancement' | 'documentation' | 'question'; priority?: 'low' | 'medium' | 'high' | 'urgent' });
         break;
       case 'git_branch':
         result = await gitBranch(request.params.arguments as { action: 'checkout' | 'create' | 'pull' | 'push' | 'list' | 'start-work'; branch?: string; issueNumber?: number; force?: boolean });
