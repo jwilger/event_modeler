@@ -52,8 +52,14 @@ export function parseESLintErrors(output: string): ParsedError[] {
   let currentFile: string | undefined;
   
   for (const line of lines) {
-    // File path line
-    if (line.startsWith('/') && !line.includes(':')) {
+    // File path line - support both Unix and Windows paths
+    // Unix: /path/to/file.ts
+    // Windows: C:\path\to\file.ts or C:/path/to/file.ts
+    const isWindowsPath = /^[A-Za-z]:[\\/]/.test(line);
+    const isUnixPath = line.startsWith('/');
+    const hasNoLocationInfo = !line.includes(':') || (isWindowsPath && line.split(':').length === 2);
+    
+    if ((isUnixPath || isWindowsPath) && hasNoLocationInfo) {
       currentFile = line.trim();
       continue;
     }
@@ -233,5 +239,13 @@ export function formatParsedErrors(toolErrors: ToolError[]): string[] {
     }
   }
   
-  return formatted.filter(line => line !== '' || formatted.indexOf(line) < formatted.length - 1);
+  // Remove trailing empty lines but preserve empty lines between tools
+  return formatted.filter((line, index, arr) => {
+    // Keep non-empty lines
+    if (line !== '') return true;
+    // Keep empty lines that are not at the end
+    if (index < arr.length - 1) return true;
+    // Remove trailing empty lines
+    return false;
+  });
 }

@@ -71,6 +71,31 @@ src/utils/helper.ts(10,3): warning TS6133: 'unused' is declared but its value is
       expect(errors[1].severity).toBe('warning');
       expect(errors[2].file).toBe('/home/user/project/src/utils/helper.ts');
     });
+
+    it('should parse ESLint errors with Windows paths', () => {
+      const output = `
+C:\\Users\\project\\src\\tools\\example.ts
+  10:5  error  'foo' is defined but never used  @typescript-eslint/no-unused-vars
+  25:10  warning  Missing return type on function  @typescript-eslint/explicit-function-return-type
+
+C:/Users/project/src/utils/helper.ts
+  5:1  error  'console' is not allowed  no-console
+      `;
+
+      const errors = parseESLintErrors(output);
+
+      expect(errors).toHaveLength(3);
+      expect(errors[0]).toEqual({
+        file: 'C:\\Users\\project\\src\\tools\\example.ts',
+        line: 10,
+        column: 5,
+        severity: 'error',
+        message: "'foo' is defined but never used",
+        rule: '@typescript-eslint/no-unused-vars',
+      });
+      expect(errors[1].severity).toBe('warning');
+      expect(errors[2].file).toBe('C:/Users/project/src/utils/helper.ts');
+    });
   });
 
   describe('parseCargoErrors', () => {
@@ -248,6 +273,48 @@ error: file not formatted according to style guide
 
       expect(formatted).toContain('1 test failed:');
       expect(formatted).toContain('   [error] - Test suite failed');
+    });
+
+    it('should preserve empty lines between tools but remove trailing empty lines', () => {
+      const toolErrors = [
+        {
+          tool: 'TypeScript',
+          errors: [
+            {
+              file: 'src/example.ts',
+              line: 42,
+              message: 'Error 1',
+              severity: 'error' as const,
+            },
+          ],
+          summary: 'TypeScript errors',
+          fixSuggestions: [],
+        },
+        {
+          tool: 'ESLint',
+          errors: [
+            {
+              file: 'src/example.ts',
+              line: 10,
+              message: 'Error 2',
+              severity: 'error' as const,
+            },
+          ],
+          summary: 'ESLint errors',
+          fixSuggestions: [],
+        },
+      ];
+
+      const formatted = formatParsedErrors(toolErrors);
+      
+      // Should have empty line between tools
+      const typeScriptIndex = formatted.findIndex(line => line.includes('TypeScript errors'));
+      const eslintIndex = formatted.findIndex(line => line.includes('ESLint errors'));
+      const emptyLineBetween = formatted.slice(typeScriptIndex + 1, eslintIndex).some(line => line === '');
+      expect(emptyLineBetween).toBe(true);
+      
+      // Should not have trailing empty lines
+      expect(formatted[formatted.length - 1]).not.toBe('');
     });
   });
 });

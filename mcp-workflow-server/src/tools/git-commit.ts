@@ -112,6 +112,71 @@ function formatCommitMessage(message: string, issueNumber?: number): string {
   return formattedMessage;
 }
 
+/**
+ * Process pre-commit hook failure output into structured errors and suggestions
+ */
+function processPreCommitFailure(
+  error: Error,
+  automaticActions: string[],
+  issuesFound: string[],
+  suggestedActions: string[]
+): void {
+  const errorMessage = error.message;
+  
+  // Extract useful error information from stderr
+  if ('stderr' in error) {
+    const stderr = (error as Error & { stderr?: string }).stderr || '';
+    const stdout = (error as Error & { stdout?: string }).stdout || '';
+    const fullOutput = stdout + stderr;
+    
+    // Parse the pre-commit output for structured errors
+    const toolErrors = parsePreCommitOutput(fullOutput);
+    
+    if (toolErrors.length > 0) {
+      // Add categorized error summary
+      const errorTypes = toolErrors.map(te => te.tool).join(', ');
+      issuesFound.push(`Pre-commit checks failed: ${errorTypes}`);
+      
+      // Add formatted parsed errors
+      automaticActions.push('Pre-commit hook failures:');
+      const formattedErrors = formatParsedErrors(toolErrors);
+      automaticActions.push(...formattedErrors);
+      
+      // Add all unique fix suggestions
+      const allSuggestions = new Set<string>();
+      toolErrors.forEach(te => te.fixSuggestions.forEach(s => allSuggestions.add(s)));
+      suggestedActions.push(...Array.from(allSuggestions));
+    } else {
+      // Fallback to raw output if we can't parse structured errors
+      issuesFound.push('Pre-commit checks failed');
+      
+      const outputLines = fullOutput.split('\n').filter(line => line.trim());
+      if (outputLines.length > 0) {
+        automaticActions.push('Pre-commit hook output:');
+        automaticActions.push(...outputLines);
+      }
+      
+      // Keep basic suggestions as fallback
+      if (fullOutput.includes('cargo fmt')) {
+        suggestedActions.push('Run `cargo fmt` to fix formatting issues');
+      }
+      if (fullOutput.includes('cargo clippy')) {
+        suggestedActions.push('Fix Clippy warnings');
+      }
+      if (fullOutput.includes('npm run lint')) {
+        suggestedActions.push('Fix ESLint issues');
+      }
+      if (fullOutput.includes('npm run build') || fullOutput.includes('TypeScript')) {
+        suggestedActions.push('Fix TypeScript errors');
+      }
+    }
+  } else {
+    issuesFound.push(`Failed to create commit: ${errorMessage}`);
+  }
+  
+  suggestedActions.push('Fix the issues and try again');
+}
+
 export async function gitCommit(input: GitCommitInput): Promise<GitCommitResponse> {
   const automaticActions: string[] = [];
   const issuesFound: string[] = [];
@@ -297,60 +362,12 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
           };
         } catch (error) {
           // Git commit failed - likely due to pre-commit hooks
-          const errorMessage = error instanceof Error ? error.message : 'unknown error';
-          
-          // Extract useful error information from stderr
-          if (error instanceof Error && 'stderr' in error) {
-            const stderr = (error as Error & { stderr?: string }).stderr || '';
-            const stdout = (error as Error & { stdout?: string }).stdout || '';
-            const fullOutput = stdout + stderr;
-            
-            // Parse the pre-commit output for structured errors
-            const toolErrors = parsePreCommitOutput(fullOutput);
-            
-            if (toolErrors.length > 0) {
-              // Add categorized error summary
-              const errorTypes = toolErrors.map(te => te.tool).join(', ');
-              issuesFound.push(`Pre-commit checks failed: ${errorTypes}`);
-              
-              // Add formatted parsed errors
-              automaticActions.push('Pre-commit hook failures:');
-              const formattedErrors = formatParsedErrors(toolErrors);
-              automaticActions.push(...formattedErrors);
-              
-              // Add all unique fix suggestions
-              const allSuggestions = new Set<string>();
-              toolErrors.forEach(te => te.fixSuggestions.forEach(s => allSuggestions.add(s)));
-              suggestedActions.push(...Array.from(allSuggestions));
-            } else {
-              // Fallback to raw output if we can't parse structured errors
-              issuesFound.push('Pre-commit checks failed');
-              
-              const outputLines = fullOutput.split('\n').filter(line => line.trim());
-              if (outputLines.length > 0) {
-                automaticActions.push('Pre-commit hook output:');
-                automaticActions.push(...outputLines);
-              }
-              
-              // Keep basic suggestions as fallback
-              if (fullOutput.includes('cargo fmt')) {
-                suggestedActions.push('Run `cargo fmt` to fix formatting issues');
-              }
-              if (fullOutput.includes('cargo clippy')) {
-                suggestedActions.push('Fix Clippy warnings');
-              }
-              if (fullOutput.includes('npm run lint')) {
-                suggestedActions.push('Fix ESLint issues');
-              }
-              if (fullOutput.includes('npm run build') || fullOutput.includes('TypeScript')) {
-                suggestedActions.push('Fix TypeScript errors');
-              }
-            }
+          if (error instanceof Error) {
+            processPreCommitFailure(error, automaticActions, issuesFound, suggestedActions);
           } else {
-            issuesFound.push(`Failed to create commit: ${errorMessage}`);
+            issuesFound.push(`Failed to create commit: ${String(error)}`);
+            suggestedActions.push('Fix the issues and try again');
           }
-          
-          suggestedActions.push('Fix the issues and try again');
           
           return {
             requestedData: {},
@@ -418,60 +435,24 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
           };
         } catch (error) {
           // Git commit failed - likely due to pre-commit hooks
-          const errorMessage = error instanceof Error ? error.message : 'unknown error';
-          
-          // Extract useful error information from stderr
-          if (error instanceof Error && 'stderr' in error) {
-            const stderr = (error as Error & { stderr?: string }).stderr || '';
-            const stdout = (error as Error & { stdout?: string }).stdout || '';
-            const fullOutput = stdout + stderr;
+          if (error instanceof Error) {
+            // Override the default message for amend case
+            const originalPush = issuesFound.push.bind(issuesFound);
+            issuesFound.push = function(item: string): number {
+              if (item.includes('Pre-commit checks failed:')) {
+                return originalPush(item.replace('Pre-commit checks failed:', 'Pre-commit checks failed during amend:'));
+              }
+              return originalPush(item);
+            };
             
-            // Parse the pre-commit output for structured errors
-            const toolErrors = parsePreCommitOutput(fullOutput);
+            processPreCommitFailure(error, automaticActions, issuesFound, suggestedActions);
             
-            if (toolErrors.length > 0) {
-              // Add categorized error summary
-              const errorTypes = toolErrors.map(te => te.tool).join(', ');
-              issuesFound.push(`Pre-commit checks failed during amend: ${errorTypes}`);
-              
-              // Add formatted parsed errors
-              automaticActions.push('Pre-commit hook failures:');
-              const formattedErrors = formatParsedErrors(toolErrors);
-              automaticActions.push(...formattedErrors);
-              
-              // Add all unique fix suggestions
-              const allSuggestions = new Set<string>();
-              toolErrors.forEach(te => te.fixSuggestions.forEach(s => allSuggestions.add(s)));
-              suggestedActions.push(...Array.from(allSuggestions));
-            } else {
-              // Fallback to raw output if we can't parse structured errors
-              issuesFound.push('Pre-commit checks failed during amend');
-              
-              const outputLines = fullOutput.split('\n').filter((line: string) => line.trim());
-              if (outputLines.length > 0) {
-                automaticActions.push('Pre-commit hook output:');
-                automaticActions.push(...outputLines);
-              }
-              
-              // Keep basic suggestions as fallback
-              if (fullOutput.includes('cargo fmt')) {
-                suggestedActions.push('Run `cargo fmt` to fix formatting issues');
-              }
-              if (fullOutput.includes('cargo clippy')) {
-                suggestedActions.push('Fix Clippy warnings');
-              }
-              if (fullOutput.includes('npm run lint')) {
-                suggestedActions.push('Fix ESLint issues');
-              }
-              if (fullOutput.includes('npm run build') || fullOutput.includes('TypeScript')) {
-                suggestedActions.push('Fix TypeScript errors');
-              }
-            }
+            // Restore original push method
+            issuesFound.push = originalPush;
           } else {
-            issuesFound.push(`Failed to amend commit: ${errorMessage}`);
+            issuesFound.push(`Failed to amend commit: ${String(error)}`);
+            suggestedActions.push('Fix the issues and try again');
           }
-          
-          suggestedActions.push('Fix the issues and try again');
           
           return {
             requestedData: {},
