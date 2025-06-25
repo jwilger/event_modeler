@@ -259,7 +259,9 @@ async function checkPRMergeReadiness(
       hasUnresolvedComments,
       blockingReasons,
     };
-  } catch {
+  } catch (error) {
+    // Log the error for better observability
+    console.error('Error during merge readiness check:', error);
     // If we can't determine merge readiness, assume it's not ready
     return {
       isMergeReady: false,
@@ -625,21 +627,23 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
 
     // Priority 3: Check for truly merge-ready PRs
     if (myPRsApproved.length > 0) {
-      // Check merge readiness for all approved PRs
-      const mergeReadinessChecks = await Promise.all(
-        myPRsApproved.map(async (pr) => ({
-          pr,
-          readiness: await checkPRMergeReadiness(octokit, owner.login, name, pr.prNumber, pr),
-        }))
-      );
+      // Check merge readiness, short-circuiting when we find a ready PR
+      let mergeReadyPR = null;
+      const notYetReadyPRs = [];
 
-      // Find truly merge-ready PRs
-      const mergeReadyPRs = mergeReadinessChecks.filter(({ readiness }) => readiness.isMergeReady);
-      const notYetReadyPRs = mergeReadinessChecks.filter(({ readiness }) => !readiness.isMergeReady);
+      for (const pr of myPRsApproved) {
+        const readiness = await checkPRMergeReadiness(octokit, owner.login, name, pr.prNumber, pr);
+        if (readiness.isMergeReady) {
+          mergeReadyPR = { pr, readiness };
+          break;
+        } else {
+          notYetReadyPRs.push({ pr, readiness });
+        }
+      }
 
-      // If we have truly merge-ready PRs, prioritize them
-      if (mergeReadyPRs.length > 0) {
-        const { pr, readiness } = mergeReadyPRs[0];
+      // If we have a truly merge-ready PR, prioritize it
+      if (mergeReadyPR) {
+        const { pr, readiness } = mergeReadyPR;
         automaticActions.push(
           `Found PR #${pr.prNumber} authored by you that is fully ready to merge (approved, CI passing, no conflicts)`
         );
