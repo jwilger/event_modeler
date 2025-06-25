@@ -3,6 +3,7 @@ import { WorkflowResponse } from '../types.js';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { parsePreCommitOutput, formatParsedErrors } from '../utils/error-parser.js';
 
 interface GitCommitInput {
   action: 'stage' | 'unstage' | 'status' | 'commit' | 'amend';
@@ -304,27 +305,46 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
             const stdout = (error as Error & { stdout?: string }).stdout || '';
             const fullOutput = stdout + stderr;
             
-            issuesFound.push('Pre-commit checks failed');
+            // Parse the pre-commit output for structured errors
+            const toolErrors = parsePreCommitOutput(fullOutput);
             
-            // Add the error output to automatic actions for visibility
-            const outputLines = fullOutput.split('\n').filter(line => line.trim());
-            if (outputLines.length > 0) {
-              automaticActions.push('Pre-commit hook output:');
-              automaticActions.push(...outputLines);
-            }
-            
-            // Try to extract specific failures
-            if (fullOutput.includes('cargo fmt')) {
-              suggestedActions.push('Run `cargo fmt` to fix formatting issues');
-            }
-            if (fullOutput.includes('cargo clippy')) {
-              suggestedActions.push('Fix Clippy warnings');
-            }
-            if (fullOutput.includes('npm run lint')) {
-              suggestedActions.push('Fix ESLint issues');
-            }
-            if (fullOutput.includes('npm run build') || fullOutput.includes('TypeScript')) {
-              suggestedActions.push('Fix TypeScript errors');
+            if (toolErrors.length > 0) {
+              // Add categorized error summary
+              const errorTypes = toolErrors.map(te => te.tool).join(', ');
+              issuesFound.push(`Pre-commit checks failed: ${errorTypes}`);
+              
+              // Add formatted parsed errors
+              automaticActions.push('Pre-commit hook failures:');
+              const formattedErrors = formatParsedErrors(toolErrors);
+              automaticActions.push(...formattedErrors);
+              
+              // Add all unique fix suggestions
+              const allSuggestions = new Set<string>();
+              toolErrors.forEach(te => te.fixSuggestions.forEach(s => allSuggestions.add(s)));
+              suggestedActions.push(...Array.from(allSuggestions));
+            } else {
+              // Fallback to raw output if we can't parse structured errors
+              issuesFound.push('Pre-commit checks failed');
+              
+              const outputLines = fullOutput.split('\n').filter(line => line.trim());
+              if (outputLines.length > 0) {
+                automaticActions.push('Pre-commit hook output:');
+                automaticActions.push(...outputLines);
+              }
+              
+              // Keep basic suggestions as fallback
+              if (fullOutput.includes('cargo fmt')) {
+                suggestedActions.push('Run `cargo fmt` to fix formatting issues');
+              }
+              if (fullOutput.includes('cargo clippy')) {
+                suggestedActions.push('Fix Clippy warnings');
+              }
+              if (fullOutput.includes('npm run lint')) {
+                suggestedActions.push('Fix ESLint issues');
+              }
+              if (fullOutput.includes('npm run build') || fullOutput.includes('TypeScript')) {
+                suggestedActions.push('Fix TypeScript errors');
+              }
             }
           } else {
             issuesFound.push(`Failed to create commit: ${errorMessage}`);
@@ -406,27 +426,46 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
             const stdout = (error as Error & { stdout?: string }).stdout || '';
             const fullOutput = stdout + stderr;
             
-            issuesFound.push('Pre-commit checks failed during amend');
+            // Parse the pre-commit output for structured errors
+            const toolErrors = parsePreCommitOutput(fullOutput);
             
-            // Add the error output to automatic actions for visibility
-            const outputLines = fullOutput.split('\n').filter((line: string) => line.trim());
-            if (outputLines.length > 0) {
-              automaticActions.push('Pre-commit hook output:');
-              automaticActions.push(...outputLines);
-            }
-            
-            // Same error suggestions as commit
-            if (fullOutput.includes('cargo fmt')) {
-              suggestedActions.push('Run `cargo fmt` to fix formatting issues');
-            }
-            if (fullOutput.includes('cargo clippy')) {
-              suggestedActions.push('Fix Clippy warnings');
-            }
-            if (fullOutput.includes('npm run lint')) {
-              suggestedActions.push('Fix ESLint issues');
-            }
-            if (fullOutput.includes('npm run build') || fullOutput.includes('TypeScript')) {
-              suggestedActions.push('Fix TypeScript errors');
+            if (toolErrors.length > 0) {
+              // Add categorized error summary
+              const errorTypes = toolErrors.map(te => te.tool).join(', ');
+              issuesFound.push(`Pre-commit checks failed during amend: ${errorTypes}`);
+              
+              // Add formatted parsed errors
+              automaticActions.push('Pre-commit hook failures:');
+              const formattedErrors = formatParsedErrors(toolErrors);
+              automaticActions.push(...formattedErrors);
+              
+              // Add all unique fix suggestions
+              const allSuggestions = new Set<string>();
+              toolErrors.forEach(te => te.fixSuggestions.forEach(s => allSuggestions.add(s)));
+              suggestedActions.push(...Array.from(allSuggestions));
+            } else {
+              // Fallback to raw output if we can't parse structured errors
+              issuesFound.push('Pre-commit checks failed during amend');
+              
+              const outputLines = fullOutput.split('\n').filter((line: string) => line.trim());
+              if (outputLines.length > 0) {
+                automaticActions.push('Pre-commit hook output:');
+                automaticActions.push(...outputLines);
+              }
+              
+              // Keep basic suggestions as fallback
+              if (fullOutput.includes('cargo fmt')) {
+                suggestedActions.push('Run `cargo fmt` to fix formatting issues');
+              }
+              if (fullOutput.includes('cargo clippy')) {
+                suggestedActions.push('Fix Clippy warnings');
+              }
+              if (fullOutput.includes('npm run lint')) {
+                suggestedActions.push('Fix ESLint issues');
+              }
+              if (fullOutput.includes('npm run build') || fullOutput.includes('TypeScript')) {
+                suggestedActions.push('Fix TypeScript errors');
+              }
             }
           } else {
             issuesFound.push(`Failed to amend commit: ${errorMessage}`);
