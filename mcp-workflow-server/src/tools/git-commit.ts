@@ -2,6 +2,7 @@ import { execSync } from 'child_process';
 import { WorkflowResponse } from '../types.js';
 import { promises as fs } from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
 interface GitCommitInput {
   action: 'stage' | 'unstage' | 'status' | 'commit' | 'amend';
@@ -334,7 +335,7 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
         // Create commit
         try {
           // Write message to temp file to handle multiline properly
-          const tempFile = `/tmp/git-commit-msg-${Date.now()}.txt`;
+          const tempFile = path.join(os.tmpdir(), `git-commit-msg-${Date.now()}.txt`);
           await fs.writeFile(tempFile, commitMessage);
           
           execSync(`git commit -F "${tempFile}"`, { encoding: 'utf8' });
@@ -402,7 +403,7 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
         
         // Amend commit
         try {
-          const tempFile = `/tmp/git-commit-msg-${Date.now()}.txt`;
+          const tempFile = path.join(os.tmpdir(), `git-commit-msg-${Date.now()}.txt`);
           await fs.writeFile(tempFile, commitMessage);
           
           execSync(`git commit --amend -F "${tempFile}"`, { encoding: 'utf8' });
