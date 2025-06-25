@@ -11,6 +11,7 @@ import { workflowCreatePR } from './tools/workflow-create-pr.js';
 import { workflowMonitorReviews } from './tools/workflow-monitor-reviews.js';
 import { workflowReplyReview, workflowReplyReviewTool } from './tools/workflow-reply-review.js';
 import { workflowManageSubissues } from './tools/workflow-manage-subissues.js';
+import { gitBranch } from './tools/git-branch.js';
 import { WorkflowResponse } from './types.js';
 
 const server = new Server(
@@ -170,6 +171,34 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['action', 'epicNumber'],
         },
       },
+      {
+        name: 'git_branch',
+        description:
+          'Manage Git branches: checkout, create, pull, push, list branches, or start work on an issue',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            action: {
+              type: 'string',
+              enum: ['checkout', 'create', 'pull', 'push', 'list', 'start-work'],
+              description: 'The git branch operation to perform',
+            },
+            branch: {
+              type: 'string',
+              description: 'Branch name (for checkout, create, push)',
+            },
+            issueNumber: {
+              type: 'number',
+              description: 'Issue number to create branch from (for create, start-work)',
+            },
+            force: {
+              type: 'boolean',
+              description: 'Force operation even with uncommitted changes',
+            },
+          },
+          required: ['action'],
+        },
+      },
     ],
   };
 });
@@ -205,6 +234,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       case 'workflow_manage_subissues':
         result = await workflowManageSubissues(request.params.arguments as { action: 'link' | 'unlink' | 'list'; epicNumber: number; issueNumber?: number });
+        break;
+      case 'git_branch':
+        result = await gitBranch(request.params.arguments as { action: 'checkout' | 'create' | 'pull' | 'push' | 'list' | 'start-work'; branch?: string; issueNumber?: number; force?: boolean });
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);
