@@ -88,6 +88,13 @@ function generateStashMessage(userMessage?: string): string {
   return `WIP: ${context.branch} - ${timestamp}`;
 }
 
+function formatStashRef(stashRef?: string | number): string {
+  if (stashRef === undefined) {
+    return 'stash@{0}';
+  }
+  return typeof stashRef === 'number' ? `stash@{${stashRef}}` : stashRef;
+}
+
 export async function gitStash(input: GitStashInput): Promise<GitStashResponse> {
   const automaticActions: string[] = [];
   const issuesFound: string[] = [];
@@ -168,9 +175,7 @@ export async function gitStash(input: GitStashInput): Promise<GitStashResponse> 
       
       case 'pop':
       case 'apply': {
-        const stashRef = input.stashRef !== undefined ? 
-          (typeof input.stashRef === 'number' ? `stash@{${input.stashRef}}` : input.stashRef) : 
-          'stash@{0}';
+        const stashRef = formatStashRef(input.stashRef);
         
         const command = `git stash ${input.action}${input.quiet ? ' --quiet' : ''} ${stashRef}`;
         automaticActions.push(`${input.action === 'pop' ? 'Popping' : 'Applying'} stash: ${stashRef}`);
@@ -213,9 +218,7 @@ export async function gitStash(input: GitStashInput): Promise<GitStashResponse> 
       }
       
       case 'drop': {
-        const stashRef = input.stashRef !== undefined ? 
-          (typeof input.stashRef === 'number' ? `stash@{${input.stashRef}}` : input.stashRef) : 
-          'stash@{0}';
+        const stashRef = formatStashRef(input.stashRef);
         
         automaticActions.push(`Dropping stash: ${stashRef}`);
         
@@ -269,9 +272,7 @@ export async function gitStash(input: GitStashInput): Promise<GitStashResponse> 
       }
       
       case 'show': {
-        const stashRef = input.stashRef !== undefined ? 
-          (typeof input.stashRef === 'number' ? `stash@{${input.stashRef}}` : input.stashRef) : 
-          'stash@{0}';
+        const stashRef = formatStashRef(input.stashRef);
         
         automaticActions.push(`Showing content of stash: ${stashRef}`);
         
