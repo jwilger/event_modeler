@@ -248,10 +248,9 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
     if (currentBranch !== 'main' && currentBranch !== 'master') {
       // Try to extract issue number from branch name
       // Common patterns: feature/some-feature-123, fix/issue-123, issue-123, etc.
-      const issueNumberMatch = currentBranch.match(/(\d+)(?:[^\d]|$)/);
+      const issueNumberMatch = currentBranch.match(/-(\d+)(?:$|[^0-9])/);
       if (issueNumberMatch) {
         branchIssueNumber = parseInt(issueNumberMatch[1], 10);
-        automaticActions.push(`Detected issue #${branchIssueNumber} from branch name: ${currentBranch}`);
       }
     }
 
@@ -772,6 +771,7 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       );
 
       if (branchIssue) {
+        automaticActions.push(`Detected issue #${branchIssueNumber} from branch name: ${currentBranch}`);
         automaticActions.push(
           `Current branch corresponds to in-progress issue #${branchIssueNumber} but no PR exists`
         );
@@ -779,8 +779,19 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         // Check if there are commits on this branch
         let hasCommits = false;
         try {
+          // Detect the default branch
+          let defaultBranch = 'origin/master'; // Fallback to origin/master
+          try {
+            const branchRef = execSync(
+              `git symbolic-ref refs/remotes/origin/HEAD`,
+              { encoding: 'utf8' }
+            ).trim();
+            defaultBranch = branchRef.replace('refs/remotes/', '');
+          } catch {
+            // If detection fails, fallback to origin/master
+          }
           const commitCount = execSync(
-            `git rev-list --count origin/main..HEAD`,
+            `git rev-list --count ${defaultBranch}..HEAD`,
             { encoding: 'utf8' }
           ).trim();
           hasCommits = parseInt(commitCount, 10) > 0;

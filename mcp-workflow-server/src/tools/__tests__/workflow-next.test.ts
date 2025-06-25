@@ -627,6 +627,7 @@ describe('workflowNext', () => {
       }
       if (cmd === 'git status --porcelain') return '';
       if (cmd === 'git branch --show-current') return 'feature/some-feature-78\n';
+      if (cmd === 'git symbolic-ref refs/remotes/origin/HEAD') return 'refs/remotes/origin/main\n';
       if (cmd === 'git rev-list --count origin/main..HEAD') return '3\n'; // Has commits
       if (cmd.startsWith('gh pr list --head')) return '[]';
       return '';
@@ -694,6 +695,7 @@ describe('workflowNext', () => {
       }
       if (cmd === 'git status --porcelain') return '';
       if (cmd === 'git branch --show-current') return 'feature/no-commits-78\n';
+      if (cmd === 'git symbolic-ref refs/remotes/origin/HEAD') return 'refs/remotes/origin/main\n';
       if (cmd === 'git rev-list --count origin/main..HEAD') return '0\n'; // No commits
       if (cmd.startsWith('gh pr list --head')) return '[]';
       return '';
@@ -745,7 +747,7 @@ describe('workflowNext', () => {
     const testBranchNames = [
       'feature/add-new-feature-123',
       'fix/issue-456',
-      'bugfix/789-fix-something',
+      'bugfix/fix-something-789',
       'issue-321',
       'feat-999-new-thing',
       'hotfix/urgent-555'
@@ -754,7 +756,7 @@ describe('workflowNext', () => {
     for (const branchName of testBranchNames) {
       vi.clearAllMocks();
       
-      const expectedIssueNumber = parseInt(branchName.match(/(\d+)/)![1], 10);
+      const expectedIssueNumber = parseInt(branchName.match(/-(\d+)/)![1], 10);
       
       mockExecSync.mockImplementation((cmd: string) => {
         if (cmd === 'gh auth token') return 'mock-token\n';
@@ -764,6 +766,7 @@ describe('workflowNext', () => {
         }
         if (cmd === 'git status --porcelain') return '';
         if (cmd === 'git branch --show-current') return `${branchName}\n`;
+        if (cmd === 'git symbolic-ref refs/remotes/origin/HEAD') return 'refs/remotes/origin/main\n';
         if (cmd === 'git rev-list --count origin/main..HEAD') return '1\n';
         if (cmd.startsWith('gh pr list --head')) return '[]';
         return '';
@@ -826,6 +829,7 @@ describe('workflowNext', () => {
       }
       if (cmd === 'git status --porcelain') return '';
       if (cmd === 'git branch --show-current') return 'feature/not-in-progress-99\n';
+      if (cmd === 'git symbolic-ref refs/remotes/origin/HEAD') return 'refs/remotes/origin/main\n';
       if (cmd === 'git rev-list --count origin/main..HEAD') return '1\n';
       if (cmd.startsWith('gh pr list --head')) return '[]';
       return '';
@@ -847,6 +851,72 @@ describe('workflowNext', () => {
     expect(result.requestedData.nextSteps[0]).toMatchObject({
       action: 'select_work',
       reason: 'No issues in progress. Visit project board to select next item.'
+    });
+  });
+
+  it('should fallback to origin/master when default branch detection fails', async () => {
+    const { workflowNext } = await import('../workflow-next.js');
+    
+    mockExecSync.mockImplementation((cmd: string) => {
+      if (cmd === 'gh auth token') return 'mock-token\n';
+      if (cmd === 'gh api user --jq .login') return 'testuser\n';
+      if (cmd === 'gh repo view --json owner,name') {
+        return JSON.stringify({ owner: { login: 'jwilger' }, name: 'event_modeler' });
+      }
+      if (cmd === 'git status --porcelain') return '';
+      if (cmd === 'git branch --show-current') return 'feature/test-fallback-78\n';
+      if (cmd === 'git symbolic-ref refs/remotes/origin/HEAD') {
+        throw new Error('Command failed'); // Simulate failure
+      }
+      if (cmd === 'git rev-list --count origin/master..HEAD') return '2\n'; // Should use master
+      if (cmd.startsWith('gh pr list --head')) return '[]';
+      return '';
+    });
+    
+    mockGraphql
+      .mockResolvedValueOnce({
+        user: {
+          projectV2: {
+            items: {
+              nodes: [{
+                id: 'test-item-id',
+                content: {
+                  number: 78,
+                  title: 'Test Issue #78',
+                  body: '## Tasks\n- [ ] Todo',
+                  state: 'OPEN',
+                  assignees: {
+                    nodes: [{ login: 'testuser' }]
+                  },
+                  labels: {
+                    nodes: []
+                  }
+                },
+                fieldValues: {
+                  nodes: [{
+                    name: 'In Progress',
+                    field: { name: 'Status' }
+                  }]
+                }
+              }]
+            }
+          }
+        }
+      })
+      .mockResolvedValueOnce({
+        repository: {
+          pullRequests: {
+            nodes: []
+          }
+        }
+      });
+
+    const result = await workflowNext();
+
+    expect(result.requestedData.nextSteps[0]).toMatchObject({
+      action: 'todos_complete',
+      issueNumber: 78,
+      suggestion: expect.stringContaining('Create a PR')
     });
   });
 });
