@@ -69,7 +69,7 @@ describe('gitBranch', () => {
       const result = await gitBranch({ action: 'checkout', branch: 'feature/test' });
 
       expect(result.issuesFound).toContain('You have uncommitted changes');
-      expect(result.suggestedActions).toContain('Or stash them: git stash');
+      expect(result.suggestedActions).toContain('Or stash them: use git_stash tool with action: "save"');
       expect(result.requestedData.currentBranch).toBeUndefined();
     });
 
@@ -339,7 +339,7 @@ describe('gitBranch', () => {
       const result = await gitBranch({ action: 'start-work', issueNumber: 123 });
 
       expect(result.issuesFound).toContain('You have uncommitted changes');
-      expect(result.suggestedActions).toContain('Commit your changes before starting new work');
+      expect(result.suggestedActions).toContain('Commit your changes before starting new work: use git_commit tool');
     });
   });
 

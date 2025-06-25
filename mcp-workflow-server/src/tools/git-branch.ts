@@ -128,8 +128,8 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
         if (hasUncommittedChanges() && !input.force) {
           issuesFound.push('You have uncommitted changes');
           suggestedActions.push(
-            'Commit your changes: git add . && git commit -m "message"',
-            'Or stash them: git stash',
+            'Commit your changes: use git_commit tool with action: "commit"',
+            'Or stash them: use git_stash tool with action: "save"',
             'Or force checkout with force: true'
           );
           
@@ -369,8 +369,8 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
         if (hasUncommittedChanges()) {
           issuesFound.push('You have uncommitted changes');
           suggestedActions.push(
-            'Commit your changes before starting new work',
-            'Or stash them: git stash'
+            'Commit your changes before starting new work: use git_commit tool',
+            'Or stash them: use git_stash tool with action: "save"'
           );
           
           return {
