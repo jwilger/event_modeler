@@ -32,7 +32,7 @@ describe('MCP Server Index', () => {
       connect: vi.fn(),
     };
     
-    vi.mocked(Server).mockImplementation(() => mockServer as MockServer);
+    vi.mocked(Server).mockImplementation(() => mockServer as unknown as Server);
     
     // Clear module cache to ensure fresh import
     vi.resetModules();
