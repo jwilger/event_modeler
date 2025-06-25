@@ -39,7 +39,6 @@ async function getIssueNodeId(
       repository(owner: $owner, name: $repo) {
         issue(number: $number) {
           id
-          title
         }
       }
     }
@@ -49,7 +48,6 @@ async function getIssueNodeId(
     repository: {
       issue: {
         id: string;
-        title: string;
       } | null;
     };
   }>(query, {
@@ -97,9 +95,7 @@ async function addToProject(
   projectId: string,
   issueNodeId: string,
   statusFieldId: string,
-  todoOptionId: string,
-  _type?: string,
-  _priority?: string
+  todoOptionId: string
 ): Promise<string> {
   // Add issue to project
   const addToProjectMutation = `
@@ -208,6 +204,7 @@ export async function workflowCreateIssue(
     suggestedActions.push(`View issue: ${issue.data.html_url}`);
 
     let linkedToEpic = false;
+    let cachedIssueNodeId: string | null = null;
 
     // Link to epic if specified
     if (epicNumber) {
@@ -218,6 +215,9 @@ export async function workflowCreateIssue(
           getIssueNodeId(octokit, owner, repo, epicNumber),
           getIssueNodeId(octokit, owner, repo, issue.data.number),
         ]);
+        
+        // Cache the issue node ID for potential reuse
+        cachedIssueNodeId = issueNodeId;
 
         await linkSubIssue(octokit, epicNodeId, issueNodeId);
         linkedToEpic = true;
@@ -234,16 +234,15 @@ export async function workflowCreateIssue(
     try {
       const projectConfig = getProjectConfig();
       if (projectConfig.isComplete) {
-        const issueNodeId = await getIssueNodeId(octokit, owner, repo, issue.data.number);
+        // Use cached node ID if available, otherwise fetch it
+        const issueNodeId = cachedIssueNodeId ?? await getIssueNodeId(octokit, owner, repo, issue.data.number);
         
         await addToProject(
           octokit,
           projectConfig.config.github.projectId!,
           issueNodeId,
           projectConfig.config.github.statusFieldId!,
-          projectConfig.config.github.statusOptions!.todo!,
-          type,
-          priority
+          projectConfig.config.github.statusOptions!.todo!
         );
 
         automaticActions.push('Added issue to project board with "Todo" status');
