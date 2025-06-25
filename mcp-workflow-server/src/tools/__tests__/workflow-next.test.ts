@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { execSync } from 'child_process';
 import { Octokit } from '@octokit/rest';
+import { workflowMonitorReviews } from '../workflow-monitor-reviews.js';
 
 // Mock child_process
 vi.mock('child_process', () => ({
@@ -851,6 +852,208 @@ describe('workflowNext', () => {
     expect(result.requestedData.nextSteps[0]).toMatchObject({
       action: 'select_work',
       reason: 'No issues in progress. Visit project board to select next item.'
+    });
+  });
+
+  it('should detect truly merge-ready PRs and prioritize them', async () => {
+    const { workflowNext } = await import('../workflow-next.js');
+    
+    const mockOctokit = {
+      pulls: {
+        get: vi.fn().mockResolvedValue({
+          data: {
+            mergeable: true,
+            mergeable_state: 'clean',
+            head: { sha: 'abc123' }
+          }
+        })
+      },
+      repos: {
+        getCombinedStatusForRef: vi.fn().mockResolvedValue({
+          data: { state: 'success' }
+        })
+      }
+    };
+    
+    vi.mocked(Octokit).mockImplementation(() => ({
+      graphql: mockGraphql,
+      ...mockOctokit
+    }) as unknown as Octokit);
+    
+    // Mock workflowMonitorReviews to return an approved PR
+    vi.mocked(workflowMonitorReviews).mockResolvedValue({
+      requestedData: {
+        reviewsNeedingAttention: [{
+          prNumber: 42,
+          title: 'Ready to merge PR',
+          author: 'testuser',
+          isDraft: false,
+          reviewStatus: 'approved',
+          reviews: [],
+          suggestedAction: 'Ready to merge',
+          url: 'https://github.com/owner/repo/pull/42',
+          lastUpdated: '2024-01-01T00:00:00Z',
+          commentSummary: { total: 0, resolved: 0, unresolved: 0 }
+        }]
+      }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+    
+    mockGraphql.mockResolvedValue({
+      user: {
+        projectV2: {
+          items: { nodes: [] }
+        }
+      }
+    });
+
+    const result = await workflowNext();
+
+    expect(result.requestedData.nextSteps[0]).toMatchObject({
+      action: 'merge_pr',
+      prNumber: 42,
+      title: 'Ready to merge PR',
+      suggestion: expect.stringContaining('fully ready to merge'),
+      ciStatus: 'success',
+      mergeable: true,
+      mergeableState: 'clean'
+    });
+  });
+
+  it('should show blocking reasons for approved PRs that are not merge-ready', async () => {
+    const { workflowNext } = await import('../workflow-next.js');
+    
+    const mockOctokit = {
+      pulls: {
+        get: vi.fn().mockResolvedValue({
+          data: {
+            mergeable: false,
+            mergeable_state: 'conflicting',
+            head: { sha: 'abc123' }
+          }
+        })
+      },
+      repos: {
+        getCombinedStatusForRef: vi.fn().mockResolvedValue({
+          data: { state: 'failure' }
+        })
+      }
+    };
+    
+    vi.mocked(Octokit).mockImplementation(() => ({
+      graphql: mockGraphql,
+      ...mockOctokit
+    }) as unknown as Octokit);
+    
+    // Mock workflowMonitorReviews to return an approved PR with unresolved comments
+    vi.mocked(workflowMonitorReviews).mockResolvedValue({
+      requestedData: {
+        reviewsNeedingAttention: [{
+          prNumber: 43,
+          title: 'Approved but blocked PR',
+          author: 'testuser',
+          isDraft: false,
+          reviewStatus: 'approved',
+          reviews: [],
+          suggestedAction: 'Ready to merge',
+          url: 'https://github.com/owner/repo/pull/43',
+          lastUpdated: '2024-01-01T00:00:00Z',
+          commentSummary: { total: 5, resolved: 2, unresolved: 3 }
+        }]
+      }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+    
+    mockGraphql.mockResolvedValue({
+      user: {
+        projectV2: {
+          items: { nodes: [] }
+        }
+      }
+    });
+
+    const result = await workflowNext();
+
+    expect(result.requestedData.nextSteps[0]).toMatchObject({
+      action: 'work_on_todo',
+      prNumber: 43,
+      title: 'Approved but blocked PR',
+      suggestion: expect.stringContaining('cannot be merged yet'),
+      ciStatus: 'failure',
+      mergeable: false,
+      mergeableState: 'conflicting'
+    });
+    expect(result.issuesFound).toContain('Has merge conflicts');
+    expect(result.issuesFound).toContain('CI checks are failing');
+    expect(result.issuesFound).toContain('Has 3 unresolved comments');
+  });
+
+  it('should handle CI checks via check runs when status API is not available', async () => {
+    const { workflowNext } = await import('../workflow-next.js');
+    
+    const mockOctokit = {
+      pulls: {
+        get: vi.fn().mockResolvedValue({
+          data: {
+            mergeable: true,
+            mergeable_state: 'clean',
+            head: { sha: 'abc123' }
+          }
+        })
+      },
+      repos: {
+        getCombinedStatusForRef: vi.fn().mockRejectedValue(new Error('Not found'))
+      },
+      checks: {
+        listForRef: vi.fn().mockResolvedValue({
+          data: {
+            total_count: 2,
+            check_runs: [
+              { status: 'completed', conclusion: 'success' },
+              { status: 'completed', conclusion: 'success' }
+            ]
+          }
+        })
+      }
+    };
+    
+    vi.mocked(Octokit).mockImplementation(() => ({
+      graphql: mockGraphql,
+      ...mockOctokit
+    }) as unknown as Octokit);
+    
+    vi.mocked(workflowMonitorReviews).mockResolvedValue({
+      requestedData: {
+        reviewsNeedingAttention: [{
+          prNumber: 44,
+          title: 'PR with check runs',
+          author: 'testuser',
+          isDraft: false,
+          reviewStatus: 'approved',
+          reviews: [],
+          suggestedAction: 'Ready to merge',
+          url: 'https://github.com/owner/repo/pull/44',
+          lastUpdated: '2024-01-01T00:00:00Z',
+          commentSummary: { total: 0, resolved: 0, unresolved: 0 }
+        }]
+      }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+    
+    mockGraphql.mockResolvedValue({
+      user: {
+        projectV2: {
+          items: { nodes: [] }
+        }
+      }
+    });
+
+    const result = await workflowNext();
+
+    expect(result.requestedData.nextSteps[0]).toMatchObject({
+      action: 'merge_pr',
+      prNumber: 44,
+      ciStatus: 'success'
     });
   });
 
