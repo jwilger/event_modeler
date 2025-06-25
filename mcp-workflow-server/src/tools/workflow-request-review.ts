@@ -46,6 +46,8 @@ interface PullRequestGraphQLResponse {
   };
 }
 
+// Used for type inference only - actual MCP schema is defined in workflowRequestReviewTool
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const RequestReviewInputSchema = z.object({
   prNumber: z.number().describe("Pull request number"),
   reviewers: z
@@ -369,8 +371,26 @@ export async function workflowRequestReview(
 }
 
 export const workflowRequestReviewTool = {
-  name: "mcp__workflow__workflow_request_review",
+  name: "workflow_request_review",
   description:
     "Request re-review from specific reviewers or all previous reviewers on a pull request",
-  inputSchema: RequestReviewInputSchema,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      prNumber: {
+        type: 'number',
+        description: 'Pull request number',
+      },
+      reviewers: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Specific reviewers to request (if empty, requests from all previous reviewers)',
+      },
+      skipBots: {
+        type: 'boolean',
+        description: 'Skip requesting reviews from bot accounts',
+      },
+    },
+    required: ['prNumber'],
+  },
 };

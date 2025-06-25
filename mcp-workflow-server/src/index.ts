@@ -32,6 +32,7 @@ const server = new Server(
 
 // Register available tools
 server.setRequestHandler(ListToolsRequestSchema, async () => {
+  console.error('ListTools handler called - returning tools');
   return {
     tools: [
       {
@@ -407,3 +408,4 @@ const transport = new StdioServerTransport();
 server.connect(transport);
 
 console.error('Event Modeler MCP Workflow Server started');
+console.error('Handlers registered');
