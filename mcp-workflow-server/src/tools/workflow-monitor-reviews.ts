@@ -13,10 +13,13 @@ interface MonitorReviewsInput {
 }
 
 export interface ReviewComment {
+  id: number;
   file: string;
   line: number;
   comment: string;
   suggestion?: string;
+  hasReplies?: boolean;
+  threadId?: string;
 }
 
 export interface ReviewInfo {
@@ -208,12 +211,45 @@ export async function workflowMonitorReviews(input: MonitorReviewsInput = {}): P
           repo,
           pull_number: pr.number
         }),
-        octokit.pulls.listReviewComments({
+        // Use GraphQL to get review threads with reply information
+        octokit.graphql(`
+          query($owner: String!, $repo: String!, $prNumber: Int!) {
+            repository(owner: $owner, name: $repo) {
+              pullRequest(number: $prNumber) {
+                reviewThreads(first: 100) {
+                  nodes {
+                    id
+                    isResolved
+                    isOutdated
+                    path
+                    line
+                    comments(first: 100) {
+                      nodes {
+                        id
+                        databaseId
+                        author {
+                          login
+                        }
+                        body
+                        createdAt
+                        pullRequestReview {
+                          id
+                          databaseId
+                          state
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `, {
           owner,
           repo,
-          pull_number: pr.number
+          prNumber: pr.number
         })
-      ]).then(([reviews, reviewComments]) => ({ pr, reviews, reviewComments }));
+      ]).then(([reviews, reviewThreads]) => ({ pr, reviews, reviewThreads }));
     }).filter(Boolean); // Remove null values
 
     const reviewResults = await Promise.all(reviewPromises);
@@ -222,10 +258,67 @@ export async function workflowMonitorReviews(input: MonitorReviewsInput = {}): P
     for (const result of reviewResults) {
       if (!result) continue;
       
-      const { pr, reviews, reviewComments } = result;
+      const { pr, reviews, reviewThreads } = result;
       
       // Process reviews
       const reviewInfos: ReviewInfo[] = [];
+      
+      // Type the GraphQL response
+      interface ReviewThreadsResponse {
+        repository: {
+          pullRequest: {
+            reviewThreads: {
+              nodes: Array<{
+                id: string;
+                isResolved: boolean;
+                isOutdated: boolean;
+                path: string;
+                line: number;
+                comments: {
+                  nodes: Array<{
+                    id: string;
+                    databaseId: number;
+                    author: { login: string };
+                    body: string;
+                    createdAt: string;
+                    pullRequestReview?: {
+                      id: string;
+                      databaseId: number;
+                      state: string;
+                    };
+                  }>;
+                };
+              }>;
+            };
+          };
+        };
+      }
+      
+      const threads = (reviewThreads as ReviewThreadsResponse).repository.pullRequest.reviewThreads.nodes;
+      
+      // Build a map of review comments from threads
+      const reviewCommentsMap = new Map<number, ReviewComment>();
+      
+      for (const thread of threads) {
+        // Skip resolved or outdated threads
+        if (thread.isResolved || thread.isOutdated) continue;
+        
+        // Check if thread has replies (more than one comment)
+        const hasReplies = thread.comments.nodes.length > 1;
+        
+        // Get the first comment (the original review comment)
+        const firstComment = thread.comments.nodes[0];
+        if (firstComment && firstComment.pullRequestReview) {
+          reviewCommentsMap.set(firstComment.databaseId, {
+            id: firstComment.databaseId,
+            file: thread.path,
+            line: thread.line,
+            comment: firstComment.body,
+            hasReplies,
+            threadId: thread.id
+          });
+        }
+      }
       
       for (const review of reviews.data) {
         if (review.state === 'PENDING') continue;
@@ -239,16 +332,9 @@ export async function workflowMonitorReviews(input: MonitorReviewsInput = {}): P
           comments: []
         };
 
-        // Find comments associated with this review
-        for (const comment of reviewComments.data) {
-          if (comment.pull_request_review_id === review.id) {
-            reviewInfo.comments.push({
-              file: comment.path,
-              line: comment.line || comment.original_line || 0,
-              comment: comment.body,
-              suggestion: undefined // GitHub API doesn't provide direct suggestion text
-            });
-          }
+        // Add comments from this review that are in unresolved threads
+        for (const comment of reviewCommentsMap.values()) {
+          reviewInfo.comments.push(comment);
         }
 
         reviewInfos.push(reviewInfo);

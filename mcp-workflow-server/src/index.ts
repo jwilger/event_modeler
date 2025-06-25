@@ -9,6 +9,7 @@ import { workflowDecide } from './tools/workflow-decide.js';
 import { workflowConfigure } from './tools/workflow-configure.js';
 import { workflowCreatePR } from './tools/workflow-create-pr.js';
 import { workflowMonitorReviews } from './tools/workflow-monitor-reviews.js';
+import { workflowReplyReview, workflowReplyReviewTool } from './tools/workflow-reply-review.js';
 import { WorkflowResponse } from './types.js';
 
 const server = new Server(
@@ -143,6 +144,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: [],
         },
       },
+      workflowReplyReviewTool,
     ],
   };
 });
@@ -172,6 +174,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       case 'workflow_monitor_reviews':
         result = await workflowMonitorReviews(request.params.arguments || {});
+        break;
+      case 'workflow_reply_review':
+        result = await workflowReplyReview(request.params.arguments as { prNumber: number; commentId: number; body: string });
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);
