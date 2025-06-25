@@ -21,12 +21,12 @@ interface WorkflowCreatePRResponse extends WorkflowResponse {
   };
 }
 
-async function getCurrentUser(): Promise<string> {
+async function getCurrentUser(octokit: Octokit): Promise<string> {
   try {
-    const output = execSync('gh api user --jq .login', { encoding: 'utf8' });
-    return output.trim();
+    const { data } = await octokit.users.getAuthenticated();
+    return data.login;
   } catch {
-    throw new Error('Failed to get current GitHub user. Make sure gh CLI is authenticated.');
+    throw new Error('Failed to get current GitHub user. Make sure authentication is configured.');
   }
 }
 
@@ -312,7 +312,7 @@ export async function workflowCreatePR(input: CreatePRInput = {}): Promise<Workf
 
     // Auto-assign PR to creator
     try {
-      const currentUser = await getCurrentUser();
+      const currentUser = await getCurrentUser(octokit);
       await octokit.issues.addAssignees({
         owner,
         repo,

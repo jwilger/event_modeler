@@ -23,6 +23,9 @@ interface MockOctokitInstance {
     update: ReturnType<typeof vi.fn>;
     addAssignees: ReturnType<typeof vi.fn>;
   };
+  users: {
+    getAuthenticated: ReturnType<typeof vi.fn>;
+  };
   graphql: ReturnType<typeof vi.fn>;
 }
 
@@ -43,6 +46,9 @@ describe('workflowCreatePR', () => {
         get: vi.fn(),
         update: vi.fn(),
         addAssignees: vi.fn()
+      },
+      users: {
+        getAuthenticated: vi.fn()
       },
       graphql: vi.fn()
     };
@@ -108,8 +114,11 @@ describe('workflowCreatePR', () => {
       });
       
       // Mock getCurrentUser call
+      mockOctokitInstance.users.getAuthenticated.mockResolvedValue({
+        data: { login: 'testuser' }
+      } as never);
+      
       mockExecSync.mockImplementation((cmd: string) => {
-        if (cmd === 'gh api user --jq .login') return 'testuser';
         if (cmd === 'git branch --show-current') return 'feature/test-branch-94';
         if (cmd === 'git status --porcelain') return '';
         if (cmd === 'git config --get remote.origin.url') return 'git@github.com:owner/repo.git';
@@ -201,6 +210,11 @@ describe('workflowCreatePR', () => {
         }
       });
 
+      // Mock getCurrentUser success
+      mockOctokitInstance.users.getAuthenticated.mockResolvedValue({
+        data: { login: 'testuser' }
+      } as never);
+
       // Make auto-assignment fail
       mockOctokitInstance.issues.addAssignees.mockRejectedValue(new Error('Assignment failed'));
 
@@ -212,6 +226,32 @@ describe('workflowCreatePR', () => {
       
       // Should report assignment failure
       expect(result.automaticActions).toContain('Could not auto-assign PR: Assignment failed');
+    });
+
+    it('should handle getCurrentUser failures gracefully', async () => {
+      // Setup PR creation success
+      mockOctokitInstance.pulls.list.mockResolvedValue({ data: [] });
+      mockOctokitInstance.pulls.create.mockResolvedValue({
+        data: {
+          number: 123,
+          html_url: 'https://github.com/owner/repo/pull/123',
+          title: 'Test PR',
+          draft: false,
+          node_id: 'PR_NODE_123'
+        }
+      });
+
+      // Make getCurrentUser fail
+      mockOctokitInstance.users.getAuthenticated.mockRejectedValue(new Error('Auth failed'));
+
+      const result = await workflowCreatePR();
+
+      // PR should still be created
+      expect(result.requestedData.pr).toBeDefined();
+      expect(result.requestedData.pr?.number).toBe(123);
+      
+      // Should report getCurrentUser failure
+      expect(result.automaticActions).toContain('Could not auto-assign PR: Failed to get current GitHub user. Make sure authentication is configured.');
     });
 
     it('should handle incomplete project configuration', async () => {
@@ -227,8 +267,11 @@ describe('workflowCreatePR', () => {
       });
 
       // Mock getCurrentUser call
+      mockOctokitInstance.users.getAuthenticated.mockResolvedValue({
+        data: { login: 'testuser' }
+      } as never);
+      
       mockExecSync.mockImplementation((cmd: string) => {
-        if (cmd === 'gh api user --jq .login') return 'testuser';
         if (cmd === 'git branch --show-current') return 'feature/test-branch-94';
         if (cmd === 'git status --porcelain') return '';
         if (cmd === 'git config --get remote.origin.url') return 'git@github.com:owner/repo.git';
