@@ -90,6 +90,56 @@ describe('workflowUpdateIssue', () => {
     expect(result.issuesFound).toHaveLength(0);
   });
 
+  it('should handle status values with multiple underscores', async () => {
+    const mockProjectData = {
+      user: {
+        projectV2: {
+          id: 'PVT_test',
+          fields: {
+            nodes: [
+              {
+                id: 'PVTSSF_status',
+                name: 'Status',
+                options: [
+                  { id: 'PVTSSF_waiting', name: 'Waiting For Review' },
+                ],
+              },
+            ],
+          },
+          items: {
+            nodes: [
+              {
+                id: 'PVTI_item1',
+                content: { number: 123 },
+              },
+            ],
+          },
+        },
+      },
+    };
+
+    mockOctokit.graphql
+      .mockResolvedValueOnce(mockProjectData) // For query
+      .mockResolvedValueOnce({ updateProjectV2ItemFieldValue: { projectV2Item: { id: 'PVTI_item1' } } }); // For mutation
+
+    // Test with a status that has multiple underscores (not in the type definition)
+    const result = await workflowUpdateIssue({
+      issueNumber: 123,
+      // @ts-expect-error - Testing with a status value not in the type definition
+      status: 'waiting_for_review',
+    });
+
+    expect(result.requestedData!).toEqual({
+      issueNumber: 123,
+      updatedFields: {
+        status: 'Waiting For Review',
+      },
+      projectItemId: 'PVTI_item1',
+    });
+    expect(result.automaticActions).toContain('Updated status to "Waiting For Review"');
+    expect(result.issuesFound).toHaveLength(0);
+  });
+
   it('should update multiple fields successfully', async () => {
     const mockProjectData = {
       user: {

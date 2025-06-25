@@ -138,7 +138,7 @@ export async function workflowUpdateIssue(
         issuesFound.push('Status field not found in project');
       } else {
         const statusOption = statusField.options?.find(
-          (opt) => opt.name.toLowerCase() === status.replace('_', ' ')
+          (opt) => opt.name.toLowerCase() === status.replace(/_/g, ' ')
         );
         
         if (!statusOption) {
