@@ -230,8 +230,19 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
         automaticActions.push(`Switched to existing branch: ${branchName}`);
         branchSwitched = true;
       } catch {
-        // Branch doesn't exist, create it
+        // Branch doesn't exist, ensure we're on an updated main before creating
         try {
+          // First, switch to main if we're not already there
+          if (currentBranch !== 'main') {
+            execSync('git checkout main', { encoding: 'utf8' });
+            automaticActions.push('Switched to main branch');
+          }
+          
+          // Pull latest changes from origin/main
+          execSync('git pull origin main', { encoding: 'utf8' });
+          automaticActions.push('Updated main branch with latest changes');
+          
+          // Now create the feature branch from updated main
           execSync(`git checkout -b ${branchName}`, { encoding: 'utf8' });
           automaticActions.push(`Created and switched to new branch: ${branchName}`);
           branchCreated = true;

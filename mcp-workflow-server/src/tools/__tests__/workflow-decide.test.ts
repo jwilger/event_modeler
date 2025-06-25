@@ -10,6 +10,10 @@ vi.mock('child_process', () => ({
     if (cmd === 'git branch --show-current') return 'main';
     if (cmd === 'git status --porcelain') return '';
     if (cmd.startsWith('git remote get-url')) return 'https://github.com/testuser/testrepo.git';
+    if (cmd.startsWith('git rev-parse --verify feature/')) throw new Error('Branch not found');
+    if (cmd === 'git checkout main') return '';
+    if (cmd === 'git pull origin main') return '';
+    if (cmd.startsWith('git checkout -b feature/')) return '';
     return '';
   }),
 }));
@@ -200,5 +204,78 @@ describe('workflowDecide', () => {
     const result = await workflowDecide(input);
 
     expect(result.issuesFound).toContain('Error: Configuration is incomplete. Please run workflow_configure first.');
+  });
+
+  it('should create branch from main when already on main', async () => {
+    const input = {
+      decisionId: 'epic-68-next-issue-123456',
+      selectedChoice: 123,
+    };
+
+    const result = await workflowDecide(input);
+
+    // Get the mocked execSync
+    const { execSync } = await import('child_process');
+    const mockExecSync = vi.mocked(execSync);
+
+    // Verify the git commands were called in correct order
+    const gitCommands = mockExecSync.mock.calls
+      .filter(call => call[0].toString().startsWith('git'))
+      .map(call => call[0]);
+
+    // Should check current branch
+    expect(gitCommands).toContain('git branch --show-current');
+    // Should check if branch exists
+    expect(gitCommands.some(cmd => cmd.includes('git rev-parse --verify feature/'))).toBe(true);
+    // Should pull latest main (we're already on main)
+    expect(gitCommands).toContain('git pull origin main');
+    // Should create new branch
+    expect(gitCommands.some(cmd => cmd.includes('git checkout -b feature/'))).toBe(true);
+
+    // Verify suggested action includes the branch creation
+    expect(result.requestedData.nextSteps[0].suggestion).toContain('Created and switched to new branch');
+  });
+
+  it('should switch to main before creating branch when on different branch', async () => {
+    // Get the mocked execSync
+    const { execSync } = await import('child_process');
+    const mockExecSync = vi.mocked(execSync);
+    
+    // Mock being on a different branch
+    mockExecSync.mockImplementation((cmd: string) => {
+      if (cmd === 'gh auth token') return 'test-token';
+      if (cmd === 'gh api user --jq .login') return 'testuser';
+      if (cmd === 'git branch --show-current') return 'feature/old-branch';
+      if (cmd === 'git status --porcelain') return '';
+      if (cmd.startsWith('git remote get-url')) return 'https://github.com/testuser/testrepo.git';
+      if (cmd.startsWith('git rev-parse --verify feature/')) throw new Error('Branch not found');
+      if (cmd === 'git checkout main') return '';
+      if (cmd === 'git pull origin main') return '';
+      if (cmd.startsWith('git checkout -b feature/')) return '';
+      return '';
+    });
+
+    const input = {
+      decisionId: 'epic-68-next-issue-123456',
+      selectedChoice: 123,
+    };
+
+    const result = await workflowDecide(input);
+
+    // Verify the git commands were called in correct order
+    const gitCommands = mockExecSync.mock.calls
+      .filter(call => call[0].toString().startsWith('git'))
+      .map(call => call[0]);
+
+    // Should switch to main first
+    expect(gitCommands).toContain('git checkout main');
+    // Then pull latest
+    expect(gitCommands).toContain('git pull origin main');
+    // Then create new branch
+    expect(gitCommands.some(cmd => cmd.includes('git checkout -b feature/'))).toBe(true);
+
+    // Verify automatic actions mention switching to main
+    expect(result.automaticActions).toContain('Switched to main branch');
+    expect(result.automaticActions).toContain('Updated main branch with latest changes');
   });
 });
