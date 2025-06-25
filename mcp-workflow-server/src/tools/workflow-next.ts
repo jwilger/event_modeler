@@ -356,71 +356,81 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
 
     // Priority 1: My PRs with feedback that need addressing
     if (myPRsNeedingAttention.length > 0) {
-      const pr = myPRsNeedingAttention[0]; // Take the highest priority PR
+      // Process PRs iteratively to find one with unresolved comments
+      let prWithUnresolvedComments: PRReviewStatus | null = null;
+      
+      while (myPRsNeedingAttention.length > 0) {
+        const pr = myPRsNeedingAttention[0];
+        const summary = pr.commentSummary;
+        const unresolvedComments = summary?.unresolved || 0;
+        const totalComments = summary?.total || 0;
+        
+        if (unresolvedComments === 0 && totalComments > 0) {
+          // All comments are resolved, skip this PR
+          automaticActions.push(`PR #${pr.prNumber}: All ${totalComments} review comments have been addressed`);
+          myPRsNeedingAttention.shift(); // Remove this PR from the list
+        } else if (unresolvedComments > 0) {
+          // Found a PR with unresolved comments
+          prWithUnresolvedComments = pr;
+          break;
+        } else {
+          // No comments at all, remove from list
+          myPRsNeedingAttention.shift();
+        }
+      }
+      
+      if (prWithUnresolvedComments) {
+        const pr = prWithUnresolvedComments;
+        const summary = pr.commentSummary;
+        const unresolvedComments = summary?.unresolved || 0;
+        const resolvedComments = summary?.resolved || 0;
+        const totalComments = summary?.total || 0;
 
-      // Use comment summary from PR status
-      const summary = pr.commentSummary;
-      const unresolvedComments = summary?.unresolved || 0;
-      const resolvedComments = summary?.resolved || 0;
-      const totalComments = summary?.total || 0;
+        const commentStatus =
+          totalComments > 0
+            ? ` (${unresolvedComments} unresolved, ${resolvedComments} resolved)`
+            : '';
 
-      const commentStatus =
-        totalComments > 0
-          ? ` (${unresolvedComments} unresolved, ${resolvedComments} resolved)`
-          : '';
-
-      if (unresolvedComments > 0) {
         automaticActions.push(
           `Found PR #${pr.prNumber} authored by you with ${unresolvedComments} unresolved review comments`
         );
-      }
 
-      if (resolvedComments > 0 && summary?.resolutionDetails) {
-        automaticActions.push(`${resolvedComments} comments have been resolved:`);
-        summary.resolutionDetails.forEach((detail) => {
-          automaticActions.push(`  - ${detail}`);
-        });
-      }
-
-      // If all comments are resolved, don't treat it as needing attention
-      if (unresolvedComments === 0 && totalComments > 0) {
-        automaticActions.push(`All ${totalComments} review comments have been addressed`);
-        // Continue to next PR or other priorities
-        myPRsNeedingAttention.shift(); // Remove this PR from the list
-        if (myPRsNeedingAttention.length > 0) {
-          // Process next PR with unresolved feedback
-          return workflowNext(); // Recursive call to re-evaluate
+        if (resolvedComments > 0 && summary?.resolutionDetails) {
+          automaticActions.push(`${resolvedComments} comments have been resolved:`);
+          summary.resolutionDetails.forEach((detail) => {
+            automaticActions.push(`  - ${detail}`);
+          });
         }
-      }
 
-      return {
-        requestedData: {
-          nextSteps: [
-            {
-              action: 'address_pr_feedback',
-              prNumber: pr.prNumber,
-              title: pr.title,
-              reviewStatus: pr.reviewStatus,
-              reviews: pr.reviews,
-              suggestion: `Address ${unresolvedComments} unresolved review comments on PR #${pr.prNumber}${commentStatus}`,
-              prUrl: pr.url,
+        return {
+          requestedData: {
+            nextSteps: [
+              {
+                action: 'address_pr_feedback',
+                prNumber: pr.prNumber,
+                title: pr.title,
+                reviewStatus: pr.reviewStatus,
+                reviews: pr.reviews,
+                suggestion: `Address ${unresolvedComments} unresolved review comments on PR #${pr.prNumber}${commentStatus}`,
+                prUrl: pr.url,
+              },
+            ],
+            context: {
+              currentBranch,
+              hasUncommittedChanges,
+              myOpenPRs,
+              othersPRsToReview,
+              totalOpenPRs: allOpenPRs.length,
             },
-          ],
-          context: {
-            currentBranch,
-            hasUncommittedChanges,
-            myOpenPRs,
-            othersPRsToReview,
-            totalOpenPRs: allOpenPRs.length,
           },
-        },
-        automaticActions,
-        issuesFound,
-        suggestedActions: [
-          `Address ${unresolvedComments} unresolved ${pr.reviewStatus === 'changes_requested' ? 'requested changes' : 'review comments'} on PR #${pr.prNumber}`,
-        ],
-        allPRStatus: [],
-      };
+          automaticActions,
+          issuesFound,
+          suggestedActions: [
+            `Address ${unresolvedComments} unresolved ${pr.reviewStatus === 'changes_requested' ? 'requested changes' : 'review comments'} on PR #${pr.prNumber}`,
+          ],
+          allPRStatus: [],
+        };
+      }
     }
 
     // Priority 2: My PRs without any reviews yet

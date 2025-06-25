@@ -32,6 +32,71 @@ function isResolutionReply(body: string): boolean {
   return RESOLUTION_PATTERNS.some((pattern) => pattern.test(body));
 }
 
+interface ThreadComment {
+  author: { login: string };
+  body: string;
+  createdAt: string;
+}
+
+interface ResolutionResult {
+  isResolved: boolean;
+  resolutionReason?: string;
+}
+
+function determineThreadResolution(
+  threadComments: ThreadComment[],
+  prAuthor: string | undefined
+): ResolutionResult {
+  if (!prAuthor || threadComments.length <= 1) {
+    return { isResolved: false };
+  }
+
+  // Look through all replies (skip first comment which is the review)
+  const authorReplies = threadComments
+    .slice(1)
+    .filter((comment) => comment.author.login === prAuthor);
+
+  if (authorReplies.length === 0) {
+    return { isResolved: false };
+  }
+
+  // Check if any author reply indicates resolution
+  for (const reply of authorReplies) {
+    if (isResolutionReply(reply.body)) {
+      return {
+        isResolved: true,
+        resolutionReason: `Author replied: "${reply.body.substring(0, 100)}${
+          reply.body.length > 100 ? '...' : ''
+        }"`,
+      };
+    }
+  }
+
+  // If author replied but didn't explicitly indicate resolution,
+  // check if there are no further reviewer comments after the last author reply
+  const lastAuthorReply = authorReplies[authorReplies.length - 1];
+  const lastAuthorReplyDate = new Date(lastAuthorReply.createdAt);
+
+  // Check if reviewer commented again after author's reply
+  const reviewerCommentsAfterReply = threadComments
+    .slice(1)
+    .filter(
+      (comment) =>
+        comment.author.login !== prAuthor &&
+        new Date(comment.createdAt) > lastAuthorReplyDate
+    );
+
+  if (reviewerCommentsAfterReply.length === 0) {
+    // No further reviewer comments, consider it potentially resolved
+    return {
+      isResolved: true,
+      resolutionReason: 'Author replied (no further reviewer comments)',
+    };
+  }
+
+  return { isResolved: false };
+}
+
 interface MonitorReviewsInput {
   includeApproved?: boolean; // Include already approved PRs in response
   includeDrafts?: boolean; // Include draft PRs in monitoring
@@ -367,49 +432,11 @@ export async function workflowMonitorReviews(
           const reviewId = firstComment.pullRequestReview.databaseId;
 
           // Check if PR author has replied and if it indicates resolution
-          let isResolved = false;
-          let resolutionReason: string | undefined;
-
-          if (hasReplies) {
-            // Look through all replies to see if author responded
-            const prAuthor = pr.user?.login;
-            const authorReplies = thread.comments.nodes
-              .slice(1) // Skip the first comment (the review comment)
-              .filter((comment) => comment.author.login === prAuthor);
-
-            if (authorReplies.length > 0) {
-              // Check if any author reply indicates resolution
-              for (const reply of authorReplies) {
-                if (isResolutionReply(reply.body)) {
-                  isResolved = true;
-                  resolutionReason = `Author replied: "${reply.body.substring(0, 100)}${reply.body.length > 100 ? '...' : ''}"`;
-                  break;
-                }
-              }
-
-              // If author replied but didn't explicitly indicate resolution,
-              // check if there are no further reviewer comments after the last author reply
-              if (!isResolved && authorReplies.length > 0) {
-                const lastAuthorReply = authorReplies[authorReplies.length - 1];
-                const lastAuthorReplyDate = new Date(lastAuthorReply.createdAt);
-
-                // Check if reviewer commented again after author's reply
-                const reviewerCommentsAfterReply = thread.comments.nodes
-                  .slice(1)
-                  .filter(
-                    (comment) =>
-                      comment.author.login !== prAuthor &&
-                      new Date(comment.createdAt) > lastAuthorReplyDate
-                  );
-
-                if (reviewerCommentsAfterReply.length === 0) {
-                  // No further reviewer comments, consider it potentially resolved
-                  isResolved = true;
-                  resolutionReason = 'Author replied (no further reviewer comments)';
-                }
-              }
-            }
-          }
+          const prAuthor = pr.user?.login;
+          const { isResolved, resolutionReason } = determineThreadResolution(
+            thread.comments.nodes,
+            prAuthor
+          );
 
           const comment: ReviewComment = {
             id: firstComment.databaseId,
