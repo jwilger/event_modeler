@@ -296,8 +296,8 @@ export async function workflowMonitorReviews(input: MonitorReviewsInput = {}): P
       
       const threads = (reviewThreads as ReviewThreadsResponse).repository.pullRequest.reviewThreads.nodes;
       
-      // Build a map of review comments from threads
-      const reviewCommentsMap = new Map<number, ReviewComment>();
+      // Build a map of review comments grouped by review ID
+      const reviewCommentsMap = new Map<number, ReviewComment[]>();
       
       for (const thread of threads) {
         // Skip resolved or outdated threads
@@ -309,14 +309,20 @@ export async function workflowMonitorReviews(input: MonitorReviewsInput = {}): P
         // Get the first comment (the original review comment)
         const firstComment = thread.comments.nodes[0];
         if (firstComment && firstComment.pullRequestReview) {
-          reviewCommentsMap.set(firstComment.databaseId, {
+          const reviewId = firstComment.pullRequestReview.databaseId;
+          const comment: ReviewComment = {
             id: firstComment.databaseId,
             file: thread.path,
             line: thread.line,
             comment: firstComment.body,
             hasReplies,
             threadId: thread.id
-          });
+          };
+          
+          if (!reviewCommentsMap.has(reviewId)) {
+            reviewCommentsMap.set(reviewId, []);
+          }
+          reviewCommentsMap.get(reviewId)!.push(comment);
         }
       }
       
@@ -333,9 +339,8 @@ export async function workflowMonitorReviews(input: MonitorReviewsInput = {}): P
         };
 
         // Add comments from this review that are in unresolved threads
-        for (const comment of reviewCommentsMap.values()) {
-          reviewInfo.comments.push(comment);
-        }
+        const reviewComments = reviewCommentsMap.get(review.id) || [];
+        reviewInfo.comments.push(...reviewComments);
 
         reviewInfos.push(reviewInfo);
       }
