@@ -11,6 +11,7 @@ import { workflowCreatePR } from './tools/workflow-create-pr.js';
 import { workflowMonitorReviews } from './tools/workflow-monitor-reviews.js';
 import { workflowReplyReview, workflowReplyReviewTool } from './tools/workflow-reply-review.js';
 import { workflowManageSubissues } from './tools/workflow-manage-subissues.js';
+import { workflowCreateIssue } from './tools/workflow-create-issue.js';
 import { gitBranch } from './tools/git-branch.js';
 import { gitCommit } from './tools/git-commit.js';
 import { gitStash } from './tools/git-stash.js';
@@ -174,6 +175,49 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: 'workflow_create_issue',
+        description:
+          'Create GitHub issues with project metadata, optionally linking to epics as sub-issues',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            title: {
+              type: 'string',
+              description: 'Issue title',
+            },
+            body: {
+              type: 'string',
+              description: 'Issue body/description',
+            },
+            epicNumber: {
+              type: 'number',
+              description: 'Epic issue number to link as sub-issue (optional)',
+            },
+            type: {
+              type: 'string',
+              enum: ['bug', 'feature', 'enhancement', 'documentation', 'question'],
+              description: 'Issue type (optional)',
+            },
+            priority: {
+              type: 'string',
+              enum: ['low', 'medium', 'high', 'urgent'],
+              description: 'Issue priority (optional)',
+            },
+            labels: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Labels to add to the issue (optional)',
+            },
+            assignees: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Usernames to assign the issue to (optional)',
+            },
+          },
+          required: ['title', 'body'],
+        },
+      },
+      {
         name: 'git_branch',
         description:
           'Manage Git branches: checkout, create, pull, push, list branches, or start work on an issue',
@@ -305,6 +349,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       case 'workflow_manage_subissues':
         result = await workflowManageSubissues(request.params.arguments as { action: 'link' | 'unlink' | 'list'; epicNumber: number; issueNumber?: number });
+        break;
+      case 'workflow_create_issue':
+        result = await workflowCreateIssue(request.params.arguments as { title: string; body: string; epicNumber?: number; type?: 'bug' | 'feature' | 'enhancement' | 'documentation' | 'question'; priority?: 'low' | 'medium' | 'high' | 'urgent'; labels?: string[]; assignees?: string[] });
         break;
       case 'git_branch':
         result = await gitBranch(request.params.arguments as { action: 'checkout' | 'create' | 'pull' | 'push' | 'list' | 'start-work'; branch?: string; issueNumber?: number; force?: boolean });

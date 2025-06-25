@@ -96,60 +96,6 @@ function extractIssueNumber(branchName: string): number | undefined {
   return undefined;
 }
 
-async function runPreCommitChecks(files: string[]): Promise<{ passed: boolean; output: string }> {
-  const rustFiles = files.filter(f => f.endsWith('.rs'));
-  const tsFiles = files.filter(f => f.endsWith('.ts') || f.endsWith('.tsx'));
-  
-  let output = '';
-  let passed = true;
-  
-  // Check Rust files
-  if (rustFiles.length > 0) {
-    try {
-      // Run cargo fmt check
-      execSync('cargo fmt -- --check', { encoding: 'utf8' });
-      output += 'cargo fmt: ✓\n';
-    } catch {
-      output += 'cargo fmt: ✗ (run `cargo fmt` to fix)\n';
-      passed = false;
-    }
-    
-    try {
-      // Run cargo clippy
-      execSync('cargo clippy --workspace --all-targets -- -D warnings', { encoding: 'utf8' });
-      output += 'cargo clippy: ✓\n';
-    } catch {
-      output += 'cargo clippy: ✗ (fix clippy warnings)\n';
-      passed = false;
-    }
-  }
-  
-  // Check TypeScript files
-  if (tsFiles.length > 0) {
-    try {
-      // Check if we're in the mcp-workflow-server directory
-      const isInMcpDir = process.cwd().includes('mcp-workflow-server') || 
-                        await fs.access(path.join(process.cwd(), 'mcp-workflow-server')).then(() => true).catch(() => false);
-      
-      if (isInMcpDir) {
-        const mcpDir = process.cwd().includes('mcp-workflow-server') ? '.' : 'mcp-workflow-server';
-        
-        // Run npm run lint
-        execSync(`cd ${mcpDir} && npm run lint`, { encoding: 'utf8' });
-        output += 'npm run lint: ✓\n';
-        
-        // Run npm run typecheck
-        execSync(`cd ${mcpDir} && npm run typecheck`, { encoding: 'utf8' });
-        output += 'npm run typecheck: ✓\n';
-      }
-    } catch (error) {
-      output += `TypeScript checks: ✗ (${error instanceof Error ? error.message : 'unknown error'})\n`;
-      passed = false;
-    }
-  }
-  
-  return { passed, output };
-}
 
 function formatCommitMessage(message: string, issueNumber?: number): string {
   let formattedMessage = message.trim();
@@ -306,23 +252,6 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
         
         automaticActions.push(`Committing ${stagedFiles.length} files`);
         
-        // Run pre-commit checks
-        const { passed, output } = await runPreCommitChecks(stagedFiles);
-        automaticActions.push('Pre-commit checks:');
-        automaticActions.push(...output.split('\n').filter(line => line.trim()));
-        
-        if (!passed) {
-          issuesFound.push('Pre-commit checks failed');
-          suggestedActions.push('Fix the issues and try again');
-          return {
-            requestedData: {},
-            automaticActions,
-            issuesFound,
-            suggestedActions,
-            allPRStatus: [],
-          };
-        }
-        
         // Auto-detect issue number if not provided
         const issueNumber = input.issueNumber || extractIssueNumber(getCurrentBranch());
         if (issueNumber) {
@@ -332,14 +261,24 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
         // Format commit message
         const commitMessage = formatCommitMessage(input.message, issueNumber);
         
-        // Create commit
+        // Create commit - let git run pre-commit hooks naturally
         try {
           // Write message to temp file to handle multiline properly
           const tempFile = path.join(os.tmpdir(), `git-commit-msg-${Date.now()}.txt`);
           await fs.writeFile(tempFile, commitMessage);
           
-          execSync(`git commit -F "${tempFile}"`, { encoding: 'utf8' });
+          // Run git commit and capture output
+          const commitOutput = execSync(`git commit -F "${tempFile}" 2>&1`, { 
+            encoding: 'utf8',
+            stdio: 'pipe'
+          });
           await fs.unlink(tempFile);
+          
+          // Parse output for useful information
+          if (commitOutput) {
+            const outputLines = commitOutput.split('\n').filter(line => line.trim());
+            automaticActions.push(...outputLines);
+          }
           
           const commitHash = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
           automaticActions.push(`Created commit: ${commitHash.substring(0, 7)}`);
@@ -356,7 +295,50 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
             allPRStatus: [],
           };
         } catch (error) {
-          throw new Error(`Failed to create commit: ${error instanceof Error ? error.message : 'unknown error'}`);
+          // Git commit failed - likely due to pre-commit hooks
+          const errorMessage = error instanceof Error ? error.message : 'unknown error';
+          
+          // Extract useful error information from stderr
+          if (error instanceof Error && 'stderr' in error) {
+            const stderr = (error as Error & { stderr?: string }).stderr || '';
+            const stdout = (error as Error & { stdout?: string }).stdout || '';
+            const fullOutput = stdout + stderr;
+            
+            issuesFound.push('Pre-commit checks failed');
+            
+            // Add the error output to automatic actions for visibility
+            const outputLines = fullOutput.split('\n').filter(line => line.trim());
+            if (outputLines.length > 0) {
+              automaticActions.push('Pre-commit hook output:');
+              automaticActions.push(...outputLines);
+            }
+            
+            // Try to extract specific failures
+            if (fullOutput.includes('cargo fmt')) {
+              suggestedActions.push('Run `cargo fmt` to fix formatting issues');
+            }
+            if (fullOutput.includes('cargo clippy')) {
+              suggestedActions.push('Fix Clippy warnings');
+            }
+            if (fullOutput.includes('npm run lint')) {
+              suggestedActions.push('Fix ESLint issues');
+            }
+            if (fullOutput.includes('npm run build') || fullOutput.includes('TypeScript')) {
+              suggestedActions.push('Fix TypeScript errors');
+            }
+          } else {
+            issuesFound.push(`Failed to create commit: ${errorMessage}`);
+          }
+          
+          suggestedActions.push('Fix the issues and try again');
+          
+          return {
+            requestedData: {},
+            automaticActions,
+            issuesFound,
+            suggestedActions,
+            allPRStatus: [],
+          };
         }
       }
       
@@ -382,32 +364,24 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
         const stagedFiles = parseGitStatus().filter(f => f.staged).map(f => f.path);
         if (stagedFiles.length > 0) {
           automaticActions.push(`Adding ${stagedFiles.length} files to previous commit`);
-          
-          // Run pre-commit checks
-          const { passed, output } = await runPreCommitChecks(stagedFiles);
-          automaticActions.push('Pre-commit checks:');
-          automaticActions.push(...output.split('\n').filter(line => line.trim()));
-          
-          if (!passed) {
-            issuesFound.push('Pre-commit checks failed');
-            suggestedActions.push('Fix the issues and try again');
-            return {
-              requestedData: {},
-              automaticActions,
-              issuesFound,
-              suggestedActions,
-              allPRStatus: [],
-            };
-          }
         }
         
-        // Amend commit
+        // Amend commit - let git run pre-commit hooks naturally
         try {
           const tempFile = path.join(os.tmpdir(), `git-commit-msg-${Date.now()}.txt`);
           await fs.writeFile(tempFile, commitMessage);
           
-          execSync(`git commit --amend -F "${tempFile}"`, { encoding: 'utf8' });
+          const amendOutput = execSync(`git commit --amend -F "${tempFile}" 2>&1`, { 
+            encoding: 'utf8',
+            stdio: 'pipe'
+          });
           await fs.unlink(tempFile);
+          
+          // Parse output for useful information
+          if (amendOutput) {
+            const outputLines = amendOutput.split('\n').filter((line: string) => line.trim());
+            automaticActions.push(...outputLines);
+          }
           
           const commitHash = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
           automaticActions.push(`Amended commit: ${commitHash.substring(0, 7)}`);
@@ -423,7 +397,50 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
             allPRStatus: [],
           };
         } catch (error) {
-          throw new Error(`Failed to amend commit: ${error instanceof Error ? error.message : 'unknown error'}`);
+          // Git commit failed - likely due to pre-commit hooks
+          const errorMessage = error instanceof Error ? error.message : 'unknown error';
+          
+          // Extract useful error information from stderr
+          if (error instanceof Error && 'stderr' in error) {
+            const stderr = (error as Error & { stderr?: string }).stderr || '';
+            const stdout = (error as Error & { stdout?: string }).stdout || '';
+            const fullOutput = stdout + stderr;
+            
+            issuesFound.push('Pre-commit checks failed during amend');
+            
+            // Add the error output to automatic actions for visibility
+            const outputLines = fullOutput.split('\n').filter((line: string) => line.trim());
+            if (outputLines.length > 0) {
+              automaticActions.push('Pre-commit hook output:');
+              automaticActions.push(...outputLines);
+            }
+            
+            // Same error suggestions as commit
+            if (fullOutput.includes('cargo fmt')) {
+              suggestedActions.push('Run `cargo fmt` to fix formatting issues');
+            }
+            if (fullOutput.includes('cargo clippy')) {
+              suggestedActions.push('Fix Clippy warnings');
+            }
+            if (fullOutput.includes('npm run lint')) {
+              suggestedActions.push('Fix ESLint issues');
+            }
+            if (fullOutput.includes('npm run build') || fullOutput.includes('TypeScript')) {
+              suggestedActions.push('Fix TypeScript errors');
+            }
+          } else {
+            issuesFound.push(`Failed to amend commit: ${errorMessage}`);
+          }
+          
+          suggestedActions.push('Fix the issues and try again');
+          
+          return {
+            requestedData: {},
+            automaticActions,
+            issuesFound,
+            suggestedActions,
+            allPRStatus: [],
+          };
         }
       }
       
