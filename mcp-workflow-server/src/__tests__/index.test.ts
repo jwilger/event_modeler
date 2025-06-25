@@ -50,7 +50,7 @@ describe('MCP Server Index', () => {
     const result = await (listToolsHandler as () => Promise<{ tools: Tool[] }>)();
 
     // Verify all tools are registered
-    expect(result.tools).toHaveLength(6);
+    expect(result.tools).toHaveLength(7);
     
     // Find workflow_status tool
     const statusTool = result.tools.find((t: Tool) => t.name === 'workflow_status');
