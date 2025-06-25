@@ -2,6 +2,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { initializeAuth } from './utils/auth.js';
 
 import { workflowStatusTool } from './tools/workflow-status.js';
 import { workflowNext } from './tools/workflow-next.js';
@@ -402,6 +403,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     };
   }
 });
+
+// Initialize authentication at startup
+initializeAuth();
 
 // Start the server
 const transport = new StdioServerTransport();

@@ -1,8 +1,8 @@
 import { Octokit } from '@octokit/rest';
-import { execSync } from 'child_process';
 import { WorkflowResponse } from '../types.js';
 import { getRepoInfo } from '../utils/github.js';
 import { getProjectConfig } from '../config.js';
+import { getGitHubToken } from '../utils/auth.js';
 
 interface CreateIssueInput {
   title: string;
@@ -170,7 +170,7 @@ export async function workflowCreateIssue(
     automaticActions.push(`Working in repository: ${owner}/${repo}`);
 
     // Set up GitHub API
-    const token = execSync('gh auth token', { encoding: 'utf8' }).trim();
+    const token = getGitHubToken();
     const octokit = new Octokit({ auth: token });
 
     // Build labels array

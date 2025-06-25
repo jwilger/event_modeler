@@ -14,6 +14,10 @@ vi.mock('../../utils/github.js', () => ({
   getRepoInfo: vi.fn(() => ({ owner: 'testowner', repo: 'testrepo' })),
 }));
 
+vi.mock('../../utils/auth.js', () => ({
+  getGitHubToken: vi.fn(() => 'mock-token'),
+}));
+
 describe('gitBranch', () => {
   let mockExecSync: ReturnType<typeof vi.fn>;
   let mockOctokit: { issues: { get: ReturnType<typeof vi.fn> } };
@@ -34,7 +38,6 @@ describe('gitBranch', () => {
     mockExecSync.mockImplementation((cmd: string) => {
       if (cmd === 'git branch --show-current') return 'main\n';
       if (cmd === 'git status --porcelain') return '';
-      if (cmd === 'gh auth token') return 'mock-token\n';
       return '';
     });
   });

@@ -6,6 +6,9 @@ vi.mock("@octokit/rest");
 vi.mock("../../utils/github.js", () => ({
   getRepoInfo: (): { owner: string; repo: string } => ({ owner: "test-owner", repo: "test-repo" }),
 }));
+vi.mock("../../utils/auth.js", () => ({
+  getGitHubToken: vi.fn(() => "test-token"),
+}));
 
 interface MockOctokit {
   pulls: {
@@ -418,18 +421,17 @@ describe("workflowRequestReview", () => {
   });
 
   it("should handle missing GitHub token", async (): Promise<void> => {
-    // Remove the token from environment
-    delete process.env.GH_TOKEN;
-    delete process.env.GITHUB_TOKEN;
+    // Re-mock getGitHubToken to throw an error
+    vi.mocked(await import('../../utils/auth.js')).getGitHubToken.mockImplementationOnce(() => {
+      throw new Error('GitHub token not found. Please set GH_TOKEN environment variable or run \'gh auth login\'');
+    });
 
     const result = await workflowRequestReview({
       prNumber: 123,
     });
 
     expect(result.requestedData).toBeNull();
-    expect(result.issuesFound).toContain(
-      "Error: GitHub token not found in environment variables (GH_TOKEN or GITHUB_TOKEN)."
-    );
+    expect(result.issuesFound[0]).toContain("GitHub token not found");
   });
 
   it("should filter out PR author from reviewers", async (): Promise<void> => {

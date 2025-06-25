@@ -4,10 +4,14 @@ import { workflowManageSubissues } from '../workflow-manage-subissues.js';
 // Mock child_process
 vi.mock('child_process', () => ({
   execSync: vi.fn((cmd: string) => {
-    if (cmd === 'gh auth token') return 'test-token';
     if (cmd.startsWith('git remote get-url')) return 'https://github.com/testuser/testrepo.git';
     return '';
   }),
+}));
+
+// Mock auth
+vi.mock('../../utils/auth.js', () => ({
+  getGitHubToken: vi.fn(() => 'test-token'),
 }));
 
 // Mock @octokit/rest

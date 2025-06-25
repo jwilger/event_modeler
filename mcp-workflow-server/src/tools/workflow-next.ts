@@ -10,6 +10,7 @@ import {
 } from './workflow-monitor-reviews.js';
 import { getRepoInfo } from '../utils/github.js';
 import { isBranchMerged } from '../utils/git.js';
+import { getGitHubToken } from '../utils/auth.js';
 
 // Constants for bot reviewer names
 const COPILOT_BOT_REVIEWER = 'copilot-pull-request-reviewer[bot]';
@@ -319,7 +320,7 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       };
     }
     // Get GitHub token from gh CLI
-    const token = execSync('gh auth token', { encoding: 'utf8' }).trim();
+    const token = getGitHubToken();
     const octokit = new Octokit({ auth: token });
 
     // Get current user

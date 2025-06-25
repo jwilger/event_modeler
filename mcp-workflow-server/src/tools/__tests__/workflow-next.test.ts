@@ -49,6 +49,10 @@ vi.mock('../../utils/git.js', () => ({
   isBranchMerged: vi.fn(() => Promise.resolve(false))
 }));
 
+vi.mock('../../utils/auth.js', () => ({
+  getGitHubToken: vi.fn(() => 'mock-token')
+}));
+
 describe('workflowNext', () => {
   let mockGraphql: ReturnType<typeof vi.fn>;
   let mockExecSync: ReturnType<typeof vi.fn>;
@@ -66,7 +70,6 @@ describe('workflowNext', () => {
     
     // Default mock setup for execSync
     mockExecSync.mockImplementation((cmd: string) => {
-      if (cmd === 'gh auth token') return 'mock-token\n';
       if (cmd === 'gh api user --jq .login') return 'testuser\n';
       if (cmd === 'gh repo view --json owner,name') {
         return JSON.stringify({ owner: { login: 'jwilger' }, name: 'event_modeler' });
@@ -197,15 +200,16 @@ describe('workflowNext', () => {
   });
 
   it('should handle errors gracefully', async () => {
-    const { workflowNext } = await import('../workflow-next.js');
-    
-    mockExecSync.mockImplementation(() => {
-      throw new Error('gh not authenticated');
+    // Re-mock getGitHubToken to throw an error
+    vi.mocked(await import('../../utils/auth.js')).getGitHubToken.mockImplementationOnce(() => {
+      throw new Error('GitHub token not found. Please set GH_TOKEN environment variable or run \'gh auth login\'');
     });
+    
+    const { workflowNext } = await import('../workflow-next.js');
 
     const result = await workflowNext();
 
-    expect(result.issuesFound).toContain('Error: gh not authenticated');
+    expect(result.issuesFound[0]).toContain('GitHub token not found');
     expect(result.suggestedActions).toContain('Check that gh CLI is authenticated and has access to the repository');
     expect(result.requestedData.nextSteps).toHaveLength(0);
   });

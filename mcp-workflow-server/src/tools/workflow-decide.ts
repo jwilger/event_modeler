@@ -3,6 +3,7 @@ import { Octokit } from '@octokit/rest';
 import { WorkflowResponse } from '../types.js';
 import { getProjectConfig } from '../config.js';
 import { getRepoInfo } from '../utils/github.js';
+import { getGitHubToken } from '../utils/auth.js';
 
 interface DecisionInput {
   decisionId: string;
@@ -92,7 +93,7 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
     const epicNumber = parseInt(epicMatch[1]);
 
     // Get GitHub token and set up Octokit
-    const token = execSync('gh auth token', { encoding: 'utf8' }).trim();
+    const token = getGitHubToken();
     const octokit = new Octokit({ auth: token });
 
     // Get current user

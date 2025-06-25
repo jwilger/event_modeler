@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { Octokit } from "@octokit/rest";
 import { getRepoInfo } from "../utils/github.js";
+import { getGitHubToken } from "../utils/auth.js";
 import type { WorkflowResponse } from "../types.js";
 
 // GraphQL response types
@@ -94,10 +95,7 @@ export async function workflowRequestReview(
 
   try {
     // Get GitHub token
-    const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
-    if (!token) {
-      throw new Error("GitHub token not found in environment variables (GH_TOKEN or GITHUB_TOKEN).");
-    }
+    const token = getGitHubToken();
     const octokit = new Octokit({ auth: token });
     const { owner, repo } = getRepoInfo();
 

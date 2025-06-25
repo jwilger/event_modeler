@@ -6,6 +6,11 @@ import { Octokit } from '@octokit/rest';
 vi.mock('child_process');
 vi.mock('@octokit/rest');
 
+// Mock auth
+vi.mock('../auth.js', () => ({
+  getGitHubToken: vi.fn(() => 'mock-token'),
+}));
+
 // Import after mocks
 import { getAllPRs } from '../github.js';
 
@@ -16,11 +21,8 @@ describe('GitHub Utilities', () => {
 
   describe('Repository URL parsing', () => {
     it('should handle repository names with dots', async () => {
-      // Mock gh auth token
+      // Mock git remote
       vi.mocked(execSync).mockImplementation((cmd) => {
-        if (cmd === 'gh auth token') {
-          return 'mock-token';
-        }
         if (cmd === 'git config --get remote.origin.url') {
           return 'git@github.com:user/repo.with.dots.git\n';
         }
@@ -41,9 +43,6 @@ describe('GitHub Utilities', () => {
 
     it('should handle HTTPS URLs', async () => {
       vi.mocked(execSync).mockImplementation((cmd) => {
-        if (cmd === 'gh auth token') {
-          return 'mock-token';
-        }
         if (cmd === 'git config --get remote.origin.url') {
           return 'https://github.com/owner/repository.git\n';
         }
