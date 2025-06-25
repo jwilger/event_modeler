@@ -2,7 +2,7 @@ import { Octokit } from '@octokit/rest';
 import { execSync } from 'child_process';
 import { WorkflowResponse } from '../types.js';
 import { getProjectConfig, getMissingConfigFields, createConfigRequest } from '../config.js';
-import { workflowMonitorReviews, requestCopilotReReview, type ReviewInfo } from './workflow-monitor-reviews.js';
+import { workflowMonitorReviews, requestCopilotReReview, type ReviewInfo, type PRReviewStatus } from './workflow-monitor-reviews.js';
 import { getRepoInfo } from '../utils/github.js';
 import { isBranchMerged } from '../utils/git.js';
 
@@ -14,6 +14,27 @@ interface TodoItem {
   text: string;
   checked: boolean;
   index: number;
+}
+
+interface Choice {
+  id: string | number;
+  title: string;
+  description?: string;
+  metadata?: {
+    state?: string;
+    labels?: string[];
+  };
+}
+
+interface DecisionContext {
+  prompt: string;
+  additionalInfo?: {
+    currentBranch?: string;
+    existingPR?: {
+      number: number;
+      title: string;
+    } | null;
+  };
 }
 
 interface NextStepAction {
@@ -38,16 +59,8 @@ interface NextStepAction {
   // Fields for LLM decision requests
   decisionType?: 'select_next_issue' | 'prioritize_work';
   decisionId?: string; // Unique ID to track this decision
-  choices?: Array<{
-    id: string | number;
-    title: string;
-    description?: string;
-    metadata?: Record<string, any>;
-  }>;
-  decisionContext?: {
-    prompt: string;
-    additionalInfo?: Record<string, any>;
-  };
+  choices?: Choice[];
+  decisionContext?: DecisionContext;
   // Fields for config requests
   missingConfig?: string[];
   configSuggestions?: string[];
@@ -59,10 +72,31 @@ interface NextStepAction {
   author?: string;
 }
 
+interface WorkflowContext {
+  currentBranch?: string;
+  hasUncommittedChanges?: boolean;
+  myOpenPRs?: PRReviewStatus[];
+  othersPRsToReview?: PRReviewStatus[];
+  totalOpenPRs?: number;
+  myPRsNeedingAttention?: PRReviewStatus[];
+  otherOpenPRs?: number;
+  existingPR?: {
+    number: number;
+    title: string;
+  } | null;
+  assignedIssues?: number;
+  inProgressIssues?: number;
+  totalTodos?: number;
+  completedTodos?: number;
+  hasPR?: boolean;
+  branchMerged?: boolean;
+  currentConfig?: ReturnType<typeof getProjectConfig>['config'];
+}
+
 interface WorkflowNextResponse extends WorkflowResponse {
   requestedData: {
     nextSteps: NextStepAction[];
-    context: Record<string, any>;
+    context: WorkflowContext;
   };
 }
 
@@ -91,7 +125,7 @@ async function getCurrentUser(): Promise<string> {
   try {
     const output = execSync('gh api user --jq .login', { encoding: 'utf8' });
     return output.trim();
-  } catch (error) {
+  } catch {
     throw new Error('Failed to get current GitHub user. Make sure gh CLI is authenticated.');
   }
 }
@@ -266,7 +300,17 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
               since: reviewDate.toISOString()
             });
             
-            const newCommitCount = (result as any).repository.pullRequest.commits.totalCount;
+            interface CommitCountResult {
+              repository: {
+                pullRequest: {
+                  commits: {
+                    totalCount: number;
+                  };
+                };
+              };
+            }
+            
+            const newCommitCount = (result as CommitCountResult).repository.pullRequest.commits.totalCount;
             
             if (newCommitCount > 0) {
               // Only request re-review if there are actual new commits
@@ -448,7 +492,7 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
             currentBranch,
             hasUncommittedChanges,
             totalOpenPRs: allOpenPRs.length,
-            myOpenPRs: myOpenPRs.length,
+            myOpenPRs: [] as PRReviewStatus[],
             otherOpenPRs: otherPRCount
           }
         },
@@ -512,35 +556,69 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       projectNumber: config.github.projectNumber!
     });
 
+    interface ProjectItem {
+      id: string;
+      content?: {
+        number: number;
+        title: string;
+        body?: string;
+        state: string;
+        labels?: {
+          nodes: Array<{ name: string }>;
+        };
+        assignees?: {
+          nodes: Array<{ login: string }>;
+        };
+      };
+      fieldValues: {
+        nodes: Array<{
+          name?: string;
+          field?: {
+            name: string;
+          };
+        }>;
+      };
+    }
+    
+    interface ProjectData {
+      user: {
+        projectV2: {
+          items: {
+            nodes: ProjectItem[];
+          };
+        };
+      };
+    }
+    
     // Filter to issues assigned to current user and in progress
-    const items = (projectData as any).user.projectV2.items.nodes;
+    const items = (projectData as ProjectData).user.projectV2.items.nodes;
     
     // Separate regular issues and epics
-    const allInProgressIssues = items.filter((item: any) => {
+    const allInProgressIssues = items.filter((item) => {
       if (!item.content || !item.content.assignees) return false;
       
       const isAssignedToUser = item.content.assignees.nodes.some(
-        (assignee: any) => assignee.login === currentUser
+        (assignee) => assignee.login === currentUser
       );
       
       const statusField = item.fieldValues.nodes.find(
-        (field: any) => field.field && field.field.name === 'Status'
+        (field) => field.field && field.field.name === 'Status'
       );
       const isInProgress = statusField && statusField.name === 'In Progress';
       
       return isAssignedToUser && isInProgress;
     });
     
-    const inProgressIssues = allInProgressIssues.filter((item: any) => {
-      const isEpic = item.content.labels && item.content.labels.nodes.some(
-        (label: any) => label.name === 'epic'
+    const inProgressIssues = allInProgressIssues.filter((item) => {
+      const isEpic = item.content?.labels && item.content.labels.nodes.some(
+        (label) => label.name === 'epic'
       );
       return !isEpic;
     });
     
-    const inProgressEpics = allInProgressIssues.filter((item: any) => {
-      const isEpic = item.content.labels && item.content.labels.nodes.some(
-        (label: any) => label.name === 'epic'
+    const inProgressEpics = allInProgressIssues.filter((item) => {
+      const isEpic = item.content?.labels && item.content.labels.nodes.some(
+        (label) => label.name === 'epic'
       );
       return isEpic;
     });
@@ -570,15 +648,26 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         headRef: currentBranch
       });
       
-      const prs = (prResult as any).repository.pullRequests.nodes;
+      interface PRQueryResult {
+        repository: {
+          pullRequests: {
+            nodes: Array<{
+              number: number;
+              title: string;
+              state: string;
+            }>;
+          };
+        };
+      }
+      
+      const prs = (prResult as PRQueryResult).repository.pullRequests.nodes;
       if (prs.length > 0) {
         existingPR = {
           number: prs[0].number,
-          title: prs[0].title,
-          state: prs[0].state
+          title: prs[0].title
         };
       }
-    } catch (error) {
+    } catch {
       // No PR found or error checking
     }
 
@@ -587,6 +676,9 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       if (inProgressEpics.length > 0) {
         // Analyze the first epic
         const epic = inProgressEpics[0].content;
+        if (!epic) {
+          throw new Error('Epic content is undefined');
+        }
         
         // Get all sub-issues linked to this epic
         const epicQuery = `
@@ -619,9 +711,30 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
             epicNumber: epic.number
           });
           
-          const epicIssue = (epicData as any).repository.issue;
+          interface SubIssue {
+            number: number;
+            title: string;
+            state: string;
+            labels?: {
+              nodes: Array<{ name: string }>;
+            };
+          }
+          
+          interface EpicData {
+            repository: {
+              issue: {
+                title: string;
+                body?: string;
+                subIssues?: {
+                  nodes: SubIssue[];
+                };
+              };
+            };
+          }
+          
+          const epicIssue = (epicData as EpicData).repository.issue;
           const subIssues = epicIssue.subIssues?.nodes || [];
-          const openSubIssues = subIssues.filter((issue: any) => issue.state === 'OPEN');
+          const openSubIssues = subIssues.filter((issue) => issue.state === 'OPEN');
           
           if (openSubIssues.length === 0) {
             // Epic has no open sub-issues
@@ -659,13 +772,13 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
                   decisionId,
                   epicNumber: epic.number,
                   epicTitle: epic.title,
-                  choices: openSubIssues.map((issue: any) => ({
+                  choices: openSubIssues.map((issue) => ({
                     id: issue.number,
                     title: issue.title,
                     description: `Issue #${issue.number}`,
                     metadata: {
                       state: issue.state,
-                      labels: issue.labels?.nodes?.map((l: any) => l.name) || []
+                      labels: issue.labels?.nodes?.map((l) => l.name) || []
                     }
                   })),
                   decisionContext: {
@@ -699,7 +812,7 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
                 epicNumber: epic.number,
                 epicTitle: epic.title,
                 suggestion: `Work on sub-issue #${nextIssue.number}: ${nextIssue.title}`,
-                subIssues: openSubIssues.map((issue: any) => ({
+                subIssues: openSubIssues.map((issue) => ({
                   number: issue.number,
                   title: issue.title,
                   status: issue.state
@@ -716,7 +829,7 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
             suggestedActions: [`Start work on issue #${nextIssue.number} from epic #${epic.number}`],
             allPRStatus: []
           };
-        } catch (error) {
+        } catch {
           // Fallback to searching for issues that mention the epic using GraphQL
           automaticActions.push('Primary query failed, using search fallback');
           
@@ -744,12 +857,30 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
             query: `repo:${owner.login}/${name} is:issue is:open "#${epic.number}" in:body`
           });
           
-          const relatedIssues = ((searchResult as any).search.nodes || [])
-            .filter((issue: any) => 
+          interface SearchIssue {
+            number: number;
+            title: string;
+            state: string;
+            repository?: {
+              name: string;
+              owner: {
+                login: string;
+              };
+            };
+          }
+          
+          interface SearchResult {
+            search: {
+              nodes: SearchIssue[];
+            };
+          }
+          
+          const relatedIssues = ((searchResult as SearchResult).search.nodes || [])
+            .filter((issue) => 
               issue.repository?.owner?.login === owner.login && 
               issue.repository?.name === name
             )
-            .map((issue: any) => ({
+            .map((issue) => ({
               number: issue.number,
               title: issue.title,
               state: issue.state
@@ -785,7 +916,7 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
                 epicNumber: epic.number,
                 epicTitle: epic.title,
                 suggestion: `Work on sub-issue #${nextIssue.number}: ${nextIssue.title}`,
-                subIssues: relatedIssues.map((issue: any) => ({
+                subIssues: relatedIssues.map((issue) => ({
                   number: issue.number,
                   title: issue.title,
                   status: issue.state
@@ -827,6 +958,9 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
 
     // Process the first in-progress issue
     const issue = inProgressIssues[0].content;
+    if (!issue) {
+      throw new Error('Issue content is undefined');
+    }
     const todos = parseTodoItems(issue.body || '');
     const completedTodos = todos.filter(t => t.checked).length;
     const nextTodo = todos.find(t => !t.checked);

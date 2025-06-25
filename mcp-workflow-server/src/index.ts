@@ -162,16 +162,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await workflowNext();
         break;
       case 'workflow_decide':
-        result = await workflowDecide(request.params.arguments as any || {});
+        result = await workflowDecide(request.params.arguments as { decisionId: string; selectedChoice: string | number; reasoning?: string });
         break;
       case 'workflow_configure':
-        result = await workflowConfigure(request.params.arguments as any || {});
+        result = await workflowConfigure(request.params.arguments || {});
         break;
       case 'workflow_create_pr':
-        result = await workflowCreatePR(request.params.arguments as any || {});
+        result = await workflowCreatePR(request.params.arguments || {});
         break;
       case 'workflow_monitor_reviews':
-        result = await workflowMonitorReviews(request.params.arguments as any || {});
+        result = await workflowMonitorReviews(request.params.arguments || {});
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);

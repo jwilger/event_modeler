@@ -52,7 +52,7 @@ async function getCurrentUser(): Promise<string> {
   try {
     const output = execSync('gh api user --jq .login', { encoding: 'utf8' });
     return output.trim();
-  } catch (error) {
+  } catch {
     throw new Error('Failed to get current GitHub user. Make sure gh CLI is authenticated.');
   }
 }
@@ -157,8 +157,14 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
         projectNumber: config.github.projectNumber!
       });
       
-      const items = (projectData as any).user.projectV2.items.nodes;
-      const projectItem = items.find((item: any) => 
+      interface ProjectItem {
+        id: string;
+        content?: {
+          number: number;
+        };
+      }
+      const items = (projectData as { user: { projectV2: { items: { nodes: ProjectItem[] } } } }).user.projectV2.items.nodes;
+      const projectItem = items.find((item: ProjectItem) => 
         item.content && item.content.number === issue.number
       );
       

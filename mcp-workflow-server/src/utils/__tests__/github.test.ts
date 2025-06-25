@@ -17,7 +17,7 @@ describe('GitHub Utilities', () => {
   describe('Repository URL parsing', () => {
     it('should handle repository names with dots', async () => {
       // Mock gh auth token
-      vi.mocked(execSync).mockImplementation((cmd: any) => {
+      vi.mocked(execSync).mockImplementation((cmd) => {
         if (cmd === 'gh auth token') {
           return 'mock-token';
         }
@@ -33,14 +33,14 @@ describe('GitHub Utilities', () => {
           list: vi.fn().mockResolvedValue({ data: [] }),
         },
       };
-      vi.mocked(Octokit).mockImplementation(() => mockOctokit as any);
+      vi.mocked(Octokit).mockImplementation(() => mockOctokit as unknown as Octokit);
 
       // This should not throw
       expect(async () => await getAllPRs()).not.toThrow();
     });
 
     it('should handle HTTPS URLs', async () => {
-      vi.mocked(execSync).mockImplementation((cmd: any) => {
+      vi.mocked(execSync).mockImplementation((cmd) => {
         if (cmd === 'gh auth token') {
           return 'mock-token';
         }
@@ -55,13 +55,13 @@ describe('GitHub Utilities', () => {
           list: vi.fn().mockResolvedValue({ data: [] }),
         },
       };
-      vi.mocked(Octokit).mockImplementation(() => mockOctokit as any);
+      vi.mocked(Octokit).mockImplementation(() => mockOctokit as unknown as Octokit);
 
       expect(async () => await getAllPRs()).not.toThrow();
     });
 
     it('should handle SSH URLs without .git suffix', async () => {
-      vi.mocked(execSync).mockImplementation((cmd: any) => {
+      vi.mocked(execSync).mockImplementation((cmd) => {
         if (cmd === 'gh auth token') {
           return 'mock-token';
         }
@@ -76,20 +76,20 @@ describe('GitHub Utilities', () => {
           list: vi.fn().mockResolvedValue({ data: [] }),
         },
       };
-      vi.mocked(Octokit).mockImplementation(() => mockOctokit as any);
+      vi.mocked(Octokit).mockImplementation(() => mockOctokit as unknown as Octokit);
 
       expect(async () => await getAllPRs()).not.toThrow();
     });
 
     it('should throw for non-GitHub URLs', async () => {
-      vi.mocked(execSync).mockImplementation((cmd: any) => {
+      vi.mocked(execSync).mockImplementation((cmd: string) => {
         if (cmd === 'gh auth token') {
-          return 'mock-token';
+          return 'mock-token' as unknown as Buffer;
         }
         if (cmd === 'git config --get remote.origin.url') {
-          return 'git@gitlab.com:owner/repository.git\n';
+          return 'git@gitlab.com:owner/repository.git\n' as unknown as Buffer;
         }
-        return '';
+        throw new Error('Unexpected command');
       });
 
       await expect(getAllPRs()).rejects.toThrow('Failed to get repository info');
@@ -98,7 +98,7 @@ describe('GitHub Utilities', () => {
 
   describe('PR retrieval', () => {
     it('should handle empty PR list', async () => {
-      vi.mocked(execSync).mockImplementation((cmd: any) => {
+      vi.mocked(execSync).mockImplementation((cmd) => {
         if (cmd === 'gh auth token') {
           return 'mock-token';
         }
@@ -113,7 +113,7 @@ describe('GitHub Utilities', () => {
           list: vi.fn().mockResolvedValue({ data: [] }),
         },
       };
-      vi.mocked(Octokit).mockImplementation(() => mockOctokit as any);
+      vi.mocked(Octokit).mockImplementation(() => mockOctokit as unknown as Octokit);
 
       const result = await getAllPRs();
       expect(result).toEqual([]);

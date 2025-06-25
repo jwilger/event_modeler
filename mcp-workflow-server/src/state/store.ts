@@ -70,7 +70,7 @@ export class StateStore {
    * @param _oldState - The state object from a previous version.
    * @returns The migrated state object compatible with the current version.
    */
-  private migrateState(_oldState: any): WorkflowState {
+  private migrateState(_oldState: unknown): WorkflowState {
     // For now, we start fresh when version mismatch occurs
     // In the future, implement specific migration logic based on version
     console.error('State migration needed but not implemented - starting with fresh state');

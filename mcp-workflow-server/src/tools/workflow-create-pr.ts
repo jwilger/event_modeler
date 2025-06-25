@@ -21,15 +21,14 @@ interface WorkflowCreatePRResponse extends WorkflowResponse {
   };
 }
 
-// Not used currently but may be needed for reviewer assignment
-// async function getCurrentUser(): Promise<string> {
-//   try {
-//     const output = execSync('gh api user --jq .login', { encoding: 'utf8' });
-//     return output.trim();
-//   } catch (error) {
-//     throw new Error('Failed to get current GitHub user. Make sure gh CLI is authenticated.');
-//   }
-// }
+async function getCurrentUser(octokit: Octokit): Promise<string> {
+  try {
+    const { data } = await octokit.users.getAuthenticated();
+    return data.login;
+  } catch {
+    throw new Error('Failed to get current GitHub user. Make sure authentication is configured.');
+  }
+}
 
 function getDefaultBranch(): string {
   try {
@@ -83,12 +82,8 @@ export async function workflowCreatePR(input: CreatePRInput = {}): Promise<Workf
   const suggestedActions: string[] = [];
 
   try {
-    // Check configuration
-    const { isComplete } = getProjectConfig();
-    
-    if (!isComplete) {
-      throw new Error('Configuration is incomplete. Please run workflow_configure first.');
-    }
+    // Check configuration (but don't fail - just skip project board updates)
+    const projectConfig = getProjectConfig();
 
     // Get current branch
     const currentBranch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
@@ -189,7 +184,7 @@ export async function workflowCreatePR(input: CreatePRInput = {}): Promise<Workf
         issue = issueResponse.data;
         issueBody = issue.body || '';
         automaticActions.push(`Found related issue #${issueNumber}: ${issue.title}`);
-      } catch (error) {
+      } catch {
         automaticActions.push(`Could not fetch issue #${issueNumber}`);
       }
     }
@@ -315,12 +310,82 @@ export async function workflowCreatePR(input: CreatePRInput = {}): Promise<Workf
     automaticActions.push(`Created PR #${pr.data.number}: ${pr.data.title}`);
     suggestedActions.push(`View PR: ${pr.data.html_url}`);
 
+    // Auto-assign PR to creator
+    try {
+      const currentUser = await getCurrentUser(octokit);
+      await octokit.issues.addAssignees({
+        owner,
+        repo,
+        issue_number: pr.data.number,
+        assignees: [currentUser]
+      });
+      automaticActions.push(`Assigned PR to @${currentUser}`);
+    } catch (error) {
+      automaticActions.push(`Could not auto-assign PR: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    // Add PR to project board
+    try {
+      if (projectConfig.isComplete) {
+        // First, add the PR to the project
+        const addToProjectMutation = `
+          mutation($projectId: ID!, $contentId: ID!) {
+            addProjectV2ItemById(input: {
+              projectId: $projectId,
+              contentId: $contentId
+            }) {
+              item {
+                id
+              }
+            }
+          }
+        `;
+        
+        const addResult = await octokit.graphql(addToProjectMutation, {
+          projectId: projectConfig.config.github.projectId!,
+          contentId: pr.data.node_id
+        });
+        
+        const itemId = (addResult as { addProjectV2ItemById: { item: { id: string } } }).addProjectV2ItemById.item.id;
+        automaticActions.push('Added PR to project board');
+        
+        // Then update the status to "In Progress" (since PR is in review)
+        const updateStatusMutation = `
+          mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+            updateProjectV2ItemFieldValue(input: {
+              projectId: $projectId,
+              itemId: $itemId,
+              fieldId: $fieldId,
+              value: $value
+            }) {
+              projectV2Item {
+                id
+              }
+            }
+          }
+        `;
+        
+        await octokit.graphql(updateStatusMutation, {
+          projectId: projectConfig.config.github.projectId!,
+          itemId: itemId,
+          fieldId: projectConfig.config.github.statusFieldId!,
+          value: { singleSelectOptionId: projectConfig.config.github.statusOptions!.inProgress! }
+        });
+        
+        automaticActions.push('Set PR status to "In Progress" on project board');
+      } else {
+        automaticActions.push('Project configuration incomplete - skipping project board update');
+      }
+    } catch (error) {
+      automaticActions.push(`Could not add PR to project board: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
     // Try to set labels if issue has labels
     if (issue && issue.labels && issue.labels.length > 0) {
       try {
         const labelNames = issue.labels
           .filter(label => typeof label !== 'string')
-          .map(label => (label as any).name);
+          .map(label => (label as { name: string }).name);
         
         await octokit.issues.update({
           owner,
@@ -329,7 +394,7 @@ export async function workflowCreatePR(input: CreatePRInput = {}): Promise<Workf
           labels: labelNames
         });
         automaticActions.push(`Applied ${labelNames.length} labels from issue`);
-      } catch (error) {
+      } catch {
         automaticActions.push('Could not apply labels from issue');
       }
     }

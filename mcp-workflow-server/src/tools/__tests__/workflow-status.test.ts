@@ -121,7 +121,7 @@ describe('Workflow Status Tool', () => {
 
     expect(result.issuesFound).toContain('🔴 URGENT: 1 PRs have failing CI checks');
     expect(result.issuesFound).toContain('🟡 HIGH: 1 PRs need rebase after base branch merge');
-    expect(result.issuesFound).toContain('🟡 HIGH: 1 PRs have unresolved review comments');
+    expect(result.issuesFound).toContain('🟡 HIGH: 1 PRs have unresolved review comments or conversations');
     expect(result.suggestedActions).toContain('[URGENT] Fix CI failures in PR #1 (feature/test1)');
     expect(result.suggestedActions).toContain('[HIGH] Rebase PR #2 (feature/test2) onto main');
   });

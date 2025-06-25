@@ -29,6 +29,25 @@ vi.mock('../../config.js', () => ({
   })),
 }));
 
+// Mock workflow-monitor-reviews
+vi.mock('../workflow-monitor-reviews.js', () => ({
+  workflowMonitorReviews: vi.fn(() => ({
+    requestedData: {
+      reviewsNeedingAttention: []
+    }
+  })),
+  requestCopilotReReview: vi.fn(() => false)
+}));
+
+// Mock utils
+vi.mock('../../utils/github.js', () => ({
+  getRepoInfo: vi.fn(() => ({ owner: 'jwilger', repo: 'event_modeler' }))
+}));
+
+vi.mock('../../utils/git.js', () => ({
+  isBranchMerged: vi.fn(() => Promise.resolve(false))
+}));
+
 describe('workflowNext', () => {
   let mockGraphql: ReturnType<typeof vi.fn>;
   let mockExecSync: ReturnType<typeof vi.fn>;
@@ -42,7 +61,7 @@ describe('workflowNext', () => {
     // Mock Octokit constructor
     vi.mocked(Octokit).mockImplementation(() => ({
       graphql: mockGraphql
-    }) as any);
+    }) as unknown as Octokit);
     
     // Default mock setup for execSync
     mockExecSync.mockImplementation((cmd: string) => {
@@ -262,35 +281,47 @@ describe('workflowNext', () => {
       return '';
     });
     
-    mockGraphql.mockResolvedValue({
-      user: {
-        projectV2: {
-          items: {
-            nodes: [{
-              id: 'test-item-id',
-              content: {
-                number: 42,
-                title: 'Test Issue',
-                body: '## Tasks\n- [x] Completed task 1\n- [x] Completed task 2',
-                state: 'OPEN',
-                assignees: {
-                  nodes: [{ login: 'testuser' }]
+    mockGraphql
+      .mockResolvedValueOnce({
+        user: {
+          projectV2: {
+            items: {
+              nodes: [{
+                id: 'test-item-id',
+                content: {
+                  number: 42,
+                  title: 'Test Issue',
+                  body: '## Tasks\n- [x] Completed task 1\n- [x] Completed task 2',
+                  state: 'OPEN',
+                  assignees: {
+                    nodes: [{ login: 'testuser' }]
+                  },
+                  labels: {
+                    nodes: []
+                  }
                 },
-                labels: {
-                  nodes: []
+                fieldValues: {
+                  nodes: [{
+                    name: 'In Progress',
+                    field: { name: 'Status' }
+                  }]
                 }
-              },
-              fieldValues: {
-                nodes: [{
-                  name: 'In Progress',
-                  field: { name: 'Status' }
-                }]
-              }
+              }]
+            }
+          }
+        }
+      })
+      .mockResolvedValueOnce({
+        repository: {
+          pullRequests: {
+            nodes: [{
+              number: 123,
+              title: 'Test PR',
+              state: 'OPEN'
             }]
           }
         }
-      }
-    });
+      });
 
     const result = await workflowNext();
 
@@ -396,45 +427,104 @@ describe('workflowNext', () => {
       return '';
     });
     
-    mockGraphql.mockResolvedValue({
-      user: {
-        projectV2: {
-          items: {
-            nodes: [{
-              id: 'epic-item-id',
-              content: {
-                number: 100,
-                title: 'Epic: Test Epic',
-                body: 'Epic description',
-                state: 'OPEN',
-                assignees: {
-                  nodes: [{ login: 'testuser' }]
-                },
-                labels: {
-                  nodes: [{ name: 'epic' }]
-                }
-              },
-              fieldValues: {
+    // Mock GraphQL to handle different query types
+    mockGraphql.mockImplementation((query: string) => {
+      // Check if this is the project query
+      if (query.includes('projectV2')) {
+        return Promise.resolve({
+          user: {
+            projectV2: {
+              items: {
                 nodes: [{
-                  name: 'In Progress',
-                  field: { name: 'Status' }
+                  id: 'epic-item-id',
+                  content: {
+                    number: 100,
+                    title: 'Epic: Test Epic',
+                    body: 'Epic description',
+                    state: 'OPEN',
+                    assignees: {
+                      nodes: [{ login: 'testuser' }]
+                    },
+                    labels: {
+                      nodes: [{ name: 'epic' }]
+                    }
+                  },
+                  fieldValues: {
+                    nodes: [{
+                      name: 'In Progress',
+                      field: { name: 'Status' }
+                    }]
+                  }
                 }]
               }
-            }]
+            }
           }
-        }
+        });
       }
+      // Check if this is the epic sub-issues query
+      else if (query.includes('subIssues')) {
+        return Promise.resolve({
+          repository: {
+            issue: {
+              title: 'Epic: Test Epic',
+              body: 'Epic description',
+              subIssues: {
+                nodes: [
+                  { number: 10, title: 'Sub-issue 1', state: 'OPEN', labels: { nodes: [] } },
+                  { number: 11, title: 'Sub-issue 2', state: 'OPEN', labels: { nodes: [] } }
+                ]
+              }
+            }
+          }
+        });
+      }
+      // Check if this is the search query
+      else if (query.includes('search')) {
+        return Promise.resolve({
+          search: {
+            nodes: [
+              { 
+                number: 10, 
+                title: 'Sub-issue 1', 
+                state: 'OPEN',
+                repository: {
+                  name: 'event_modeler',
+                  owner: { login: 'jwilger' }
+                }
+              },
+              { 
+                number: 11, 
+                title: 'Sub-issue 2', 
+                state: 'OPEN',
+                repository: {
+                  name: 'event_modeler',
+                  owner: { login: 'jwilger' }
+                }
+              }
+            ]
+          }
+        });
+      }
+      // Default response
+      return Promise.resolve({});
     });
 
     const result = await workflowNext();
 
+    // Debug output
+    if (!result.requestedData.nextSteps[0]) {
+      console.error('No next steps returned');
+      console.error('Issues found:', result.issuesFound);
+      console.error('Automatic actions:', result.automaticActions);
+    }
+
     expect(result.requestedData.nextSteps[0]).toMatchObject({
-      action: 'epic_analysis',
+      action: 'requires_llm_decision',  // With 2 sub-issues, it asks for LLM decision
+      decisionType: 'select_next_issue',
       epicNumber: 100,
       epicTitle: 'Epic: Test Epic',
-      suggestion: 'Work on sub-issue #10: Sub-issue 1'
     });
-    expect(result.requestedData.nextSteps[0].subIssues).toHaveLength(2);
+    expect(result.requestedData.nextSteps[0].choices).toHaveLength(2);
   });
 
   it('should suggest completing epic when no sub-issues are open', async () => {
@@ -456,34 +546,64 @@ describe('workflowNext', () => {
       return '';
     });
     
-    mockGraphql.mockResolvedValue({
-      user: {
-        projectV2: {
-          items: {
-            nodes: [{
-              id: 'epic-item-id',
-              content: {
-                number: 100,
-                title: 'Epic: Completed Epic',
-                body: 'Epic with no open issues',
-                state: 'OPEN',
-                assignees: {
-                  nodes: [{ login: 'testuser' }]
-                },
-                labels: {
-                  nodes: [{ name: 'epic' }]
-                }
-              },
-              fieldValues: {
+    // Mock GraphQL to handle different query types
+    mockGraphql.mockImplementation((query: string) => {
+      // Check if this is the project query
+      if (query.includes('projectV2')) {
+        return Promise.resolve({
+          user: {
+            projectV2: {
+              items: {
                 nodes: [{
-                  name: 'In Progress',
-                  field: { name: 'Status' }
+                  id: 'epic-item-id',
+                  content: {
+                    number: 100,
+                    title: 'Epic: Completed Epic',
+                    body: 'Epic with no open issues',
+                    state: 'OPEN',
+                    assignees: {
+                      nodes: [{ login: 'testuser' }]
+                    },
+                    labels: {
+                      nodes: [{ name: 'epic' }]
+                    }
+                  },
+                  fieldValues: {
+                    nodes: [{
+                      name: 'In Progress',
+                      field: { name: 'Status' }
+                    }]
+                  }
                 }]
               }
-            }]
+            }
           }
-        }
+        });
       }
+      // Check if this is the epic sub-issues query
+      else if (query.includes('subIssues')) {
+        return Promise.resolve({
+          repository: {
+            issue: {
+              title: 'Epic: Completed Epic',
+              body: 'Epic with no open issues',
+              subIssues: {
+                nodes: [] // No sub-issues
+              }
+            }
+          }
+        });
+      }
+      // Check if this is the search query
+      else if (query.includes('search')) {
+        return Promise.resolve({
+          search: {
+            nodes: [] // No sub-issues found in search either
+          }
+        });
+      }
+      // Default response
+      return Promise.resolve({});
     });
 
     const result = await workflowNext();
@@ -492,7 +612,7 @@ describe('workflowNext', () => {
       action: 'complete_epic',
       epicNumber: 100,
       epicTitle: 'Epic: Completed Epic',
-      suggestion: 'No open issues found for this epic. Consider marking it as done.'
+      suggestion: 'All sub-issues for this epic are complete. Consider marking the epic as done.'
     });
   });
 });

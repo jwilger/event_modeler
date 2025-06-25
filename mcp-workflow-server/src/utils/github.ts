@@ -11,6 +11,7 @@ function getGitHubToken(): string {
     }
     return token;
   } catch (error) {
+    console.error('Error while getting GitHub token:', error);
     throw new Error('Failed to get GitHub token. Make sure gh CLI is authenticated.');
   }
 }
@@ -30,7 +31,7 @@ export function getRepoInfo(): { owner: string; repo: string } {
       owner: match[1],
       repo: match[2],
     };
-  } catch (error) {
+  } catch {
     throw new Error('Failed to get repository info from git remote');
   }
 }
@@ -62,7 +63,7 @@ export async function getAllPRs(): Promise<PRStatus[]> {
     const prStatuses = await Promise.all(
       pulls.map(async (pr) => {
         // Get check runs
-        let checks = { total: 0, passed: 0, failed: 0, pending: 0 };
+        const checks = { total: 0, passed: 0, failed: 0, pending: 0 };
         try {
           const { data: checkRuns } = await octokit.checks.listForRef({
             owner,
@@ -98,6 +99,49 @@ export async function getAllPRs(): Promise<PRStatus[]> {
           );
         } catch {
           // If we can't get reviews, assume false
+        }
+
+        // Also check for unresolved review threads (e.g., Copilot comments)
+        try {
+          const reviewThreadsQuery = `
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $number) {
+                  reviewThreads(first: 100) {
+                    nodes {
+                      isResolved
+                    }
+                  }
+                }
+              }
+            }
+          `;
+
+          const reviewThreadsData = await octokit.graphql(reviewThreadsQuery, {
+            owner,
+            repo,
+            number: pr.number,
+          });
+
+          interface ReviewThreadsResult {
+            repository: {
+              pullRequest: {
+                reviewThreads: {
+                  nodes: Array<{ isResolved: boolean }>;
+                };
+              };
+            };
+          }
+
+          const threads = (reviewThreadsData as ReviewThreadsResult).repository.pullRequest.reviewThreads.nodes;
+          const hasUnresolvedThreads = threads.some(thread => !thread.isResolved);
+          
+          // Set hasUnresolvedReviews to true if there are unresolved threads
+          if (hasUnresolvedThreads) {
+            hasUnresolvedReviews = true;
+          }
+        } catch {
+          // If we can't get review threads, continue with existing value
         }
 
         // Check if PR needs rebase - we'll need to get detailed PR info for this

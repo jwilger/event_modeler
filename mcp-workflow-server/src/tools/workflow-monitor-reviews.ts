@@ -26,7 +26,7 @@ export interface ReviewInfo {
   comments: ReviewComment[];
 }
 
-interface PRReviewStatus {
+export interface PRReviewStatus {
   prNumber: number;
   title: string;
   author: string;
@@ -126,7 +126,7 @@ export async function requestCopilotReReview(prNumber: number): Promise<boolean>
       prNumber
     });
 
-    const prNodeId = (prResult as any).repository.pullRequest.id;
+    const prNodeId = (prResult as { repository: { pullRequest: { id: string } } }).repository.pullRequest.id;
 
     // Request re-review from Copilot using the bot ID
     const requestReviewMutation = `
@@ -156,7 +156,6 @@ export async function requestCopilotReReview(prNumber: number): Promise<boolean>
       botIds: [COPILOT_BOT_ID]
     });
 
-    console.log('Requested Copilot re-review for PR #' + prNumber);
     return true;
   } catch (error) {
     console.error('Failed to request Copilot re-review:', error);
