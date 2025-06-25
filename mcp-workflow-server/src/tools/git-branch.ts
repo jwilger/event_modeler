@@ -63,6 +63,9 @@ function branchExists(branchName: string, remote: boolean = false): boolean {
   }
 }
 
+// Maximum length for the title portion of branch names
+const MAX_BRANCH_TITLE_LENGTH = 50;
+
 function createBranchNameFromIssue(issueTitle: string, issueNumber: number): string {
   // Convert title to branch-friendly format
   const cleanTitle = issueTitle
@@ -76,7 +79,7 @@ function createBranchNameFromIssue(issueTitle: string, issueNumber: number): str
   // Account for "feature/" prefix and "-{issueNumber}"
   const prefix = 'feature/';
   const suffix = `-${issueNumber}`;
-  const maxTitleLength = 50 - prefix.length - suffix.length;
+  const maxTitleLength = MAX_BRANCH_TITLE_LENGTH - prefix.length - suffix.length;
   
   const truncatedTitle = cleanTitle.length > maxTitleLength 
     ? cleanTitle.substring(0, maxTitleLength).replace(/-$/, '')
