@@ -105,6 +105,19 @@ export async function workflowStatusTool(): Promise<WorkflowResponse> {
       issuesFound.push(`🔴 URGENT: ${failingPRs.length} PRs have failing CI checks`);
       failingPRs.forEach((pr) => {
         suggestedActions.push(`[URGENT] Fix CI failures in PR #${pr.number} (${pr.branch})`);
+        
+        // Add specific failing job details
+        if (pr.checks.details) {
+          const failedChecks = pr.checks.details.filter(
+            (check) => check.conclusion === 'failure' || check.conclusion === 'timed_out'
+          );
+          failedChecks.forEach((check) => {
+            issuesFound.push(`  ❌ ${check.name}: ${check.output?.title || 'Failed'}`);
+            if (check.output?.summary) {
+              issuesFound.push(`     ${check.output.summary.split('\n')[0]}`); // First line of summary
+            }
+          });
+        }
       });
     }
 
@@ -137,13 +150,20 @@ export async function workflowStatusTool(): Promise<WorkflowResponse> {
     // Handle urgent issues first
     if (failingPRs.length > 0) {
       failingPRs.forEach((pr) => {
+        // Get failed check names for context
+        const failedCheckNames = pr.checks.details
+          ?.filter((check) => check.conclusion === 'failure' || check.conclusion === 'timed_out')
+          .map((check) => check.name) || [];
+          
         nextSteps.push({
           action: 'fix_ci_failures',
-          description: `Fix CI failures in PR #${pr.number}`,
-          tool: 'workflow_monitor_reviews',
-          parameters: { prNumber: pr.number },
+          description: `Fix CI failures in PR #${pr.number}${failedCheckNames.length > 0 ? ` (${failedCheckNames.join(', ')})` : ''}`,
+          tool: 'git_branch',
+          parameters: { action: 'checkout', branch: pr.branch },
           priority: 'urgent',
           category: 'immediate',
+          failedChecks: failedCheckNames,
+          prNumber: pr.number,
         });
       });
     }

@@ -250,8 +250,12 @@ describe('Workflow Status Tool', () => {
     expect(nextSteps).toContainEqual(
       expect.objectContaining({
         action: 'fix_ci_failures',
-        description: 'Fix CI failures in PR #1',
-        tool: 'workflow_monitor_reviews',
+        description: expect.stringContaining('Fix CI failures in PR #1'),
+        tool: 'git_branch',
+        parameters: {
+          action: 'checkout',
+          branch: 'feature/test',
+        },
         priority: 'urgent',
         category: 'immediate',
       })
