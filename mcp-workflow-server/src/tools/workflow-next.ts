@@ -1,7 +1,15 @@
 import { Octokit } from '@octokit/rest';
 import { execSync } from 'child_process';
 import { WorkflowResponse, NextStepAction } from '../types.js';
-import { getProjectConfig, getMissingConfigFields, createConfigRequest } from '../config.js';
+import { 
+  getProjectConfig, 
+  getMissingConfigFields, 
+  createConfigRequest,
+  getWorkflowState,
+  updateWorkflowState,
+  completeAction,
+  getRequiredActions
+} from '../config.js';
 import {
   workflowMonitorReviews,
   requestCopilotReReview,
@@ -316,6 +324,38 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         allPRStatus: [],
       };
     }
+    
+    // Check for required actions and auto-enforce them first
+    const workflowState = getWorkflowState();
+    const autoActions = getRequiredActions('auto');
+    
+    if (autoActions.length > 0) {
+      automaticActions.push(`Found ${autoActions.length} required auto-enforcement actions`);
+      
+      // Process auto-enforcement actions
+      for (const action of autoActions) {
+        try {
+          switch (action.type) {
+            case 'assign_issue_on_status_change':
+              // This will be handled by workflow_update_issue
+              break;
+            case 'create_pr_when_commits_exist': {
+              // Check if we're on a branch with commits but no PR
+              const currentBranch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
+              if (currentBranch !== 'main' && currentBranch !== 'master') {
+                // This will be checked later in the normal flow
+              }
+              break;
+            }
+            default:
+              automaticActions.push(`Unknown auto-action type: ${action.type}`);
+          }
+        } catch (error) {
+          automaticActions.push(`Failed to auto-enforce ${action.type}: ${error}`);
+        }
+      }
+    }
+    
     // Get GitHub token from gh CLI
     const token = getGitHubToken();
     const octokit = new Octokit({ auth: token });
@@ -1036,6 +1076,62 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         }
 
         if (hasCommits) {
+          // Check enforcement policy for PR creation
+          const enforcement = workflowState.enforcementPolicies.create_pr_when_commits_exist;
+          
+          if (enforcement === 'auto') {
+            // Auto-create the PR
+            automaticActions.push(`Auto-creating PR for issue #${branchIssueNumber} (enforcement: auto)`);
+            
+            try {
+              // Import and call workflow_create_pr
+              const { workflowCreatePR } = await import('./workflow-create-pr.js');
+              const prResult = await workflowCreatePR({});
+              
+              automaticActions.push(`Successfully created PR #${prResult.requestedData.pr?.number}`);
+              completeAction('create_pr_when_commits_exist');
+              
+              // Update workflow state
+              updateWorkflowState({
+                phase: 'pr_created',
+                currentIssue: branchIssueNumber,
+                currentBranch,
+              });
+              
+              return {
+                requestedData: {
+                  context: {
+                    currentBranch,
+                    hasUncommittedChanges,
+                    existingPR: prResult.requestedData.pr ? {
+                      number: prResult.requestedData.pr.number,
+                      title: prResult.requestedData.pr.title
+                    } : null,
+                  },
+                },
+                automaticActions,
+                issuesFound: [],
+                suggestedActions: [`Monitor PR #${prResult.requestedData.pr?.number} for reviews`],
+                nextSteps: [
+                  {
+                    action: 'monitor_pr_reviews',
+                    description: `Monitor PR #${prResult.requestedData.pr?.number} for review feedback`,
+                    priority: 'high',
+                    category: 'immediate',
+                    tool: 'workflow_monitor_reviews',
+                    prNumber: prResult.requestedData.pr?.number,
+                    suggestion: `PR created automatically. Monitor for reviews.`,
+                  },
+                ],
+                allPRStatus: [],
+              };
+            } catch (error) {
+              automaticActions.push(`Failed to auto-create PR: ${error}`);
+              // Fall through to manual suggestion
+            }
+          }
+          
+          // Manual suggestion (if auto failed or enforcement is not auto)
           const nextSteps: WorkflowNextStepAction[] = [
             {
               action: 'todos_complete',

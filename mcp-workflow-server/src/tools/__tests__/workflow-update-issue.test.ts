@@ -38,6 +38,16 @@ describe('workflowUpdateIssue', () => {
         },
       },
     });
+    vi.mocked(config.getWorkflowState).mockReturnValue({
+      phase: 'ready',
+      requiredActions: [],
+      completedActions: [],
+      enforcementPolicies: {
+        create_pr_when_commits_exist: 'suggest',
+        assign_issue_on_status_change: 'suggest',
+        request_review_when_pr_ready: 'suggest',
+      },
+    });
   });
 
   it('should update issue status successfully', async () => {

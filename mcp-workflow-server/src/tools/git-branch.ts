@@ -3,6 +3,7 @@ import { Octokit } from '@octokit/rest';
 import { WorkflowResponse } from '../types.js';
 import { getRepoInfo } from '../utils/github.js';
 import { getGitHubToken } from '../utils/auth.js';
+import { updateWorkflowState } from '../config.js';
 
 interface GitBranchInput {
   action: 'checkout' | 'create' | 'pull' | 'push' | 'list' | 'start-work';
@@ -419,6 +420,14 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
           execSync(`git checkout -b ${branchName}`, { encoding: 'utf8' });
           automaticActions.push(`Created new branch: ${branchName}`);
         }
+
+        // Update workflow state to track current work
+        updateWorkflowState({
+          currentIssue: input.issueNumber,
+          currentBranch: branchName,
+          phase: 'implementation',
+        });
+        automaticActions.push(`Updated workflow state for issue #${input.issueNumber}`);
 
         return {
           requestedData: {

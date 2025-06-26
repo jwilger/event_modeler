@@ -28,6 +28,19 @@ vi.mock('../../config.js', () => ({
     },
     isComplete: true,
   })),
+  getWorkflowState: vi.fn(() => ({
+    phase: 'ready',
+    requiredActions: [],
+    completedActions: [],
+    enforcementPolicies: {
+      create_pr_when_commits_exist: 'suggest',
+      assign_issue_on_status_change: 'suggest',
+      request_review_when_pr_ready: 'suggest',
+    },
+  })),
+  updateWorkflowState: vi.fn(),
+  completeAction: vi.fn(),
+  getRequiredActions: vi.fn(() => []),
 }));
 
 // Mock workflow-monitor-reviews
