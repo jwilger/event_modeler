@@ -4,6 +4,37 @@ An MCP (Model Context Protocol) server that helps manage the Event Modeler devel
 
 ## Features
 
+### Next Steps Guidance
+
+All workflow tools now include contextual `nextSteps` guidance that helps LLMs follow proper workflow sequences:
+
+- **Priority-based**: Actions are categorized as `urgent`, `high`, `medium`, or `low` priority
+- **Category-based**: Actions are classified as `immediate`, `next_logical`, or `optional`
+- **Tool integration**: Next steps reference specific tools and parameters for seamless workflow
+- **Context-aware**: Guidance adapts based on current state (branch, PRs, issues, etc.)
+
+Example nextSteps response:
+```json
+{
+  "nextSteps": [
+    {
+      "action": "monitor_pr_reviews",
+      "description": "Monitor PR #123 for review feedback",
+      "tool": "workflow_monitor_reviews", 
+      "priority": "high",
+      "category": "immediate"
+    },
+    {
+      "action": "find_next_work",
+      "description": "Use workflow_next to determine what to work on next",
+      "tool": "workflow_next",
+      "priority": "medium", 
+      "category": "next_logical"
+    }
+  ]
+}
+```
+
 ### Workflow Tools
 
 #### `workflow_status` (Phase 1 - Complete)
@@ -98,6 +129,22 @@ The tool will return:
 - Any active PRs and their CI/review status
 - Detected issues (stale branches, failing CI, etc.)
 - Suggested actions based on the current state
+- **Next steps guidance** with prioritized actions for workflow continuity
+
+### Workflow Continuity
+
+The tools ensure LLMs never miss critical workflow steps:
+
+```
+# After marking an issue as "In Progress"
+workflow_update_issue → nextSteps: ["Use git_branch start-work to create feature branch"]
+
+# After creating a PR  
+workflow_create_pr → nextSteps: ["Monitor with workflow_monitor_reviews", "Check CI with workflow_status"]
+
+# When CI fails
+workflow_status → nextSteps: ["Fix CI failures immediately", "Address PR feedback"]
+```
 
 ## Development
 

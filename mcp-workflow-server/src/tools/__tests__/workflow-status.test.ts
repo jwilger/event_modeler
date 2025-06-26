@@ -172,4 +172,89 @@ describe('Workflow Status Tool', () => {
     expect(result.issuesFound).toContain("Branch 'feature/old' may be stale (created before recent main merges)");
     expect(result.suggestedActions).toContain('Consider rebasing on latest main or creating a fresh branch');
   });
+
+  it('should include nextSteps guidance in responses', async () => {
+    vi.mocked(getGitStatus).mockResolvedValue({
+      currentBranch: 'main',
+      isClean: true,
+      uncommittedFiles: [],
+      untrackedFiles: [],
+      aheadBehind: { ahead: 0, behind: 0 },
+      lastCommit: {
+        hash: 'abc123',
+        message: 'Test commit',
+        date: '2024-01-01',
+      },
+    });
+
+    vi.mocked(isCurrentBranchStale).mockResolvedValue(false);
+    vi.mocked(getAllPRs).mockResolvedValue([]);
+
+    const result = await workflowStatusTool();
+
+    // Should include nextSteps field
+    expect(result.nextSteps).toBeDefined();
+    expect(Array.isArray(result.nextSteps)).toBe(true);
+    
+    // Should provide contextual guidance
+    const nextSteps = result.nextSteps!;
+    expect(nextSteps.length).toBeGreaterThan(0);
+    
+    // First step should be to check next actions when on main
+    expect(nextSteps[0]).toMatchObject({
+      action: 'check_next_actions',
+      description: 'Use workflow_next to determine what to work on',
+      tool: 'workflow_next',
+      priority: 'high',
+      category: 'immediate',
+    });
+  });
+
+  it('should provide urgent nextSteps for failing CI', async () => {
+    vi.mocked(getGitStatus).mockResolvedValue({
+      currentBranch: 'main',
+      isClean: true,
+      uncommittedFiles: [],
+      untrackedFiles: [],
+      aheadBehind: { ahead: 0, behind: 0 },
+      lastCommit: {
+        hash: 'abc123',
+        message: 'Test commit',
+        date: '2024-01-01',
+      },
+    });
+
+    vi.mocked(isCurrentBranchStale).mockResolvedValue(false);
+    vi.mocked(getAllPRs).mockResolvedValue([
+      {
+        number: 1,
+        title: 'Failing PR',
+        branch: 'feature/test',
+        baseRef: 'main',
+        state: 'open',
+        isDraft: false,
+        url: 'https://github.com/test/repo/pull/1',
+        checks: { total: 3, passed: 0, failed: 3, pending: 0 },
+        hasUnresolvedReviews: false,
+        needsRebase: false,
+        isMergeable: true,
+      },
+    ]);
+
+    const result = await workflowStatusTool();
+
+    expect(result.nextSteps).toBeDefined();
+    const nextSteps = result.nextSteps!;
+    
+    // Should have urgent nextStep for fixing CI
+    expect(nextSteps).toContainEqual(
+      expect.objectContaining({
+        action: 'fix_ci_failures',
+        description: 'Fix CI failures in PR #1',
+        tool: 'workflow_monitor_reviews',
+        priority: 'urgent',
+        category: 'immediate',
+      })
+    );
+  });
 });
