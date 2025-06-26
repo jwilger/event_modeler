@@ -4,7 +4,17 @@ import { getGitStatus, isCurrentBranchStale } from '../../utils/git.js';
 import { getAllPRs } from '../../utils/github.js';
 
 vi.mock('../../utils/git.js');
-vi.mock('../../utils/github.js');
+vi.mock('../../utils/github.js', () => ({
+  getAllPRs: vi.fn(),
+  extractFailedChecks: vi.fn((details: Array<{ conclusion: string | null; name: string; output?: { summary?: string | null } | null }>) => 
+    details
+      .filter((d) => d.conclusion === 'failure' || d.conclusion === 'timed_out')
+      .map((d) => ({ name: d.name, summary: d.output?.summary || 'Failed' }))
+  ),
+}));
+vi.mock('../../utils/auth.js', () => ({
+  getGitHubToken: vi.fn(() => 'mock-token'),
+}));
 vi.mock('../../state/store.js', () => {
   const mockStore = {
     updateLastStatusCheck: vi.fn(),
@@ -97,7 +107,7 @@ describe('Workflow Status Tool', () => {
         state: 'open',
         isDraft: false,
         url: 'https://github.com/test/repo/pull/1',
-        checks: { total: 3, passed: 1, failed: 2, pending: 0 },
+        checks: { total: 3, passed: 1, failed: 2, pending: 0, details: [] },
         hasUnresolvedReviews: false,
         needsRebase: false,
         isMergeable: true,
@@ -110,7 +120,7 @@ describe('Workflow Status Tool', () => {
         state: 'open',
         isDraft: false,
         url: 'https://github.com/test/repo/pull/2',
-        checks: { total: 3, passed: 3, failed: 0, pending: 0 },
+        checks: { total: 3, passed: 3, failed: 0, pending: 0, details: [] },
         hasUnresolvedReviews: true,
         needsRebase: true,
         isMergeable: false,
@@ -234,7 +244,7 @@ describe('Workflow Status Tool', () => {
         state: 'open',
         isDraft: false,
         url: 'https://github.com/test/repo/pull/1',
-        checks: { total: 3, passed: 0, failed: 3, pending: 0 },
+        checks: { total: 3, passed: 0, failed: 3, pending: 0, details: [] },
         hasUnresolvedReviews: false,
         needsRebase: false,
         isMergeable: true,
@@ -250,8 +260,12 @@ describe('Workflow Status Tool', () => {
     expect(nextSteps).toContainEqual(
       expect.objectContaining({
         action: 'fix_ci_failures',
-        description: 'Fix CI failures in PR #1',
-        tool: 'workflow_monitor_reviews',
+        description: expect.stringContaining('Fix CI failures in PR #1'),
+        tool: 'git_branch',
+        parameters: {
+          action: 'checkout',
+          branch: 'feature/test',
+        },
         priority: 'urgent',
         category: 'immediate',
       })

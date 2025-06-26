@@ -16,7 +16,7 @@ import {
   type ReviewInfo,
   type PRReviewStatus,
 } from './workflow-monitor-reviews.js';
-import { getRepoInfo } from '../utils/github.js';
+import { getRepoInfo, getAllPRs, extractFailedChecks } from '../utils/github.js';
 import { isBranchMerged } from '../utils/git.js';
 import { getGitHubToken } from '../utils/auth.js';
 
@@ -323,6 +323,60 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         ],
         allPRStatus: [],
       };
+    }
+    
+    // Priority 0: Check for failing CI builds across all PRs
+    try {
+      const allPRStatus = await getAllPRs();
+      const prsWithFailingCI = allPRStatus.filter((pr) => pr.checks.failed > 0);
+      
+      if (prsWithFailingCI.length > 0) {
+        automaticActions.push(`🔴 URGENT: Found ${prsWithFailingCI.length} PRs with failing CI checks`);
+        
+        // Get the first PR with failing CI to prioritize
+        const mostUrgentPR = prsWithFailingCI[0];
+        const failedChecks = extractFailedChecks(mostUrgentPR.checks.details);
+        
+        return {
+          requestedData: {
+            context: {
+              // Add CI failure info to context
+              totalOpenPRs: prsWithFailingCI.length,
+            },
+          },
+          automaticActions,
+          issuesFound: [
+            `🔴 CI is failing on ${prsWithFailingCI.length} PR(s) - this must be fixed first!`,
+            ...failedChecks.map(check => `  ❌ ${check.name}: ${check.summary}`)
+          ],
+          suggestedActions: [
+            `Fix CI failures in PR #${mostUrgentPR.number} (${mostUrgentPR.branch})`,
+            'CI failures block all other work and should be resolved immediately'
+          ],
+          nextSteps: [
+            {
+              action: 'fix_ci_failures',
+              description: `Fix CI failures in PR #${mostUrgentPR.number}: ${failedChecks.map(c => c.name).join(', ')}`,
+              priority: 'urgent',
+              category: 'immediate',
+              tool: 'git_branch',
+              parameters: {
+                action: 'checkout',
+                branch: mostUrgentPR.branch,
+              },
+              prNumber: mostUrgentPR.number,
+              title: mostUrgentPR.title,
+              branch: mostUrgentPR.branch,
+              failedChecks: failedChecks.map(c => c.name),
+              suggestion: `CI is failing on PR #${mostUrgentPR.number}. This blocks all other work and must be fixed immediately.`,
+            },
+          ],
+          allPRStatus: prsWithFailingCI,
+        };
+      }
+    } catch (error) {
+      // Log but don't fail if we can't check CI status
+      automaticActions.push(`Unable to check CI status: ${error}`);
     }
     
     // Check for required actions and auto-enforce them first

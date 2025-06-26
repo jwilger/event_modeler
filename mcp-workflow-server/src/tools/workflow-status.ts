@@ -1,6 +1,6 @@
 import { WorkflowResponse, PRStatus, NextStepAction } from '../types.js';
 import { getGitStatus, isCurrentBranchStale, isBranchMerged } from '../utils/git.js';
-import { getAllPRs } from '../utils/github.js';
+import { getAllPRs, extractFailedChecks } from '../utils/github.js';
 import { StateStore } from '../state/store.js';
 
 const stateStore = new StateStore();
@@ -105,6 +105,15 @@ export async function workflowStatusTool(): Promise<WorkflowResponse> {
       issuesFound.push(`🔴 URGENT: ${failingPRs.length} PRs have failing CI checks`);
       failingPRs.forEach((pr) => {
         suggestedActions.push(`[URGENT] Fix CI failures in PR #${pr.number} (${pr.branch})`);
+        
+        // Add specific failing job details
+        if (pr.checks.details) {
+          const failedChecks = extractFailedChecks(pr.checks.details);
+          failedChecks.forEach((check) => {
+            issuesFound.push(`  ❌ ${check.name}: Failed`);
+            issuesFound.push(`     ${check.summary}`);
+          });
+        }
       });
     }
 
@@ -137,13 +146,19 @@ export async function workflowStatusTool(): Promise<WorkflowResponse> {
     // Handle urgent issues first
     if (failingPRs.length > 0) {
       failingPRs.forEach((pr) => {
+        // Get failed check names for context
+        const failedChecks = extractFailedChecks(pr.checks.details);
+        const failedCheckNames = failedChecks.map((check) => check.name);
+          
         nextSteps.push({
           action: 'fix_ci_failures',
-          description: `Fix CI failures in PR #${pr.number}`,
-          tool: 'workflow_monitor_reviews',
-          parameters: { prNumber: pr.number },
+          description: `Fix CI failures in PR #${pr.number}${failedCheckNames.length > 0 ? ` (${failedCheckNames.join(', ')})` : ''}`,
+          tool: 'git_branch',
+          parameters: { action: 'checkout', branch: pr.branch },
           priority: 'urgent',
           category: 'immediate',
+          failedChecks: failedCheckNames,
+          prNumber: pr.number,
         });
       });
     }

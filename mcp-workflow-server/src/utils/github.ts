@@ -1,6 +1,6 @@
 import { Octokit } from '@octokit/rest';
 import { execSync } from 'child_process';
-import { PRStatus } from '../types.js';
+import { PRStatus, CheckRunDetail } from '../types.js';
 import { getGitHubToken } from './auth.js';
 
 // Get repository info from git remote
@@ -50,16 +50,31 @@ export async function getAllPRs(): Promise<PRStatus[]> {
     const prStatuses = await Promise.all(
       pulls.map(async (pr) => {
         // Get check runs
-        const checks = { total: 0, passed: 0, failed: 0, pending: 0 };
+        const checks = { total: 0, passed: 0, failed: 0, pending: 0, details: [] as CheckRunDetail[] };
         try {
-          const { data: checkRuns } = await octokit.checks.listForRef({
+          const checkRuns = await octokit.paginate(octokit.checks.listForRef, {
             owner,
             repo,
             ref: pr.head.sha,
+            per_page: 100,
           });
 
-          checks.total = checkRuns.total_count;
-          checkRuns.check_runs.forEach((run) => {
+          checks.total = checkRuns.length;
+          checkRuns.forEach((run) => {
+            // Collect details for all check runs
+            const detail: CheckRunDetail = {
+              name: run.name,
+              status: run.status as 'queued' | 'in_progress' | 'completed',
+              conclusion: run.conclusion as 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' | 'action_required' | null,
+              url: run.html_url || undefined,
+              output: run.output ? {
+                title: run.output.title || undefined,
+                summary: run.output.summary || undefined,
+              } : undefined,
+            };
+            checks.details.push(detail);
+
+            // Update counts
             if (run.status === 'completed') {
               if (run.conclusion === 'success') checks.passed++;
               else checks.failed++;
@@ -170,4 +185,14 @@ export async function getAllPRs(): Promise<PRStatus[]> {
       `Failed to get PRs: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
+}
+
+// Extract failed check runs from the details array
+export function extractFailedChecks(checkDetails: CheckRunDetail[]): Array<{ name: string; summary: string }> {
+  return checkDetails
+    .filter((check) => check.conclusion === 'failure' || check.conclusion === 'timed_out')
+    .map((check) => ({
+      name: check.name,
+      summary: check.output?.summary?.split('\n')[0] || 'Failed'
+    }));
 }
