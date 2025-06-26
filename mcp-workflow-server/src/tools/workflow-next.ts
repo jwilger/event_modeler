@@ -1006,16 +1006,6 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
             },
           ];
           
-          const standardNextSteps: NextStepAction[] = [
-            {
-              action: 'create_pr',
-              description: `Create a PR for issue #${branchIssueNumber} - work is complete`,
-              priority: 'high',
-              category: 'immediate',
-              tool: 'workflow_create_pr',
-            },
-          ];
-          
           return {
             requestedData: {
               nextSteps: requestedDataNextSteps,
@@ -1028,7 +1018,6 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
             automaticActions,
             issuesFound: [`Branch '${currentBranch}' has commits but no PR`],
             suggestedActions: [`Create a PR for issue #${branchIssueNumber}`],
-            nextSteps: standardNextSteps,
             allPRStatus: [],
           };
         }
