@@ -445,7 +445,7 @@ Swimlane: External
         let parser = EventModelParser::new();
         let result = parser.parse(input);
         if let Err(e) = &result {
-            panic!("Parse error: {:?}", e);
+            panic!("Parse error: {e:?}");
         }
         assert!(result.is_ok());
 

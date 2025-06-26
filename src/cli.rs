@@ -186,11 +186,11 @@ impl Cli {
 
         // Parse the input file path
         let input = PathBuilder::parse_event_model_file(PathBuf::from(input_path))
-            .map_err(|e| Error::InvalidPath(format!("Input file error: {}", e)))?;
+            .map_err(|e| Error::InvalidPath(format!("Input file error: {e}")))?;
 
         // Parse the output directory
         let output_dir = PathBuilder::parse_output_directory(output_dir)
-            .map_err(|e| Error::InvalidPath(format!("Output directory error: {}", e)))?;
+            .map_err(|e| Error::InvalidPath(format!("Output directory error: {e}")))?;
 
         // Create formats list with the determined format
         let formats = NonEmpty::singleton(format);
@@ -233,16 +233,16 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
 
     // 2. Parse the YAML event model
     let yaml_model = crate::infrastructure::parsing::yaml_parser::parse_yaml(&input_content)
-        .map_err(|e| Error::InvalidArguments(format!("YAML parse error: {}", e)))?;
+        .map_err(|e| Error::InvalidArguments(format!("YAML parse error: {e}")))?;
 
     // 3. Convert YAML to domain types
     let domain_model =
         crate::infrastructure::parsing::yaml_converter::convert_yaml_to_domain(yaml_model)
-            .map_err(|e| Error::InvalidArguments(format!("YAML conversion error: {}", e)))?;
+            .map_err(|e| Error::InvalidArguments(format!("YAML conversion error: {e}")))?;
 
     // 4. Build diagram from domain model
     let diagram = crate::diagram::build_diagram_from_domain(&domain_model)
-        .map_err(|e| Error::InvalidArguments(format!("Diagram building error: {}", e)))?;
+        .map_err(|e| Error::InvalidArguments(format!("Diagram building error: {e}")))?;
 
     println!(
         "Successfully converted event model: {}",
@@ -255,7 +255,7 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
             OutputFormat::Svg => {
                 // Render diagram to SVG
                 let svg_doc = crate::diagram::render_to_svg(&diagram)
-                    .map_err(|e| Error::InvalidArguments(format!("SVG rendering error: {}", e)))?;
+                    .map_err(|e| Error::InvalidArguments(format!("SVG rendering error: {e}")))?;
 
                 // Generate output filename
                 let output_filename = if let Some(filename) = &cmd.options.output_filename {
@@ -267,7 +267,7 @@ fn execute_render(cmd: RenderCommand) -> Result<()> {
                         .file_stem()
                         .unwrap_or_default()
                         .to_string_lossy();
-                    format!("{}.svg", input_stem)
+                    format!("{input_stem}.svg")
                 };
                 let output_path = cmd.options.output_dir.as_path_buf().join(&output_filename);
 

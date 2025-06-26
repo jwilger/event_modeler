@@ -86,8 +86,8 @@ slices:
     if !output.status.success() {
         eprintln!("Command failed!");
         eprintln!("Exit status: {:?}", output.status.code());
-        eprintln!("STDOUT: {}", stdout);
-        eprintln!("STDERR: {}", stderr);
+        eprintln!("STDOUT: {stdout}");
+        eprintln!("STDERR: {stderr}");
         eprintln!("Input path exists: {}", input_path.exists());
     }
 
@@ -95,8 +95,8 @@ slices:
     if !output_path.exists() {
         eprintln!("Output file not created!");
         eprintln!("Looking for: {}", output_path.display());
-        eprintln!("STDOUT: {}", stdout);
-        eprintln!("STDERR: {}", stderr);
+        eprintln!("STDOUT: {stdout}");
+        eprintln!("STDERR: {stderr}");
     }
 
     // Verify SVG output was created
@@ -273,7 +273,7 @@ fn test_invalid_eventmodel_file_shows_error() {
     assert!(!output.status.success());
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    eprintln!("Invalid file stderr: {}", stderr);
+    eprintln!("Invalid file stderr: {stderr}");
     assert!(
         stderr.contains("Parse error")
             || stderr.contains("MissingTitle")
