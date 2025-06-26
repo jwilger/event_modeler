@@ -52,15 +52,15 @@ export async function getAllPRs(): Promise<PRStatus[]> {
         // Get check runs
         const checks = { total: 0, passed: 0, failed: 0, pending: 0, details: [] as CheckRunDetail[] };
         try {
-          const { data: checkRuns } = await octokit.checks.listForRef({
+          const checkRuns = await octokit.paginate(octokit.checks.listForRef, {
             owner,
             repo,
             ref: pr.head.sha,
             per_page: 100,
-          });
+          }, (response) => response.data.check_runs);
 
-          checks.total = checkRuns.total_count;
-          checkRuns.check_runs.forEach((run) => {
+          checks.total = checkRuns.length;
+          checkRuns.forEach((run) => {
             // Collect details for all check runs
             const detail: CheckRunDetail = {
               name: run.name,
@@ -185,4 +185,14 @@ export async function getAllPRs(): Promise<PRStatus[]> {
       `Failed to get PRs: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
+}
+
+// Extract failed check runs from the details array
+export function extractFailedChecks(checkDetails: CheckRunDetail[]): Array<{ name: string; summary: string }> {
+  return checkDetails
+    .filter((check) => check.conclusion === 'failure' || check.conclusion === 'timed_out')
+    .map((check) => ({
+      name: check.name,
+      summary: check.output?.summary?.split('\n')[0] || 'Failed'
+    }));
 }

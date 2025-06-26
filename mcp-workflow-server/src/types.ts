@@ -22,7 +22,7 @@ export interface PRStatus {
     passed: number;
     failed: number;
     pending: number;
-    details?: CheckRunDetail[];
+    details: CheckRunDetail[];
   };
   hasUnresolvedReviews: boolean;
   needsRebase: boolean;

@@ -889,7 +889,14 @@ describe('workflowNext', () => {
         getCombinedStatusForRef: vi.fn().mockResolvedValue({
           data: { state: 'success' }
         })
-      }
+      },
+      paginate: vi.fn().mockImplementation(async (method, params, transform) => {
+        if (method === mockOctokit.checks?.listForRef) {
+          const response = await method(params);
+          return response.data.check_runs;
+        }
+        return [];
+      })
     };
     
     vi.mocked(Octokit).mockImplementation(() => ({
@@ -954,7 +961,14 @@ describe('workflowNext', () => {
         getCombinedStatusForRef: vi.fn().mockResolvedValue({
           data: { state: 'failure' }
         })
-      }
+      },
+      paginate: vi.fn().mockImplementation(async (method, params, transform) => {
+        if (method === mockOctokit.checks?.listForRef) {
+          const response = await method(params);
+          return response.data.check_runs;
+        }
+        return [];
+      })
     };
     
     vi.mocked(Octokit).mockImplementation(() => ({
@@ -1031,7 +1045,14 @@ describe('workflowNext', () => {
             ]
           }
         })
-      }
+      },
+      paginate: vi.fn().mockImplementation(async (method, params, transform) => {
+        if (method === mockOctokit.checks?.listForRef) {
+          const response = await method(params);
+          return response.data.check_runs;
+        }
+        return [];
+      })
     };
     
     vi.mocked(Octokit).mockImplementation(() => ({
@@ -1147,6 +1168,11 @@ describe('workflowNext', () => {
     // Mock getAllPRs to return PRs with failing CI
     vi.doMock('../../utils/github.js', () => ({
       getRepoInfo: vi.fn(() => ({ owner: 'testowner', repo: 'testrepo' })),
+      extractFailedChecks: vi.fn((details) => 
+        details
+          .filter((d: any) => d.conclusion === 'failure')
+          .map((d: any) => ({ name: d.name, summary: d.output?.summary || 'Failed' }))
+      ),
       getAllPRs: vi.fn(() => Promise.resolve([
         {
           number: 123,
@@ -1271,6 +1297,7 @@ describe('workflowNext', () => {
     // Mock getAllPRs to return PRs with passing CI
     vi.doMock('../../utils/github.js', () => ({
       getRepoInfo: vi.fn(() => ({ owner: 'testowner', repo: 'testrepo' })),
+      extractFailedChecks: vi.fn(() => []),
       getAllPRs: vi.fn(() => Promise.resolve([
         {
           number: 789,

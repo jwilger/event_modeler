@@ -16,7 +16,7 @@ import {
   type ReviewInfo,
   type PRReviewStatus,
 } from './workflow-monitor-reviews.js';
-import { getRepoInfo, getAllPRs } from '../utils/github.js';
+import { getRepoInfo, getAllPRs, extractFailedChecks } from '../utils/github.js';
 import { isBranchMerged } from '../utils/git.js';
 import { getGitHubToken } from '../utils/auth.js';
 
@@ -335,12 +335,7 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         
         // Get the first PR with failing CI to prioritize
         const mostUrgentPR = prsWithFailingCI[0];
-        const failedChecks = mostUrgentPR.checks.details
-          ?.filter((check) => check.conclusion === 'failure' || check.conclusion === 'timed_out')
-          .map((check) => ({
-            name: check.name,
-            summary: check.output?.summary?.split('\n')[0] || 'Failed'
-          })) || [];
+        const failedChecks = extractFailedChecks(mostUrgentPR.checks.details);
         
         return {
           requestedData: {

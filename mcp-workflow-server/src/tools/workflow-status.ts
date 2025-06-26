@@ -1,6 +1,6 @@
 import { WorkflowResponse, PRStatus, NextStepAction } from '../types.js';
 import { getGitStatus, isCurrentBranchStale, isBranchMerged } from '../utils/git.js';
-import { getAllPRs } from '../utils/github.js';
+import { getAllPRs, extractFailedChecks } from '../utils/github.js';
 import { StateStore } from '../state/store.js';
 
 const stateStore = new StateStore();
@@ -108,14 +108,10 @@ export async function workflowStatusTool(): Promise<WorkflowResponse> {
         
         // Add specific failing job details
         if (pr.checks.details) {
-          const failedChecks = pr.checks.details.filter(
-            (check) => check.conclusion === 'failure' || check.conclusion === 'timed_out'
-          );
+          const failedChecks = extractFailedChecks(pr.checks.details);
           failedChecks.forEach((check) => {
-            issuesFound.push(`  ❌ ${check.name}: ${check.output?.title || 'Failed'}`);
-            if (check.output?.summary) {
-              issuesFound.push(`     ${check.output.summary.split('\n')[0]}`); // First line of summary
-            }
+            issuesFound.push(`  ❌ ${check.name}: Failed`);
+            issuesFound.push(`     ${check.summary}`);
           });
         }
       });
@@ -151,9 +147,8 @@ export async function workflowStatusTool(): Promise<WorkflowResponse> {
     if (failingPRs.length > 0) {
       failingPRs.forEach((pr) => {
         // Get failed check names for context
-        const failedCheckNames = pr.checks.details
-          ?.filter((check) => check.conclusion === 'failure' || check.conclusion === 'timed_out')
-          .map((check) => check.name) || [];
+        const failedChecks = extractFailedChecks(pr.checks.details);
+        const failedCheckNames = failedChecks.map((check) => check.name);
           
         nextSteps.push({
           action: 'fix_ci_failures',

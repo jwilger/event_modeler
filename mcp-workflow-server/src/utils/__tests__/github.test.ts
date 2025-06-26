@@ -199,6 +199,13 @@ describe('GitHub Utilities', () => {
             },
           },
         }),
+        paginate: vi.fn().mockImplementation(async (method, params, transform) => {
+          if (method === mockOctokit.checks.listForRef) {
+            const response = await method(params);
+            return transform({ data: response.data });
+          }
+          return [];
+        }),
       };
       vi.mocked(Octokit).mockImplementation(() => mockOctokit as unknown as Octokit);
 
