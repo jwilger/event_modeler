@@ -5,6 +5,7 @@
 use super::{EventModelDiagram, Result};
 use crate::event_model::yaml_types;
 use crate::infrastructure::types::NonEmpty;
+use std::collections::HashMap;
 
 // Constants for SVG dimensions and text coordinates
 const MIN_WIDTH: u32 = 1200; // Minimum reasonable width
@@ -27,6 +28,17 @@ const SLICE_HEADER_FONT_SIZE: u32 = 11;
 const BACKGROUND_COLOR: &str = "#f8f8f8"; // Light gray background
 const TEXT_COLOR: &str = "#333333"; // Dark gray text
 const SWIMLANE_BORDER_COLOR: &str = "#cccccc"; // Light gray for borders
+
+// Entity constants
+const ENTITY_BOX_WIDTH: u32 = 120; // Width of entity boxes
+const ENTITY_BOX_HEIGHT: u32 = 60; // Height of entity boxes
+const ENTITY_PADDING: u32 = 10; // Padding inside entity boxes
+const ENTITY_MARGIN: u32 = 20; // Margin between entities
+const ENTITY_LABEL_FONT_SIZE: u32 = 9; // Font size for entity type labels
+const ENTITY_NAME_FONT_SIZE: u32 = 10; // Font size for entity names
+
+// Entity colors
+const VIEW_BACKGROUND_COLOR: &str = "#ffffff"; // White for views
 
 /// Renders an event model diagram to SVG format.
 ///
@@ -93,6 +105,17 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
         swimlanes,
         &swimlane_heights,
         swimlanes_start_y,
+        total_width,
+    ));
+
+    // Render entities (views, commands, etc.)
+    svg_content.push_str(&render_entities(
+        diagram,
+        swimlanes,
+        slices,
+        &swimlane_heights,
+        swimlanes_start_y,
+        SWIMLANE_LABEL_WIDTH,
         total_width,
     ));
 
@@ -231,6 +254,141 @@ fn render_slice_headers(
         total_width,
         HEADER_HEIGHT + SLICE_HEADER_HEIGHT,
         SWIMLANE_BORDER_COLOR
+    ));
+
+    svg
+}
+
+/// Renders all entities (views, commands, events, etc.) in their respective positions.
+fn render_entities(
+    diagram: &EventModelDiagram,
+    swimlanes: &NonEmpty<yaml_types::Swimlane>,
+    slices: &[yaml_types::Slice],
+    swimlane_heights: &[u32],
+    swimlanes_start_y: u32,
+    start_x: u32,
+    total_width: u32,
+) -> String {
+    let mut svg = String::new();
+
+    svg.push_str("  <!-- Entities -->\n");
+
+    // Create a map of swimlane IDs to their Y positions
+    let mut swimlane_y_positions = HashMap::new();
+    let mut current_y = swimlanes_start_y;
+    for (swimlane, &height) in swimlanes.iter().zip(swimlane_heights.iter()) {
+        swimlane_y_positions.insert(&swimlane.id, current_y);
+        current_y += height;
+    }
+
+    // Calculate slice X positions
+    let slice_width = if !slices.is_empty() {
+        (total_width - start_x) / slices.len() as u32
+    } else {
+        total_width - start_x
+    };
+
+    // For now, just render views in their slices
+    // First, we need to find which views appear in which slices
+    let mut entities_by_slice_and_swimlane: HashMap<(usize, &yaml_types::SwimlaneId), Vec<String>> =
+        HashMap::new();
+
+    // Parse slice connections to find view positions
+    for (slice_index, slice) in slices.iter().enumerate() {
+        for connection in slice.connections.iter() {
+            // Check if the connection involves views
+            if let yaml_types::EntityReference::View(view_path) = &connection.from {
+                // Extract the view name from the path (before any dots)
+                let view_name_string = view_path.clone().into_inner();
+                let view_name_str = view_name_string.as_str();
+                let base_view_name = view_name_str.split('.').next().unwrap_or(view_name_str);
+
+                // Find the view definition
+                for (view_name, view_def) in diagram.views() {
+                    if view_name.clone().into_inner().as_str() == base_view_name {
+                        let key = (slice_index, &view_def.swimlane);
+                        entities_by_slice_and_swimlane
+                            .entry(key)
+                            .or_default()
+                            .push(base_view_name.to_string());
+                    }
+                }
+            }
+
+            if let yaml_types::EntityReference::View(view_path) = &connection.to {
+                // Extract the view name from the path (before any dots)
+                let view_name_string = view_path.clone().into_inner();
+                let view_name_str = view_name_string.as_str();
+                let base_view_name = view_name_str.split('.').next().unwrap_or(view_name_str);
+
+                // Find the view definition
+                for (view_name, view_def) in diagram.views() {
+                    if view_name.clone().into_inner().as_str() == base_view_name {
+                        let key = (slice_index, &view_def.swimlane);
+                        entities_by_slice_and_swimlane
+                            .entry(key)
+                            .or_default()
+                            .push(base_view_name.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    // Remove duplicates
+    for entities in entities_by_slice_and_swimlane.values_mut() {
+        entities.sort();
+        entities.dedup();
+    }
+
+    // Render views
+    for ((slice_index, swimlane_id), entity_names) in &entities_by_slice_and_swimlane {
+        if let Some(&swimlane_y) = swimlane_y_positions.get(swimlane_id) {
+            let slice_x = start_x + (*slice_index as u32 * slice_width);
+
+            // Position entities within the slice
+            for (entity_index, entity_name) in entity_names.iter().enumerate() {
+                // Calculate entity position
+                let entity_x = slice_x + (slice_width - ENTITY_BOX_WIDTH) / 2;
+                let entity_y = swimlane_y
+                    + ENTITY_MARGIN
+                    + (entity_index as u32 * (ENTITY_BOX_HEIGHT + ENTITY_MARGIN));
+
+                // Render view box
+                svg.push_str(&render_view_box(entity_x, entity_y, entity_name));
+            }
+        }
+    }
+
+    svg
+}
+
+/// Renders a single view box.
+fn render_view_box(x: u32, y: u32, name: &str) -> String {
+    let mut svg = String::new();
+
+    // Draw the box
+    svg.push_str(&format!(
+        r#"  <rect x="{}" y="{}" width="{}" height="{}" fill="{}" stroke="{}" stroke-width="1"/>
+"#,
+        x, y, ENTITY_BOX_WIDTH, ENTITY_BOX_HEIGHT, VIEW_BACKGROUND_COLOR, SWIMLANE_BORDER_COLOR
+    ));
+
+    // Draw the entity type label "View"
+    let label_x = x + ENTITY_BOX_WIDTH / 2;
+    let label_y = y + ENTITY_PADDING + ENTITY_LABEL_FONT_SIZE;
+    svg.push_str(&format!(
+        r#"  <text x="{}" y="{}" font-family="Arial, sans-serif" font-size="{}" fill="{}" text-anchor="middle">View</text>
+"#,
+        label_x, label_y, ENTITY_LABEL_FONT_SIZE, TEXT_COLOR
+    ));
+
+    // Draw the entity name
+    let name_y = y + ENTITY_BOX_HEIGHT / 2 + ENTITY_NAME_FONT_SIZE / 2;
+    svg.push_str(&format!(
+        r#"  <text x="{}" y="{}" font-family="Arial, sans-serif" font-size="{}" fill="{}" text-anchor="middle">{}</text>
+"#,
+        label_x, name_y, ENTITY_NAME_FONT_SIZE, TEXT_COLOR, name
     ));
 
     svg
