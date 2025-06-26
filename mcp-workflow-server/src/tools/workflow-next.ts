@@ -1,6 +1,6 @@
 import { Octokit } from '@octokit/rest';
 import { execSync } from 'child_process';
-import { WorkflowResponse } from '../types.js';
+import { WorkflowResponse, NextStepAction } from '../types.js';
 import { getProjectConfig, getMissingConfigFields, createConfigRequest } from '../config.js';
 import {
   workflowMonitorReviews,
@@ -43,18 +43,11 @@ interface DecisionContext {
   };
 }
 
-interface NextStepAction {
-  action:
-    | 'work_on_todo'
-    | 'todos_complete'
-    | 'select_work'
-    | 'epic_analysis'
-    | 'complete_epic'
-    | 'requires_llm_decision'
-    | 'requires_config'
-    | 'address_pr_feedback'
-    | 'review_pr'
-    | 'merge_pr';
+// Extended NextStepAction interface for workflow-next specific fields
+interface WorkflowNextStepAction extends Omit<NextStepAction, 'description' | 'priority' | 'category'> {
+  description?: string;
+  priority?: 'urgent' | 'high' | 'medium' | 'low';
+  category?: 'immediate' | 'next_logical' | 'optional';
   issueNumber?: number;
   title?: string;
   status?: string;
@@ -115,7 +108,7 @@ interface WorkflowContext {
 
 interface WorkflowNextResponse extends WorkflowResponse {
   requestedData: {
-    nextSteps: NextStepAction[];
+    nextSteps: WorkflowNextStepAction[];
     context: WorkflowContext;
   };
 }
@@ -1003,17 +996,29 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         }
 
         if (hasCommits) {
+          const requestedDataNextSteps: WorkflowNextStepAction[] = [
+            {
+              action: 'todos_complete',
+              issueNumber: branchIssueNumber,
+              title: branchIssue.content!.title,
+              status: 'In Progress',
+              suggestion: `You have commits for issue #${branchIssueNumber} on branch '${currentBranch}'. Create a PR before moving to the next issue.`,
+            },
+          ];
+          
+          const standardNextSteps: NextStepAction[] = [
+            {
+              action: 'create_pr',
+              description: `Create a PR for issue #${branchIssueNumber} - work is complete`,
+              priority: 'high',
+              category: 'immediate',
+              tool: 'workflow_create_pr',
+            },
+          ];
+          
           return {
             requestedData: {
-              nextSteps: [
-                {
-                  action: 'todos_complete',
-                  issueNumber: branchIssueNumber,
-                  title: branchIssue.content!.title,
-                  status: 'In Progress',
-                  suggestion: `You have commits for issue #${branchIssueNumber} on branch '${currentBranch}'. Create a PR before moving to the next issue.`,
-                },
-              ],
+              nextSteps: requestedDataNextSteps,
               context: {
                 currentBranch,
                 hasUncommittedChanges,
@@ -1023,6 +1028,7 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
             automaticActions,
             issuesFound: [`Branch '${currentBranch}' has commits but no PR`],
             suggestedActions: [`Create a PR for issue #${branchIssueNumber}`],
+            nextSteps: standardNextSteps,
             allPRStatus: [],
           };
         }

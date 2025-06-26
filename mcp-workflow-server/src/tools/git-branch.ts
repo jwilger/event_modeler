@@ -422,6 +422,36 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
           automaticActions,
           issuesFound,
           suggestedActions: [`Ready to work on issue #${input.issueNumber}: ${issueDetails.title}`],
+          nextSteps: [
+            {
+              action: 'mark_issue_in_progress',
+              description: `Mark issue #${input.issueNumber} as "In Progress"`,
+              tool: 'workflow_update_issue',
+              parameters: {
+                issueNumber: input.issueNumber,
+                status: 'in_progress',
+              },
+              priority: 'high',
+              category: 'immediate',
+            },
+            {
+              action: 'start_development',
+              description: 'Begin implementing the solution for this issue',
+              priority: 'high',
+              category: 'next_logical',
+            },
+            {
+              action: 'commit_changes',
+              description: 'Use git_commit when you have made meaningful progress',
+              tool: 'git_commit',
+              parameters: {
+                action: 'commit',
+                issueNumber: input.issueNumber,
+              },
+              priority: 'medium',
+              category: 'next_logical',
+            },
+          ],
           allPRStatus: [],
         };
       }
@@ -437,6 +467,14 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
       automaticActions,
       issuesFound,
       suggestedActions: ['Fix the error and try again'],
+      nextSteps: [
+        {
+          action: 'troubleshoot_error',
+          description: 'Resolve the git error and retry the operation',
+          priority: 'high',
+          category: 'immediate',
+        },
+      ],
       allPRStatus: [],
     };
   }
