@@ -57,7 +57,7 @@ export async function getAllPRs(): Promise<PRStatus[]> {
             repo,
             ref: pr.head.sha,
             per_page: 100,
-          }, (response) => response.data.check_runs);
+          });
 
           checks.total = checkRuns.length;
           checkRuns.forEach((run) => {
@@ -65,7 +65,7 @@ export async function getAllPRs(): Promise<PRStatus[]> {
             const detail: CheckRunDetail = {
               name: run.name,
               status: run.status as 'queued' | 'in_progress' | 'completed',
-              conclusion: run.conclusion,
+              conclusion: run.conclusion as 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' | 'action_required' | null,
               url: run.html_url || undefined,
               output: run.output ? {
                 title: run.output.title || undefined,

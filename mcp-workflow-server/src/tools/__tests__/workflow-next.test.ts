@@ -890,11 +890,7 @@ describe('workflowNext', () => {
           data: { state: 'success' }
         })
       },
-      paginate: vi.fn().mockImplementation(async (method, params, transform) => {
-        if (method === mockOctokit.checks?.listForRef) {
-          const response = await method(params);
-          return response.data.check_runs;
-        }
+      paginate: vi.fn().mockImplementation(async () => {
         return [];
       })
     };
@@ -962,11 +958,7 @@ describe('workflowNext', () => {
           data: { state: 'failure' }
         })
       },
-      paginate: vi.fn().mockImplementation(async (method, params, transform) => {
-        if (method === mockOctokit.checks?.listForRef) {
-          const response = await method(params);
-          return response.data.check_runs;
-        }
+      paginate: vi.fn().mockImplementation(async () => {
         return [];
       })
     };
@@ -1046,11 +1038,7 @@ describe('workflowNext', () => {
           }
         })
       },
-      paginate: vi.fn().mockImplementation(async (method, params, transform) => {
-        if (method === mockOctokit.checks?.listForRef) {
-          const response = await method(params);
-          return response.data.check_runs;
-        }
+      paginate: vi.fn().mockImplementation(async () => {
         return [];
       })
     };
@@ -1168,10 +1156,10 @@ describe('workflowNext', () => {
     // Mock getAllPRs to return PRs with failing CI
     vi.doMock('../../utils/github.js', () => ({
       getRepoInfo: vi.fn(() => ({ owner: 'testowner', repo: 'testrepo' })),
-      extractFailedChecks: vi.fn((details) => 
+      extractFailedChecks: vi.fn((details: Array<{ conclusion: string | null; name: string; output?: { summary?: string | null } | null }>) => 
         details
-          .filter((d: any) => d.conclusion === 'failure')
-          .map((d: any) => ({ name: d.name, summary: d.output?.summary || 'Failed' }))
+          .filter((d) => d.conclusion === 'failure')
+          .map((d) => ({ name: d.name, summary: d.output?.summary || 'Failed' }))
       ),
       getAllPRs: vi.fn(() => Promise.resolve([
         {

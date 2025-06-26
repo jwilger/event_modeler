@@ -6,7 +6,7 @@ import { getAllPRs } from '../../utils/github.js';
 vi.mock('../../utils/git.js');
 vi.mock('../../utils/github.js', () => ({
   getAllPRs: vi.fn(),
-  extractFailedChecks: vi.fn((details) => 
+  extractFailedChecks: vi.fn((details: Array<{ conclusion: string | null; name: string; output?: { summary?: string | null } | null }>) => 
     details
       .filter((d) => d.conclusion === 'failure' || d.conclusion === 'timed_out')
       .map((d) => ({ name: d.name, summary: d.output?.summary || 'Failed' }))

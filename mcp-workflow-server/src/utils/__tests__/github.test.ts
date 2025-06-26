@@ -199,10 +199,9 @@ describe('GitHub Utilities', () => {
             },
           },
         }),
-        paginate: vi.fn().mockImplementation(async (method, params, transform) => {
+        paginate: vi.fn().mockImplementation(async (method: unknown) => {
           if (method === mockOctokit.checks.listForRef) {
-            const response = await method(params);
-            return transform({ data: response.data });
+            return mockCheckRuns.check_runs;
           }
           return [];
         }),
