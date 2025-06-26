@@ -375,6 +375,34 @@ fn render_slice_headers(
     svg
 }
 
+/// Extract entity name and swimlane from an entity reference.
+fn extract_entity_info<'a>(
+    entity_ref: &yaml_types::EntityReference,
+    view_lookup: &HashMap<String, &'a yaml_types::ViewDefinition>,
+    command_lookup: &HashMap<String, &'a yaml_types::CommandDefinition>,
+) -> Option<(String, &'a yaml_types::SwimlaneId)> {
+    match entity_ref {
+        yaml_types::EntityReference::View(view_path) => {
+            let view_name_string = view_path.clone().into_inner();
+            let view_name_str = view_name_string.as_str();
+            let base_view_name = view_name_str.split('.').next().unwrap_or(view_name_str);
+
+            view_lookup
+                .get(base_view_name)
+                .map(|view_def| (base_view_name.to_string(), &view_def.swimlane))
+        }
+        yaml_types::EntityReference::Command(command_name) => {
+            let command_name_string = command_name.clone().into_inner();
+            let command_name_str = command_name_string.as_str();
+
+            command_lookup
+                .get(command_name_str)
+                .map(|command_def| (command_name_str.to_string(), &command_def.swimlane))
+        }
+        _ => None, // Other entity types not yet implemented
+    }
+}
+
 /// Process an entity reference for slice width calculation.
 fn process_entity_for_slice<'a>(
     entity_ref: &yaml_types::EntityReference,
@@ -382,33 +410,13 @@ fn process_entity_for_slice<'a>(
     command_lookup: &HashMap<String, &'a yaml_types::CommandDefinition>,
     entities_by_swimlane: &mut HashMap<&'a yaml_types::SwimlaneId, Vec<String>>,
 ) {
-    match entity_ref {
-        yaml_types::EntityReference::View(view_path) => {
-            let view_name_string = view_path.clone().into_inner();
-            let view_name_str = view_name_string.as_str();
-            let base_view_name = view_name_str.split('.').next().unwrap_or(view_name_str);
-
-            if let Some(view_def) = view_lookup.get(base_view_name) {
-                entities_by_swimlane
-                    .entry(&view_def.swimlane)
-                    .or_default()
-                    .push(base_view_name.to_string());
-            }
-        }
-        yaml_types::EntityReference::Command(command_name) => {
-            let command_name_string = command_name.clone().into_inner();
-            let command_name_str = command_name_string.as_str();
-
-            if let Some(command_def) = command_lookup.get(command_name_str) {
-                entities_by_swimlane
-                    .entry(&command_def.swimlane)
-                    .or_default()
-                    .push(command_name_str.to_string());
-            }
-        }
-        _ => {
-            // Other entity types not yet implemented
-        }
+    if let Some((entity_name, swimlane_id)) =
+        extract_entity_info(entity_ref, view_lookup, command_lookup)
+    {
+        entities_by_swimlane
+            .entry(swimlane_id)
+            .or_default()
+            .push(entity_name);
     }
 }
 
@@ -420,38 +428,14 @@ fn process_entity_reference<'a>(
     command_lookup: &HashMap<String, &'a yaml_types::CommandDefinition>,
     entities_by_slice_and_swimlane: &mut HashMap<(usize, &'a yaml_types::SwimlaneId), Vec<String>>,
 ) {
-    match entity_ref {
-        yaml_types::EntityReference::View(view_path) => {
-            // Extract the view name from the path (before any dots)
-            let view_name_string = view_path.clone().into_inner();
-            let view_name_str = view_name_string.as_str();
-            let base_view_name = view_name_str.split('.').next().unwrap_or(view_name_str);
-
-            // Find the view definition using the lookup map
-            if let Some(view_def) = view_lookup.get(base_view_name) {
-                let key = (slice_index, &view_def.swimlane);
-                entities_by_slice_and_swimlane
-                    .entry(key)
-                    .or_default()
-                    .push(base_view_name.to_string());
-            }
-        }
-        yaml_types::EntityReference::Command(command_name) => {
-            let command_name_string = command_name.clone().into_inner();
-            let command_name_str = command_name_string.as_str();
-
-            // Find the command definition using the lookup map
-            if let Some(command_def) = command_lookup.get(command_name_str) {
-                let key = (slice_index, &command_def.swimlane);
-                entities_by_slice_and_swimlane
-                    .entry(key)
-                    .or_default()
-                    .push(command_name_str.to_string());
-            }
-        }
-        _ => {
-            // Other entity types not yet implemented
-        }
+    if let Some((entity_name, swimlane_id)) =
+        extract_entity_info(entity_ref, view_lookup, command_lookup)
+    {
+        let key = (slice_index, swimlane_id);
+        entities_by_slice_and_swimlane
+            .entry(key)
+            .or_default()
+            .push(entity_name);
     }
 }
 
