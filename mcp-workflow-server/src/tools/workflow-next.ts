@@ -1387,7 +1387,102 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         }
       }
 
-      // No issues or epics in progress
+      // No issues or epics in progress - search for available work
+      automaticActions.push('No issues in progress - searching for available work');
+      
+      // Find unassigned issues with "Todo" status
+      const availableIssues = items.filter((item) => {
+        if (!item.content) return false;
+
+        // Skip if it's an epic (epics should not be assigned directly)
+        const isEpic =
+          item.content?.labels && item.content.labels.nodes.some((label) => label.name === 'epic');
+        if (isEpic) return false;
+
+        // Check if unassigned (no assignees or not assigned to current user)
+        const isUnassigned = !item.content.assignees || 
+          item.content.assignees.nodes.length === 0 ||
+          !item.content.assignees.nodes.some((assignee) => assignee.login === currentUser);
+
+        // Check if status is "Todo"
+        const statusField = item.fieldValues.nodes.find(
+          (field) => field.field && field.field.name === 'Status'
+        );
+        const isTodo = statusField && statusField.name === 'Todo';
+
+        // Check if the issue is open
+        const isOpen = item.content.state === 'OPEN';
+
+        return isUnassigned && isTodo && isOpen;
+      });
+
+      if (availableIssues.length === 0) {
+        // No available issues found
+        return {
+          requestedData: {
+            context: {
+              assignedIssues: 0,
+              inProgressIssues: 0,
+            },
+          },
+          automaticActions,
+          issuesFound,
+          suggestedActions: ['Visit the project board to select your next task'],
+          nextSteps: [
+            {
+              action: 'select_work',
+              description: 'Visit project board to select next task',
+              priority: 'high',
+              category: 'immediate',
+              projectUrl: `https://github.com/users/${owner.login}/projects/9`,
+              reason: 'No available issues found. Visit project board to create or assign work.',
+            },
+          ],
+          allPRStatus: [],
+        };
+      }
+
+      // Present available issues for selection
+      if (availableIssues.length === 1) {
+        // Only one available issue - suggest it directly
+        const availableIssue = availableIssues[0].content!;
+        automaticActions.push(`Found 1 available issue: #${availableIssue.number}`);
+
+        return {
+          requestedData: {
+            context: {
+              assignedIssues: 0,
+              inProgressIssues: 0,
+            },
+          },
+          automaticActions,
+          issuesFound,
+          suggestedActions: [`Start work on issue #${availableIssue.number}: ${availableIssue.title}`],
+          nextSteps: [
+            {
+              action: 'start_new_work',
+              description: `Start work on issue #${availableIssue.number}: ${availableIssue.title}`,
+              priority: 'high',
+              category: 'immediate',
+              tool: 'git_branch',
+              parameters: {
+                action: 'start-work',
+                issueNumber: availableIssue.number,
+              },
+              issueNumber: availableIssue.number,
+              title: availableIssue.title,
+              status: 'Todo',
+              suggestion: `Start work on issue #${availableIssue.number}: ${availableIssue.title}`,
+            },
+          ],
+          allPRStatus: [],
+        };
+      }
+
+      // Multiple available issues - request LLM decision
+      const decisionId = `select-available-work-${Date.now()}`;
+      automaticActions.push(`Found ${availableIssues.length} available issues - requesting decision`);
+
       return {
         requestedData: {
           context: {
@@ -1397,15 +1492,35 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         },
         automaticActions,
         issuesFound,
-        suggestedActions: ['Visit the project board to select your next task'],
+        suggestedActions: ['Awaiting decision on which issue to work on next'],
         nextSteps: [
           {
-            action: 'select_work',
-            description: 'Visit project board to select next task',
+            action: 'requires_llm_decision',
+            description: `Choose which of ${availableIssues.length} available issues to work on next`,
             priority: 'high',
             category: 'immediate',
-            projectUrl: `https://github.com/users/${owner.login}/projects/9`,
-            reason: 'No issues in progress. Visit project board to select next item.',
+            tool: 'workflow_decide',
+            parameters: {
+              decisionId,
+            },
+            decisionType: 'select_next_issue',
+            decisionId,
+            choices: availableIssues.map((item) => ({
+              id: item.content!.number,
+              title: item.content!.title,
+              description: `Issue #${item.content!.number}`,
+              metadata: {
+                state: item.content!.state,
+                labels: item.content!.labels?.nodes?.map((l) => l.name) || [],
+              },
+            })),
+            decisionContext: {
+              prompt: `Which issue should be worked on next? Consider priorities, dependencies, and logical work ordering.`,
+              additionalInfo: {
+                currentBranch,
+                existingPR: null,
+              },
+            },
           },
         ],
         allPRStatus: [],
