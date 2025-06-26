@@ -57,9 +57,25 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
         MIN_WIDTH
     };
 
-    // Each swimlane gets minimum height for now
-    // TODO: In future steps, height will grow based on content in each swimlane
-    let swimlane_heights: Vec<u32> = vec![MIN_SWIMLANE_HEIGHT; num_swimlanes];
+    // Calculate swimlane heights based on content
+    // First, we need to analyze content to determine heights
+    let mut swimlane_content_heights: Vec<u32> = vec![0; num_swimlanes];
+
+    // For now, check views in each swimlane (will expand to other entities later)
+    for view_def in diagram.views().values() {
+        if let Some(swimlane_index) = swimlanes.iter().position(|s| s.id == view_def.swimlane) {
+            // Account for entity height plus margins
+            swimlane_content_heights[swimlane_index] =
+                swimlane_content_heights[swimlane_index].max(ENTITY_BOX_HEIGHT + 2 * ENTITY_MARGIN);
+        }
+    }
+
+    // Ensure minimum height for each swimlane
+    let swimlane_heights: Vec<u32> = swimlane_content_heights
+        .iter()
+        .map(|&content_height| content_height.max(MIN_SWIMLANE_HEIGHT))
+        .collect();
+
     let total_swimlane_height: u32 = swimlane_heights.iter().sum();
     let swimlanes_start_y = HEADER_HEIGHT + SLICE_HEADER_HEIGHT;
     let total_height = swimlanes_start_y + total_swimlane_height + PADDING;
@@ -343,24 +359,55 @@ fn render_entities(
         }
     }
 
-    // Remove duplicates
+    // Remove duplicates while preserving order
     for entities in entities_by_slice_and_swimlane.values_mut() {
-        entities.sort();
-        entities.dedup();
+        let mut seen = std::collections::HashSet::new();
+        entities.retain(|item| seen.insert(item.clone()));
     }
 
     // Render views
     for ((slice_index, swimlane_id), entity_names) in &entities_by_slice_and_swimlane {
         if let Some(&swimlane_y) = swimlane_y_positions.get(swimlane_id) {
             let slice_x = start_x + (*slice_index as u32 * slice_width);
+            let num_entities = entity_names.len();
 
-            // Position entities within the slice
+            // Calculate available space and entity spacing for horizontal layout
+            let available_width = slice_width - (2 * ENTITY_MARGIN);
+
+            // Position entities horizontally within the slice
             for (entity_index, entity_name) in entity_names.iter().enumerate() {
-                // Calculate entity position
-                let entity_x = slice_x + (slice_width - ENTITY_BOX_WIDTH) / 2;
-                let entity_y = swimlane_y
-                    + ENTITY_MARGIN
-                    + (entity_index as u32 * (ENTITY_BOX_HEIGHT + ENTITY_MARGIN));
+                // Calculate entity position for horizontal layout
+                let entity_x = if num_entities == 1 {
+                    // Center single entity
+                    slice_x + (slice_width - ENTITY_BOX_WIDTH) / 2
+                } else {
+                    // Distribute multiple entities horizontally
+                    let entity_plus_margin = ENTITY_BOX_WIDTH + ENTITY_MARGIN;
+                    let total_entities_width = num_entities as u32 * ENTITY_BOX_WIDTH
+                        + (num_entities as u32 - 1) * ENTITY_MARGIN;
+
+                    if total_entities_width <= available_width {
+                        // Enough space - use standard spacing
+                        let start_x = slice_x + (slice_width - total_entities_width) / 2;
+                        start_x + entity_index as u32 * entity_plus_margin
+                    } else {
+                        // Not enough space - calculate minimal overlap
+                        let max_possible_spacing =
+                            (available_width - ENTITY_BOX_WIDTH) / (num_entities as u32 - 1);
+                        let spacing = max_possible_spacing.min(entity_plus_margin);
+                        slice_x + ENTITY_MARGIN + entity_index as u32 * spacing
+                    }
+                };
+
+                // Get swimlane index to access height
+                let swimlane_index = swimlanes
+                    .iter()
+                    .position(|s| &s.id == *swimlane_id)
+                    .unwrap();
+                let swimlane_height = swimlane_heights[swimlane_index];
+
+                // Center entity vertically in swimlane
+                let entity_y = swimlane_y + (swimlane_height - ENTITY_BOX_HEIGHT) / 2;
 
                 // Render view box
                 svg.push_str(&render_view_box(entity_x, entity_y, entity_name));
@@ -369,6 +416,29 @@ fn render_entities(
     }
 
     svg
+}
+
+/// Formats an entity name by inserting spaces before capital letters.
+/// E.g., "LoginScreen" becomes "Login Screen", "UserProfileScreen" becomes "User Profile Screen"
+fn format_entity_name(name: &str) -> String {
+    let mut result = String::new();
+    let mut chars = name.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch.is_uppercase() && !result.is_empty() {
+            // Add space before capital letter, unless previous char was also uppercase
+            // This handles cases like "XMLParser" -> "XML Parser" correctly
+            if let Some(last) = result.chars().last() {
+                if !last.is_uppercase() || (chars.peek().is_some_and(|&next| !next.is_uppercase()))
+                {
+                    result.push(' ');
+                }
+            }
+        }
+        result.push(ch);
+    }
+
+    result
 }
 
 /// Renders a single view box.
@@ -389,10 +459,11 @@ fn render_view_box(x: u32, y: u32, name: &str) -> String {
 "#
     ));
 
-    // Draw the entity name
+    // Draw the entity name (formatted with spaces)
+    let formatted_name = format_entity_name(name);
     let name_y = y + ENTITY_BOX_HEIGHT / 2 + ENTITY_NAME_FONT_SIZE / 2;
     svg.push_str(&format!(
-        r#"  <text x="{label_x}" y="{name_y}" font-family="Arial, sans-serif" font-size="{ENTITY_NAME_FONT_SIZE}" fill="{TEXT_COLOR}" text-anchor="middle">{name}</text>
+        r#"  <text x="{label_x}" y="{name_y}" font-family="Arial, sans-serif" font-size="{ENTITY_NAME_FONT_SIZE}" fill="{TEXT_COLOR}" text-anchor="middle">{formatted_name}</text>
 "#
     ));
 
