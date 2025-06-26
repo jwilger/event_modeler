@@ -15,6 +15,7 @@ import { workflowRequestReview, workflowRequestReviewTool } from './tools/workfl
 import { workflowManageSubissues } from './tools/workflow-manage-subissues.js';
 import { workflowCreateIssue } from './tools/workflow-create-issue.js';
 import { workflowUpdateIssue } from './tools/workflow-update-issue.js';
+import { workflowManagePR } from './tools/workflow-manage-pr.js';
 import { gitBranch } from './tools/git-branch.js';
 import { gitCommit } from './tools/git-commit.js';
 import { gitStash } from './tools/git-stash.js';
@@ -253,6 +254,34 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: 'workflow_manage_pr',
+        description:
+          'Manage pull request chains with automated rebase and dependency handling',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            action: {
+              type: 'string',
+              enum: ['analyze', 'rebase', 'update_chains'],
+              description: 'The PR management action to perform',
+            },
+            prNumber: {
+              type: 'number',
+              description: 'PR number (required for rebase action)',
+            },
+            targetBranch: {
+              type: 'string',
+              description: 'Target branch for chain updates (defaults to main)',
+            },
+            force: {
+              type: 'boolean',
+              description: 'Force operations even with potential risks',
+            },
+          },
+          required: ['action'],
+        },
+      },
+      {
         name: 'git_branch',
         description:
           'Manage Git branches: checkout, create, pull, push, list branches, or start work on an issue',
@@ -393,6 +422,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       case 'workflow_update_issue':
         result = await workflowUpdateIssue(request.params.arguments as { issueNumber: number; status?: 'todo' | 'in_progress' | 'done'; type?: 'epic' | 'feature' | 'bug' | 'enhancement' | 'documentation' | 'question'; priority?: 'low' | 'medium' | 'high' | 'urgent' });
+        break;
+      case 'workflow_manage_pr':
+        result = await workflowManagePR(request.params.arguments as { action: 'analyze' | 'rebase' | 'update_chains'; prNumber?: number; targetBranch?: string; force?: boolean });
         break;
       case 'git_branch':
         result = await gitBranch(request.params.arguments as { action: 'checkout' | 'create' | 'pull' | 'push' | 'list' | 'start-work'; branch?: string; issueNumber?: number; force?: boolean });

@@ -112,6 +112,7 @@ export interface ReviewComment {
   threadId?: string;
   isResolved?: boolean;
   resolutionReason?: string;
+  isOutdated?: boolean;
 }
 
 export interface ReviewInfo {
@@ -135,6 +136,7 @@ export interface PRReviewStatus {
     total: number;
     resolved: number;
     unresolved: number;
+    outdated?: number;
     resolutionDetails?: string[];
   };
 }
@@ -420,8 +422,8 @@ export async function workflowMonitorReviews(
       const reviewCommentsMap = new Map<number, ReviewComment[]>();
 
       for (const thread of threads) {
-        // Skip resolved or outdated threads
-        if (thread.isResolved || thread.isOutdated) continue;
+        // Skip resolved threads, but include outdated ones with a flag
+        if (thread.isResolved) continue;
 
         // Check if thread has replies (more than one comment)
         const hasReplies = thread.comments.nodes.length > 1;
@@ -447,6 +449,7 @@ export async function workflowMonitorReviews(
             threadId: thread.id,
             isResolved,
             resolutionReason,
+            isOutdated: thread.isOutdated,
           };
 
           if (!reviewCommentsMap.has(reviewId)) {
@@ -482,19 +485,27 @@ export async function workflowMonitorReviews(
       let totalComments = 0;
       let resolvedComments = 0;
       let unresolvedComments = 0;
+      let outdatedComments = 0;
       const resolutionDetails: string[] = [];
 
       for (const review of reviewInfos) {
         for (const comment of review.comments) {
           totalComments++;
+          if (comment.isOutdated) {
+            outdatedComments++;
+            // Outdated comments are still considered unresolved if not explicitly resolved
+            if (!comment.isResolved) {
+              unresolvedComments++;
+            }
+          }
           if (comment.isResolved) {
             resolvedComments++;
             if (comment.resolutionReason) {
               resolutionDetails.push(
-                `${comment.file}:${comment.line} - ${comment.resolutionReason}`
+                `${comment.file}:${comment.line} - ${comment.resolutionReason}${comment.isOutdated ? ' (outdated)' : ''}`
               );
             }
-          } else {
+          } else if (!comment.isOutdated) {
             unresolvedComments++;
           }
         }
@@ -509,7 +520,8 @@ export async function workflowMonitorReviews(
         isDraft: pr.draft || false,
         reviewStatus,
         reviews: reviewInfos,
-        suggestedAction: suggestAction(reviewStatus, pr.draft || false),
+        suggestedAction: suggestAction(reviewStatus, pr.draft || false) + 
+          (outdatedComments > 0 ? ` (${outdatedComments} outdated comment${outdatedComments === 1 ? '' : 's'})` : ''),
         url: pr.html_url,
         lastUpdated: pr.updated_at,
         commentSummary:
@@ -518,6 +530,7 @@ export async function workflowMonitorReviews(
                 total: totalComments,
                 resolved: resolvedComments,
                 unresolved: unresolvedComments,
+                outdated: outdatedComments > 0 ? outdatedComments : undefined,
                 resolutionDetails: resolutionDetails.length > 0 ? resolutionDetails : undefined,
               }
             : undefined,

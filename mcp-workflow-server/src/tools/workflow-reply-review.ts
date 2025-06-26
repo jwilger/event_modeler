@@ -67,6 +67,25 @@ export async function workflowReplyReview(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     issuesFound.push(`Failed to reply to review comment: ${errorMessage}`);
+    
+    // Provide specific guidance for common errors
+    if (errorMessage.includes('Parent comment not found') || errorMessage.includes('404')) {
+      suggestedActions.push(
+        'The comment ID appears to be invalid. To fix this:',
+        '1. Use workflow_monitor_reviews to get the correct comment IDs',
+        '2. Look for the "id" field in the "comments" array of each review',
+        '3. Use that exact comment ID when calling workflow_reply_review',
+        `4. The comment ID you tried (${input.commentId}) may be incorrect or the comment may have been deleted`
+      );
+      issuesFound.push('Comment ID not found - please verify using workflow_monitor_reviews first');
+    } else if (errorMessage.includes('422')) {
+      suggestedActions.push(
+        'The comment cannot be replied to. Possible reasons:',
+        '1. The comment is already a reply (not a top-level review comment)',
+        '2. The PR or comment thread may be locked',
+        '3. The comment may be on an outdated version of the code'
+      );
+    }
 
     return {
       requestedData: {
