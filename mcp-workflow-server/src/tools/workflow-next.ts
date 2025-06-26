@@ -1495,10 +1495,9 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
           item.content?.labels && item.content.labels.nodes.some((label) => label.name === 'epic');
         if (isEpic) return false;
 
-        // Check if unassigned (no assignees or not assigned to current user)
+        // Check if unassigned (no assignees)
         const isUnassigned = !item.content.assignees || 
-          item.content.assignees.nodes.length === 0 ||
-          !item.content.assignees.nodes.some((assignee) => assignee.login === currentUser);
+          item.content.assignees.nodes.length === 0;
 
         // Check if status is "Todo"
         const statusField = item.fieldValues.nodes.find(
