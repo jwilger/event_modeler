@@ -1,0 +1,15 @@
+{
+  "github": {},
+  "workflowState": {
+    "phase": "implementation",
+    "requiredActions": [],
+    "completedActions": [],
+    "enforcementPolicies": {
+      "create_pr_when_commits_exist": "auto",
+      "assign_issue_on_status_change": "auto",
+      "request_review_when_pr_ready": "suggest"
+    },
+    "currentIssue": 789,
+    "currentBranch": "feature/fix-bug-in-login-789"
+  }
+}

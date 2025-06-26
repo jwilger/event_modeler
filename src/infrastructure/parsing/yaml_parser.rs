@@ -419,12 +419,12 @@ swimlanes:
                 message,
             }) => {
                 // serde_yaml reports 1-indexed line numbers
-                println!("Error at line {}, column {}: {}", line, column, message);
+                println!("Error at line {line}, column {column}: {message}");
                 assert!(line > 0); // Line should be greater than 0
                 assert!(column > 0); // Column should be greater than 0
                 assert!(!message.is_empty());
             }
-            Err(e) => panic!("Expected ParseError but got: {:?}", e),
+            Err(e) => panic!("Expected ParseError but got: {e:?}"),
             Ok(_) => panic!("Expected an error but parsing succeeded"),
         }
     }
@@ -444,13 +444,13 @@ workflow: Another Workflow  # Duplicate key
                 column,
                 message,
             }) => {
-                println!("Error at line {}, column {}: {}", line, column, message);
+                println!("Error at line {line}, column {column}: {message}");
                 // Note: serde_yaml reports duplicate key errors at the start of the document
                 assert!(line > 0);
                 assert!(column > 0);
                 assert!(message.contains("duplicate"));
             }
-            Err(e) => panic!("Expected ParseError but got: {:?}", e),
+            Err(e) => panic!("Expected ParseError but got: {e:?}"),
             Ok(_) => panic!("Expected an error but parsing succeeded"),
         }
     }

@@ -5,6 +5,7 @@
 use super::{EventModelDiagram, Result};
 use crate::event_model::yaml_types;
 use crate::infrastructure::types::NonEmpty;
+use std::collections::HashMap;
 
 // Constants for SVG dimensions and text coordinates
 const MIN_WIDTH: u32 = 1200; // Minimum reasonable width
@@ -28,6 +29,16 @@ const BACKGROUND_COLOR: &str = "#f8f8f8"; // Light gray background
 const TEXT_COLOR: &str = "#333333"; // Dark gray text
 const SWIMLANE_BORDER_COLOR: &str = "#cccccc"; // Light gray for borders
 
+// Entity constants
+const ENTITY_BOX_WIDTH: u32 = 120; // Width of entity boxes
+const ENTITY_BOX_HEIGHT: u32 = 60; // Height of entity boxes
+const ENTITY_PADDING: u32 = 10; // Padding inside entity boxes
+const ENTITY_MARGIN: u32 = 20; // Margin between entities
+const ENTITY_NAME_FONT_SIZE: u32 = 10; // Font size for entity names
+
+// Entity colors
+const VIEW_BACKGROUND_COLOR: &str = "#ffffff"; // White for views
+
 /// Renders an event model diagram to SVG format.
 ///
 /// This function takes a constructed diagram and produces the SVG representation.
@@ -37,17 +48,117 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
     let slices = diagram.slices();
     let num_slices = slices.len();
 
-    // Calculate dynamic dimensions
-    // Width based on number of slices, with minimum width
+    // First, pre-calculate dimensions for all entities
+    let mut entity_dimensions_map: HashMap<String, EntityDimensions> = HashMap::new();
+    for view_name in diagram.views().keys() {
+        let name_string = view_name.clone().into_inner();
+        let name_str = name_string.as_str();
+        let dimensions = calculate_entity_dimensions(name_str, "View");
+        entity_dimensions_map.insert(name_str.to_string(), dimensions);
+    }
+
+    // Build a temporary map for view lookups
+    let view_lookup: HashMap<String, &yaml_types::ViewDefinition> = diagram
+        .views()
+        .iter()
+        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
+        .collect();
+
+    // Analyze entities in each slice to determine required widths
+    let mut slice_required_widths = vec![MIN_SLICE_WIDTH; num_slices];
+
+    // Count entities in each slice and calculate required space
+    for (slice_index, slice) in slices.iter().enumerate() {
+        let mut entities_by_swimlane: HashMap<&yaml_types::SwimlaneId, Vec<String>> =
+            HashMap::new();
+
+        for connection in slice.connections.iter() {
+            // Check both sides of connections for views
+            if let yaml_types::EntityReference::View(view_path) = &connection.from {
+                let view_name_string = view_path.clone().into_inner();
+                let view_name_str = view_name_string.as_str();
+                let base_view_name = view_name_str.split('.').next().unwrap_or(view_name_str);
+
+                if let Some(view_def) = view_lookup.get(base_view_name) {
+                    entities_by_swimlane
+                        .entry(&view_def.swimlane)
+                        .or_default()
+                        .push(base_view_name.to_string());
+                }
+            }
+
+            if let yaml_types::EntityReference::View(view_path) = &connection.to {
+                let view_name_string = view_path.clone().into_inner();
+                let view_name_str = view_name_string.as_str();
+                let base_view_name = view_name_str.split('.').next().unwrap_or(view_name_str);
+
+                if let Some(view_def) = view_lookup.get(base_view_name) {
+                    entities_by_swimlane
+                        .entry(&view_def.swimlane)
+                        .or_default()
+                        .push(base_view_name.to_string());
+                }
+            }
+        }
+
+        // Remove duplicates and calculate required width
+        let mut max_width_in_swimlane = 0u32;
+        for entities in entities_by_swimlane.values_mut() {
+            let mut seen = std::collections::HashSet::new();
+            entities.retain(|item| seen.insert(item.clone()));
+
+            // Calculate total width needed for entities in this swimlane
+            let total_entity_width: u32 = entities
+                .iter()
+                .map(|name| {
+                    entity_dimensions_map
+                        .get(name)
+                        .map(|d| d.width)
+                        .unwrap_or(ENTITY_BOX_WIDTH)
+                })
+                .sum();
+            let spacing_width = (entities.len() as u32 + 1) * ENTITY_MARGIN;
+            let required_width = total_entity_width + spacing_width;
+
+            max_width_in_swimlane = max_width_in_swimlane.max(required_width);
+        }
+
+        // Set slice width based on maximum required in any swimlane
+        if max_width_in_swimlane > 0 {
+            slice_required_widths[slice_index] = max_width_in_swimlane.max(MIN_SLICE_WIDTH);
+        }
+    }
+
+    // Calculate total width based on actual requirements
     let total_width = if num_slices > 0 {
-        SWIMLANE_LABEL_WIDTH + (num_slices as u32 * MIN_SLICE_WIDTH)
+        SWIMLANE_LABEL_WIDTH + slice_required_widths.iter().sum::<u32>()
     } else {
         MIN_WIDTH
     };
 
-    // Each swimlane gets minimum height for now
-    // TODO: In future steps, height will grow based on content in each swimlane
-    let swimlane_heights: Vec<u32> = vec![MIN_SWIMLANE_HEIGHT; num_swimlanes];
+    // Calculate swimlane heights based on content
+    // First, we need to analyze content to determine heights
+    let mut swimlane_content_heights: Vec<u32> = vec![0; num_swimlanes];
+
+    // For now, check views in each swimlane (will expand to other entities later)
+    for (view_name, view_def) in diagram.views() {
+        if let Some(swimlane_index) = swimlanes.iter().position(|s| s.id == view_def.swimlane) {
+            let name_string = view_name.clone().into_inner();
+            let name_str = name_string.as_str();
+            if let Some(dimensions) = entity_dimensions_map.get(name_str) {
+                // Account for entity height plus margins
+                swimlane_content_heights[swimlane_index] = swimlane_content_heights[swimlane_index]
+                    .max(dimensions.height + 2 * ENTITY_MARGIN);
+            }
+        }
+    }
+
+    // Ensure minimum height for each swimlane
+    let swimlane_heights: Vec<u32> = swimlane_content_heights
+        .iter()
+        .map(|&content_height| content_height.max(MIN_SWIMLANE_HEIGHT))
+        .collect();
+
     let total_swimlane_height: u32 = swimlane_heights.iter().sum();
     let swimlanes_start_y = HEADER_HEIGHT + SLICE_HEADER_HEIGHT;
     let total_height = swimlanes_start_y + total_swimlane_height + PADDING;
@@ -82,6 +193,7 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
     if !slices.is_empty() {
         svg_content.push_str(&render_slice_headers(
             slices,
+            &slice_required_widths,
             SWIMLANE_LABEL_WIDTH,
             total_width,
             total_height,
@@ -95,6 +207,19 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
         swimlanes_start_y,
         total_width,
     ));
+
+    // Render entities (views, commands, etc.)
+    let render_ctx = EntityRenderContext {
+        diagram,
+        swimlanes,
+        slices,
+        slice_widths: &slice_required_widths,
+        swimlane_heights: &swimlane_heights,
+        swimlanes_start_y,
+        start_x: SWIMLANE_LABEL_WIDTH,
+        entity_dimensions_map: &entity_dimensions_map,
+    };
+    svg_content.push_str(&render_entities(&render_ctx));
 
     // Close SVG
     svg_content.push_str("</svg>");
@@ -177,6 +302,7 @@ fn render_swimlanes(
 /// Renders the slice headers with dividers.
 fn render_slice_headers(
     slices: &[yaml_types::Slice],
+    slice_widths: &[u32],
     start_x: u32,
     total_width: u32,
     total_height: u32,
@@ -185,11 +311,10 @@ fn render_slice_headers(
 
     svg.push_str("  <!-- Slice headers -->\n");
 
-    // Slices are now in a Vec, so order is preserved
-    let slice_width = (total_width - start_x) / slices.len() as u32;
+    let mut current_x = start_x;
 
-    for (index, slice) in slices.iter().enumerate() {
-        let x_position = start_x + (index as u32 * slice_width);
+    for (index, (slice, &slice_width)) in slices.iter().zip(slice_widths.iter()).enumerate() {
+        let x_position = current_x;
 
         // Draw vertical divider through all swimlanes (except before the first slice)
         if index > 0 {
@@ -220,6 +345,8 @@ fn render_slice_headers(
             // The slice name is already in display format from the YAML
             slice.name.clone().into_inner().as_str()
         ));
+
+        current_x += slice_width;
     }
 
     // Draw horizontal line below slice headers
@@ -232,6 +359,300 @@ fn render_slice_headers(
         HEADER_HEIGHT + SLICE_HEADER_HEIGHT,
         SWIMLANE_BORDER_COLOR
     ));
+
+    svg
+}
+
+/// Process an entity reference and add it to the entities_by_slice_and_swimlane map if it's a view.
+fn process_entity_reference<'a>(
+    entity_ref: &yaml_types::EntityReference,
+    slice_index: usize,
+    view_lookup: &HashMap<String, &'a yaml_types::ViewDefinition>,
+    entities_by_slice_and_swimlane: &mut HashMap<(usize, &'a yaml_types::SwimlaneId), Vec<String>>,
+) {
+    if let yaml_types::EntityReference::View(view_path) = entity_ref {
+        // Extract the view name from the path (before any dots)
+        let view_name_string = view_path.clone().into_inner();
+        let view_name_str = view_name_string.as_str();
+        let base_view_name = view_name_str.split('.').next().unwrap_or(view_name_str);
+
+        // Find the view definition using the lookup map
+        if let Some(view_def) = view_lookup.get(base_view_name) {
+            let key = (slice_index, &view_def.swimlane);
+            entities_by_slice_and_swimlane
+                .entry(key)
+                .or_default()
+                .push(base_view_name.to_string());
+        }
+    }
+}
+
+/// Renders all entities (views, commands, events, etc.) in their respective positions.
+fn render_entities(ctx: &EntityRenderContext) -> String {
+    let mut svg = String::new();
+
+    svg.push_str("  <!-- Entities -->\n");
+
+    // Create a map of swimlane IDs to their Y positions
+    let mut swimlane_y_positions = HashMap::new();
+    let mut current_y = ctx.swimlanes_start_y;
+    for (swimlane, &height) in ctx.swimlanes.iter().zip(ctx.swimlane_heights.iter()) {
+        swimlane_y_positions.insert(&swimlane.id, current_y);
+        current_y += height;
+    }
+
+    // Calculate slice X positions using the pre-calculated widths
+    let mut slice_x_positions = Vec::new();
+    let mut current_x = ctx.start_x;
+    for &width in ctx.slice_widths {
+        slice_x_positions.push(current_x);
+        current_x += width;
+    }
+
+    // For now, just render views in their slices
+    // First, we need to find which views appear in which slices
+    let mut entities_by_slice_and_swimlane: HashMap<(usize, &yaml_types::SwimlaneId), Vec<String>> =
+        HashMap::new();
+
+    // Build a lookup map from view names to definitions for performance
+    let view_lookup: HashMap<String, &yaml_types::ViewDefinition> = ctx
+        .diagram
+        .views()
+        .iter()
+        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
+        .collect();
+
+    // Parse slice connections to find view positions
+    for (slice_index, slice) in ctx.slices.iter().enumerate() {
+        for connection in slice.connections.iter() {
+            // Process both sides of the connection
+            process_entity_reference(
+                &connection.from,
+                slice_index,
+                &view_lookup,
+                &mut entities_by_slice_and_swimlane,
+            );
+            process_entity_reference(
+                &connection.to,
+                slice_index,
+                &view_lookup,
+                &mut entities_by_slice_and_swimlane,
+            );
+        }
+    }
+
+    // Remove duplicates while preserving order
+    for entities in entities_by_slice_and_swimlane.values_mut() {
+        let mut seen = std::collections::HashSet::new();
+        entities.retain(|item| seen.insert(item.clone()));
+    }
+
+    // Render views
+    for ((slice_index, swimlane_id), entity_names) in &entities_by_slice_and_swimlane {
+        if let Some(&swimlane_y) = swimlane_y_positions.get(swimlane_id) {
+            let slice_x = slice_x_positions[*slice_index];
+            let slice_width = ctx.slice_widths[*slice_index];
+            let num_entities = entity_names.len();
+
+            // Position entities horizontally within the slice
+            // Since we calculated slice width to fit all entities, we know they will fit
+            for (entity_index, entity_name) in entity_names.iter().enumerate() {
+                // Get entity dimensions
+                let dimensions = ctx
+                    .entity_dimensions_map
+                    .get(entity_name)
+                    .expect("Entity dimensions should have been pre-calculated");
+
+                // Calculate entity position - entities are evenly spaced with proper margins
+                let entity_x = if num_entities == 1 {
+                    // Center single entity
+                    slice_x + (slice_width - dimensions.width) / 2
+                } else {
+                    // Multiple entities - use the spacing we calculated for
+                    // We need to calculate the cumulative width of previous entities
+                    let mut cumulative_width = ENTITY_MARGIN;
+                    for prev_entity_name in entity_names.iter().take(entity_index) {
+                        let prev_dimensions = ctx
+                            .entity_dimensions_map
+                            .get(prev_entity_name)
+                            .expect("Entity dimensions should have been pre-calculated");
+                        cumulative_width += prev_dimensions.width + ENTITY_MARGIN;
+                    }
+                    slice_x + cumulative_width
+                };
+
+                // Get swimlane index to access height
+                let swimlane_index = ctx
+                    .swimlanes
+                    .iter()
+                    .position(|s| &s.id == *swimlane_id)
+                    .unwrap();
+                let swimlane_height = ctx.swimlane_heights[swimlane_index];
+
+                // Center entity vertically in swimlane
+                let entity_y = swimlane_y + (swimlane_height - dimensions.height) / 2;
+
+                // Render view box
+                svg.push_str(&render_view_box(
+                    entity_x,
+                    entity_y,
+                    entity_name,
+                    dimensions,
+                ));
+            }
+        }
+    }
+
+    svg
+}
+
+/// Formats an entity name by inserting spaces before capital letters.
+/// E.g., "LoginScreen" becomes "Login Screen", "UserProfileScreen" becomes "User Profile Screen"
+fn format_entity_name(name: &str) -> String {
+    let mut result = String::new();
+    let mut chars = name.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch.is_uppercase() && !result.is_empty() {
+            // Add space before capital letter, unless previous char was also uppercase
+            // This handles cases like "XMLParser" -> "XML Parser" correctly
+            if let Some(last) = result.chars().last() {
+                if !last.is_uppercase() || (chars.peek().is_some_and(|&next| !next.is_uppercase()))
+                {
+                    result.push(' ');
+                }
+            }
+        }
+        result.push(ch);
+    }
+
+    result
+}
+
+/// Wraps text into balanced lines, prioritizing wrapping over width expansion.
+/// Returns the wrapped lines and the actual dimensions needed.
+fn wrap_text(text: &str, max_width: u32, font_size: u32) -> (Vec<String>, u32, u32) {
+    // Approximate character width (for Arial font, roughly 0.6x the font size)
+    let char_width = (font_size as f32 * 0.6) as u32;
+    let max_chars_per_line = max_width / char_width;
+
+    let words: Vec<&str> = text.split_whitespace().collect();
+
+    if words.is_empty() {
+        return (vec![text.to_string()], max_width, font_size);
+    }
+
+    // First, try to fit within the max width using multiple lines
+    let mut lines = Vec::new();
+    let mut current_line = String::new();
+
+    for word in &words {
+        // Check if adding this word would exceed the line length
+        let test_line = if current_line.is_empty() {
+            word.to_string()
+        } else {
+            format!("{current_line} {word}")
+        };
+
+        if test_line.len() <= max_chars_per_line as usize {
+            current_line = test_line;
+        } else {
+            // Start a new line
+            if !current_line.is_empty() {
+                lines.push(current_line);
+            }
+            current_line = word.to_string();
+        }
+    }
+
+    if !current_line.is_empty() {
+        lines.push(current_line);
+    }
+
+    // If we have lines that fit, use the standard width
+    let max_line_length = lines.iter().map(|line| line.len()).max().unwrap_or(0);
+    let mut actual_width = ENTITY_BOX_WIDTH;
+
+    // Only expand width if a single word is longer than the max characters
+    if max_line_length > max_chars_per_line as usize {
+        actual_width = (max_line_length as u32 * char_width).max(ENTITY_BOX_WIDTH);
+    }
+
+    let line_height = (font_size as f32 * 1.2) as u32;
+    let actual_height = lines.len() as u32 * line_height;
+
+    (lines, actual_width, actual_height)
+}
+
+/// Information about entity dimensions.
+#[derive(Debug, Clone)]
+struct EntityDimensions {
+    width: u32,
+    height: u32,
+    text_lines: Vec<String>,
+}
+
+/// Context for rendering entities.
+struct EntityRenderContext<'a> {
+    diagram: &'a EventModelDiagram,
+    swimlanes: &'a NonEmpty<yaml_types::Swimlane>,
+    slices: &'a [yaml_types::Slice],
+    slice_widths: &'a [u32],
+    swimlane_heights: &'a [u32],
+    swimlanes_start_y: u32,
+    start_x: u32,
+    entity_dimensions_map: &'a HashMap<String, EntityDimensions>,
+}
+
+/// Calculate dimensions needed for an entity based on its text content.
+fn calculate_entity_dimensions(name: &str, _entity_type: &str) -> EntityDimensions {
+    let formatted_name = format_entity_name(name);
+    let (text_lines, text_width, text_height) = wrap_text(
+        &formatted_name,
+        ENTITY_BOX_WIDTH - 2 * ENTITY_PADDING,
+        ENTITY_NAME_FONT_SIZE,
+    );
+
+    // Only use padding for height calculation (no label)
+    let total_text_height = text_height + 2 * ENTITY_PADDING;
+
+    // Prefer the standard width unless text forces us wider
+    let width = text_width.max(ENTITY_BOX_WIDTH);
+    let height = total_text_height.max(ENTITY_BOX_HEIGHT);
+
+    EntityDimensions {
+        width,
+        height,
+        text_lines,
+    }
+}
+
+/// Renders a single view box with proper text wrapping.
+fn render_view_box(x: u32, y: u32, _name: &str, dimensions: &EntityDimensions) -> String {
+    let mut svg = String::new();
+
+    // Draw the box
+    svg.push_str(&format!(
+        r#"  <rect x="{x}" y="{y}" width="{}" height="{}" fill="{VIEW_BACKGROUND_COLOR}" stroke="{SWIMLANE_BORDER_COLOR}" stroke-width="1"/>
+"#,
+        dimensions.width, dimensions.height
+    ));
+
+    // Draw the entity name with multiple lines (no label needed)
+    let line_height = (ENTITY_NAME_FONT_SIZE as f32 * 1.2) as u32;
+    let text_center_x = x + dimensions.width / 2;
+
+    // Center the text vertically in the box
+    let total_text_height = dimensions.text_lines.len() as u32 * line_height;
+    let text_start_y = y + (dimensions.height - total_text_height) / 2 + ENTITY_NAME_FONT_SIZE;
+
+    for (i, line) in dimensions.text_lines.iter().enumerate() {
+        let text_y = text_start_y + (i as u32 * line_height);
+        svg.push_str(&format!(
+            r#"  <text x="{text_center_x}" y="{text_y}" font-family="Arial, sans-serif" font-size="{ENTITY_NAME_FONT_SIZE}" fill="{TEXT_COLOR}" text-anchor="middle">{line}</text>
+"#
+        ));
+    }
 
     svg
 }

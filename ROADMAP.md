@@ -2,26 +2,28 @@
 
 ## Current Implementation Status
 
-**⚠️ Early Development Stage**: The type system and module structure are complete, but most functionality contains `todo!()` placeholders.
+**Active Development**: Event Modeler is undergoing a major rewrite to support YAML-based event models with rich visual diagramming.
+
+### Tracking Progress
+
+Development is tracked through GitHub issues:
+- **Major phases**: See issues labeled "epic"
+- **Current work**: Check open sub-issues of active epics
+- **Phase 6**: Incremental diagram module rewrite (in progress)
+- **MCP Development**: Workflow automation server (Phase 1 complete)
 
 ### Completed ✅
+- Phases 1-5: Type System, YAML Parser, Domain Model, Layout Engine, Basic Rendering
 - Module organization with clear domain boundaries
 - Type-safe design throughout (zero runtime validation)
 - Comprehensive documentation
 - Domain model types (Event, Command, Projection, etc.)
 - Infrastructure utilities (NonEmptyString, TypedPath, etc.)
+- YAML parsing pipeline with rich error handling
 
-### Next Development Priorities 🚧
-
-1. **CLI Foundation** - Implement CLI argument parsing in `src/cli.rs`
-2. **Text Parsing** - Implement text parsing in `src/infrastructure/parsing/`
-3. **Layout Engine** - Implement layout computation in `src/diagram/layout.rs`
-4. **SVG Rendering** - Implement SVG rendering in `src/diagram/svg.rs`
-
-### Implementation Notes
-- All `todo!()` functions should maintain the existing type signatures
-- Add implementation without changing the established type-safe interfaces
-- Maintain zero runtime validation principle
+### In Progress 🚧
+- Phase 6: Incremental diagram module rewrite
+- MCP Workflow Server for development automation
 
 ## Future Milestones
 
@@ -44,3 +46,7 @@
 ## Architecture Decisions
 
 See [README.md#architecture](README.md#architecture) for core principles and [CLAUDE.md](CLAUDE.md) for implementation guidance.
+
+## Development Process
+
+See [DEVELOPMENT_PROCESS.md](DEVELOPMENT_PROCESS.md) for critical development rules, PR workflow, and coding standards.

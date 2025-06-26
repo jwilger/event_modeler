@@ -52,7 +52,9 @@ export async function getGitStatus(): Promise<GitStatus> {
       lastCommit,
     };
   } catch (error) {
-    throw new Error(`Failed to get git status: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(
+      `Failed to get git status: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
   }
 }
 
@@ -66,7 +68,7 @@ export async function isCurrentBranchStale(): Promise<boolean> {
 
     // Get the merge base with main
     const mergeBase = await git.raw(['merge-base', 'HEAD', 'origin/main']);
-    
+
     // Get commits on main since merge base
     const commitsSinceBranch = await git.raw([
       'rev-list',
@@ -76,6 +78,25 @@ export async function isCurrentBranchStale(): Promise<boolean> {
 
     // If there are many commits on main since this branch was created, it might be stale
     return parseInt(commitsSinceBranch.trim(), 10) > 10;
+  } catch {
+    return false;
+  }
+}
+
+export async function isBranchMerged(branch?: string): Promise<boolean> {
+  try {
+    // Use current branch if not specified
+    const branchToCheck = branch || (await git.revparse(['--abbrev-ref', 'HEAD']));
+
+    if (branchToCheck.trim() === 'main') {
+      return true; // main is always "merged"
+    }
+
+    // Check if all commits from the branch are in main
+    const unmergedCommits = await git.raw(['rev-list', '--count', `origin/main..${branchToCheck}`]);
+
+    // If there are no unmerged commits, the branch has been merged
+    return parseInt(unmergedCommits.trim(), 10) === 0;
   } catch {
     return false;
   }

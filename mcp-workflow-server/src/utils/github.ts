@@ -1,36 +1,24 @@
 import { Octokit } from '@octokit/rest';
 import { execSync } from 'child_process';
-import { PRStatus } from '../types.js';
-
-// Get GitHub token from gh CLI config
-function getGitHubToken(): string {
-  try {
-    const token = execSync('gh auth token', { encoding: 'utf-8' }).trim();
-    if (!token) {
-      throw new Error('No GitHub token found');
-    }
-    return token;
-  } catch (error) {
-    throw new Error('Failed to get GitHub token. Make sure gh CLI is authenticated.');
-  }
-}
+import { PRStatus, CheckRunDetail } from '../types.js';
+import { getGitHubToken } from './auth.js';
 
 // Get repository info from git remote
-function getRepoInfo(): { owner: string; repo: string } {
+export function getRepoInfo(): { owner: string; repo: string } {
   try {
     const remoteUrl = execSync('git config --get remote.origin.url', { encoding: 'utf-8' }).trim();
-    
+
     // Parse GitHub URL (supports both HTTPS and SSH)
-    const match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/]+)(\.git)?$/);
+    const match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/);
     if (!match) {
       throw new Error('Not a GitHub repository');
     }
-    
+
     return {
       owner: match[1],
       repo: match[2],
     };
-  } catch (error) {
+  } catch {
     throw new Error('Failed to get repository info from git remote');
   }
 }
@@ -62,16 +50,31 @@ export async function getAllPRs(): Promise<PRStatus[]> {
     const prStatuses = await Promise.all(
       pulls.map(async (pr) => {
         // Get check runs
-        let checks = { total: 0, passed: 0, failed: 0, pending: 0 };
+        const checks = { total: 0, passed: 0, failed: 0, pending: 0, details: [] as CheckRunDetail[] };
         try {
-          const { data: checkRuns } = await octokit.checks.listForRef({
+          const checkRuns = await octokit.paginate(octokit.checks.listForRef, {
             owner,
             repo,
             ref: pr.head.sha,
+            per_page: 100,
           });
 
-          checks.total = checkRuns.total_count;
-          checkRuns.check_runs.forEach((run) => {
+          checks.total = checkRuns.length;
+          checkRuns.forEach((run) => {
+            // Collect details for all check runs
+            const detail: CheckRunDetail = {
+              name: run.name,
+              status: run.status as 'queued' | 'in_progress' | 'completed',
+              conclusion: run.conclusion as 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' | 'action_required' | null,
+              url: run.html_url || undefined,
+              output: run.output ? {
+                title: run.output.title || undefined,
+                summary: run.output.summary || undefined,
+              } : undefined,
+            };
+            checks.details.push(detail);
+
+            // Update counts
             if (run.status === 'completed') {
               if (run.conclusion === 'success') checks.passed++;
               else checks.failed++;
@@ -93,25 +96,68 @@ export async function getAllPRs(): Promise<PRStatus[]> {
             pull_number: pr.number,
           });
 
-          hasUnresolvedReviews = reviews.some(
-            (review) => review.state === 'CHANGES_REQUESTED'
-          );
+          hasUnresolvedReviews = reviews.some((review) => review.state === 'CHANGES_REQUESTED');
         } catch {
           // If we can't get reviews, assume false
+        }
+
+        // Also check for unresolved review threads (e.g., Copilot comments)
+        try {
+          const reviewThreadsQuery = `
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $number) {
+                  reviewThreads(first: 100) {
+                    nodes {
+                      isResolved
+                    }
+                  }
+                }
+              }
+            }
+          `;
+
+          const reviewThreadsData = await octokit.graphql(reviewThreadsQuery, {
+            owner,
+            repo,
+            number: pr.number,
+          });
+
+          interface ReviewThreadsResult {
+            repository: {
+              pullRequest: {
+                reviewThreads: {
+                  nodes: Array<{ isResolved: boolean }>;
+                };
+              };
+            };
+          }
+
+          const threads = (reviewThreadsData as ReviewThreadsResult).repository.pullRequest
+            .reviewThreads.nodes;
+          const hasUnresolvedThreads = threads.some((thread) => !thread.isResolved);
+
+          // Set hasUnresolvedReviews to true if there are unresolved threads
+          if (hasUnresolvedThreads) {
+            hasUnresolvedReviews = true;
+          }
+        } catch {
+          // If we can't get review threads, continue with existing value
         }
 
         // Check if PR needs rebase - we'll need to get detailed PR info for this
         let needsRebase = false;
         let isMergeable = false;
-        
+
         try {
           const { data: prDetail } = await octokit.pulls.get({
             owner,
             repo,
             pull_number: pr.number,
           });
-          
-          needsRebase = prDetail.mergeable_state === 'behind' || prDetail.mergeable_state === 'dirty';
+
+          needsRebase =
+            prDetail.mergeable_state === 'behind' || prDetail.mergeable_state === 'dirty';
           isMergeable = prDetail.mergeable === true;
         } catch {
           // If we can't get PR details, use defaults
@@ -139,4 +185,14 @@ export async function getAllPRs(): Promise<PRStatus[]> {
       `Failed to get PRs: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
+}
+
+// Extract failed check runs from the details array
+export function extractFailedChecks(checkDetails: CheckRunDetail[]): Array<{ name: string; summary: string }> {
+  return checkDetails
+    .filter((check) => check.conclusion === 'failure' || check.conclusion === 'timed_out')
+    .map((check) => ({
+      name: check.name,
+      summary: check.output?.summary?.split('\n')[0] || 'Failed'
+    }));
 }

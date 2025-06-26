@@ -1,3 +1,14 @@
+export interface CheckRunDetail {
+  name: string;
+  status: 'queued' | 'in_progress' | 'completed';
+  conclusion: 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' | 'action_required' | null;
+  url?: string;
+  output?: {
+    title?: string;
+    summary?: string;
+  };
+}
+
 export interface PRStatus {
   number: number;
   title: string;
@@ -11,6 +22,7 @@ export interface PRStatus {
     passed: number;
     failed: number;
     pending: number;
+    details: CheckRunDetail[];
   };
   hasUnresolvedReviews: boolean;
   needsRebase: boolean;
@@ -45,10 +57,24 @@ export interface SuggestedAction {
   command?: string;
 }
 
+// Standardized next step action structure for workflow guidance
+export interface NextStepAction {
+  action: string;
+  description: string;
+  tool?: string;
+  parameters?: Record<string, unknown>;
+  priority: 'urgent' | 'high' | 'medium' | 'low';
+  category: 'immediate' | 'next_logical' | 'optional';
+  condition?: string;
+  // Additional context fields (optional, tool-specific)
+  [key: string]: unknown;
+}
+
 export interface WorkflowResponse {
   requestedData: Record<string, unknown> | null;
   automaticActions: string[];
   issuesFound: string[];
   suggestedActions: string[];
+  nextSteps?: NextStepAction[];
   allPRStatus: PRStatus[];
 }

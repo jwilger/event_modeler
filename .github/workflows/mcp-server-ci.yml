@@ -1,0 +1,61 @@
+name: MCP Server CI
+
+# This workflow tests the MCP Workflow Server independently from the main CI
+# 
+# To make this a required check for merging:
+# 1. Go to Settings → Branches in your GitHub repository
+# 2. Click on the branch protection rule for 'main' (or create one)
+# 3. Enable "Require status checks to pass before merging"
+# 4. Search for "MCP Server Tests" and select it
+# 5. Check "Require branches to be up to date before merging"
+# 6. Save changes
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'mcp-workflow-server/**'
+      - '.github/workflows/mcp-server-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'mcp-workflow-server/**'
+      - '.github/workflows/mcp-server-ci.yml'
+
+jobs:
+  test:
+    name: MCP Server Tests
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: mcp-workflow-server
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mcp-workflow-server/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run linter
+        run: npm run lint
+      
+      - name: Build
+        run: npm run build
+      
+      - name: Run tests
+        run: npm test
+      
+      - name: Verify build output
+        run: |
+          if [ ! -f dist/index.js ]; then
+            echo "Build failed - dist/index.js not found"
+            exit 1
+          fi
