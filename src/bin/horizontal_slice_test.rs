@@ -530,8 +530,7 @@ fn render_dynamic_diagram() -> Result<String, Box<dyn std::error::Error>> {
     // Build SVG
     let mut svg_content = String::new();
     svg_content.push_str(&format!(
-        r#"<svg width="{}" height="{}" xmlns="http://www.w3.org/2000/svg">"#,
-        canvas_width, canvas_height
+        r#"<svg width="{canvas_width}" height="{canvas_height}" xmlns="http://www.w3.org/2000/svg">"#
     ));
 
     // Add arrow markers
@@ -545,8 +544,7 @@ fn render_dynamic_diagram() -> Result<String, Box<dyn std::error::Error>> {
 
     // Add background
     svg_content.push_str(&format!(
-        r#"<rect width="{}" height="{}" fill="white" stroke="none"/>"#,
-        canvas_width, canvas_height
+        r#"<rect width="{canvas_width}" height="{canvas_height}" fill="white" stroke="none"/>"#
     ));
 
     // Draw swimlanes
@@ -617,8 +615,7 @@ fn render_dynamic_diagram() -> Result<String, Box<dyn std::error::Error>> {
             let icon_y = entity.y + entity.height / 2.0 - 20.0; // Position between swimlanes
 
             svg_content.push_str(&format!(
-                "<circle cx=\"{}\" cy=\"{}\" r=\"25\" fill=\"#4a5568\" stroke=\"#2d3748\" stroke-width=\"2\"/>",
-                icon_x, icon_y
+                "<circle cx=\"{icon_x}\" cy=\"{icon_y}\" r=\"25\" fill=\"#4a5568\" stroke=\"#2d3748\" stroke-width=\"2\"/>"
             ));
 
             // Email icon
@@ -680,8 +677,7 @@ fn render_dynamic_diagram() -> Result<String, Box<dyn std::error::Error>> {
             let (from_x, from_y, to_x, to_y) = calculate_connection_points(from_entity, to_entity);
 
             svg_content.push_str(&format!(
-                "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"#586069\" stroke-width=\"2\" marker-end=\"url(#arrowhead)\"/>",
-                from_x, from_y, to_x, to_y
+                "<line x1=\"{from_x}\" y1=\"{from_y}\" x2=\"{to_x}\" y2=\"{to_y}\" stroke=\"#586069\" stroke-width=\"2\" marker-end=\"url(#arrowhead)\"/>"
             ));
         }
     }
@@ -878,8 +874,7 @@ fn render_test_scenarios(svg_content: &mut String, test_scenarios: &[TestScenari
 
             // Draw section container
             svg_content.push_str(&format!(
-            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#ffffff\" stroke=\"#d1d5da\" stroke-width=\"1\"/>",
-            section_x, y_start, section_width, section_height
+            "<rect x=\"{section_x}\" y=\"{y_start}\" width=\"{section_width}\" height=\"{section_height}\" fill=\"#ffffff\" stroke=\"#d1d5da\" stroke-width=\"1\"/>"
         ));
 
             // Draw section header
@@ -943,8 +938,7 @@ fn render_test_scenarios(svg_content: &mut String, test_scenarios: &[TestScenari
 
                         // Draw entry box
                         svg_content.push_str(&format!(
-                        "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\" stroke=\"{}\" stroke-width=\"1\" rx=\"2\"/>",
-                        entry_x, entry_y, entry_w, entry_h, bg_color, border_color
+                        "<rect x=\"{entry_x}\" y=\"{entry_y}\" width=\"{entry_w}\" height=\"{entry_h}\" fill=\"{bg_color}\" stroke=\"{border_color}\" stroke-width=\"1\" rx=\"2\"/>"
                     ));
 
                         // Draw entry text (simplified - just first line for now)

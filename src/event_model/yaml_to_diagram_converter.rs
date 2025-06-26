@@ -626,7 +626,7 @@ fn convert_yaml_connections_to_connectors(
                 // Extract top-level view name from view path (e.g., "NewAccountScreen" from "NewAccountScreen.AccountCredentials.Submit")
                 let path_string = view_path.clone().into_inner().into_inner();
                 let top_level_view = path_string.split('.').next().unwrap_or(&path_string);
-                EntityId::new(NonEmptyString::parse(format!("view_{}", top_level_view)).unwrap())
+                EntityId::new(NonEmptyString::parse(format!("view_{top_level_view}")).unwrap())
             }
             yaml::EntityReference::Projection(projection_name) => EntityId::new(
                 NonEmptyString::parse(format!(
@@ -670,7 +670,7 @@ fn convert_yaml_connections_to_connectors(
                 // Extract top-level view name from view path (e.g., "NewAccountScreen" from "NewAccountScreen.AccountCredentials.Submit")
                 let path_string = view_path.clone().into_inner().into_inner();
                 let top_level_view = path_string.split('.').next().unwrap_or(&path_string);
-                EntityId::new(NonEmptyString::parse(format!("view_{}", top_level_view)).unwrap())
+                EntityId::new(NonEmptyString::parse(format!("view_{top_level_view}")).unwrap())
             }
             yaml::EntityReference::Projection(projection_name) => EntityId::new(
                 NonEmptyString::parse(format!(

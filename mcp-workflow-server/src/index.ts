@@ -19,6 +19,7 @@ import { workflowManagePR } from './tools/workflow-manage-pr.js';
 import { gitBranch } from './tools/git-branch.js';
 import { gitCommit } from './tools/git-commit.js';
 import { gitStash } from './tools/git-stash.js';
+import { workflowState } from './tools/workflow-state.js';
 import { WorkflowResponse } from './types.js';
 
 const server = new Server(
@@ -378,6 +379,22 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['action'],
         },
       },
+      {
+        name: 'workflow_state',
+        description:
+          'Manage workflow state: get current state, reset to defaults, or validate for inconsistencies',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            action: {
+              type: 'string',
+              enum: ['get', 'reset', 'validate'],
+              description: 'The workflow state operation to perform',
+            },
+          },
+          required: ['action'],
+        },
+      },
     ],
   };
 });
@@ -434,6 +451,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       case 'git_stash':
         result = await gitStash(request.params.arguments as { action: 'list' | 'save' | 'pop' | 'apply' | 'drop' | 'clear' | 'show'; message?: string; stashRef?: string | number; includeUntracked?: boolean; keepIndex?: boolean; quiet?: boolean });
+        break;
+      case 'workflow_state':
+        result = await workflowState(request.params.arguments as { action: 'get' | 'reset' | 'validate' });
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);

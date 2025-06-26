@@ -696,8 +696,7 @@ fn parse_connection(conn_str: &str) -> Result<domain::Connection, ConversionErro
 
     if parts.len() != 2 {
         return Err(ConversionError::InvalidConnection(format!(
-            "Expected 'from -> to' format, got: {}",
-            conn_str
+            "Expected 'from -> to' format, got: {conn_str}"
         )));
     }
 

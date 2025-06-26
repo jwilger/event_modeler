@@ -167,7 +167,7 @@ impl YamlEntityRegistry {
                 }) {
                     Ok(())
                 } else {
-                    Err(format!("View '{}' not found", view_name))
+                    Err(format!("View '{view_name}' not found"))
                 }
             }
             EntityReference::Projection(name) => {

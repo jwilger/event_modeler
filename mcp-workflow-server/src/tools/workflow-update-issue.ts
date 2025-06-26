@@ -2,7 +2,7 @@ import { WorkflowResponse, PRStatus, NextStepAction } from '../types.js';
 import { getRepoInfo } from '../utils/github.js';
 import { Octokit } from '@octokit/rest';
 import { getGitHubToken } from '../utils/auth.js';
-import { getProjectConfig } from '../config.js';
+import { getProjectConfig, getWorkflowState } from '../config.js';
 
 interface UpdateIssueFieldsParams {
   issueNumber: number;
@@ -150,6 +150,73 @@ export async function workflowUpdateIssue(
           });
           updatedFields.status = statusOption.name;
           automaticActions.push(`Updated status to "${statusOption.name}"`);
+          
+          // Auto-assign issue when status changes to "In Progress"
+          if (statusOption.name === 'In Progress') {
+            const workflowState = getWorkflowState();
+            const enforcement = workflowState.enforcementPolicies.assign_issue_on_status_change;
+            
+            if (enforcement === 'auto') {
+              try {
+                // Get current user
+                const currentUser = await getCurrentUser(octokit);
+                
+                // Check if already assigned to current user
+                const issueQuery = `
+                  query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                    repository(owner: $owner, name: $repo) {
+                      issue(number: $issueNumber) {
+                        assignees(first: 10) {
+                          nodes {
+                            login
+                          }
+                        }
+                      }
+                    }
+                  }
+                `;
+                
+                const { owner: ownerName, repo: repoName } = getRepoInfo();
+                const issueResult = await octokit.graphql(issueQuery, {
+                  owner: ownerName,
+                  repo: repoName,
+                  issueNumber,
+                });
+                
+                interface IssueQueryResult {
+                  repository: {
+                    issue: {
+                      assignees: {
+                        nodes: Array<{ login: string }>;
+                      };
+                    };
+                  };
+                }
+                
+                const assignees = (issueResult as IssueQueryResult).repository.issue.assignees.nodes;
+                const isAssignedToCurrentUser = assignees.some(a => a.login === currentUser);
+                
+                if (!isAssignedToCurrentUser) {
+                  // Auto-assign to current user
+                  await octokit.issues.addAssignees({
+                    owner: ownerName,
+                    repo: repoName,
+                    issue_number: issueNumber,
+                    assignees: [currentUser],
+                  });
+                  
+                  automaticActions.push(`Auto-assigned issue #${issueNumber} to ${currentUser} (enforcement: auto)`);
+                  updatedFields.assignee = currentUser;
+                } else {
+                  automaticActions.push(`Issue #${issueNumber} already assigned to ${currentUser}`);
+                }
+              } catch (error) {
+                issuesFound.push(`Failed to auto-assign issue: ${error}`);
+              }
+            } else if (enforcement === 'suggest') {
+              suggestedActions.push(`Consider assigning issue #${issueNumber} to yourself`);
+            }
+          }
         }
       }
     }
@@ -285,6 +352,15 @@ export async function workflowUpdateIssue(
       ],
       allPRStatus,
     };
+  }
+}
+
+async function getCurrentUser(octokit: Octokit): Promise<string> {
+  try {
+    const { data } = await octokit.users.getAuthenticated();
+    return data.login;
+  } catch {
+    throw new Error('Failed to get current GitHub user. Make sure authentication is configured.');
   }
 }
 

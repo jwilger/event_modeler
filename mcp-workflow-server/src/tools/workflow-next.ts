@@ -1,7 +1,15 @@
 import { Octokit } from '@octokit/rest';
 import { execSync } from 'child_process';
 import { WorkflowResponse, NextStepAction } from '../types.js';
-import { getProjectConfig, getMissingConfigFields, createConfigRequest } from '../config.js';
+import { 
+  getProjectConfig, 
+  getMissingConfigFields, 
+  createConfigRequest,
+  getWorkflowState,
+  updateWorkflowState,
+  completeAction,
+  getRequiredActions
+} from '../config.js';
 import {
   workflowMonitorReviews,
   requestCopilotReReview,
@@ -316,6 +324,38 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         allPRStatus: [],
       };
     }
+    
+    // Check for required actions and auto-enforce them first
+    const workflowState = getWorkflowState();
+    const autoActions = getRequiredActions('auto');
+    
+    if (autoActions.length > 0) {
+      automaticActions.push(`Found ${autoActions.length} required auto-enforcement actions`);
+      
+      // Process auto-enforcement actions
+      for (const action of autoActions) {
+        try {
+          switch (action.type) {
+            case 'assign_issue_on_status_change':
+              // This will be handled by workflow_update_issue
+              break;
+            case 'create_pr_when_commits_exist': {
+              // Check if we're on a branch with commits but no PR
+              const currentBranch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
+              if (currentBranch !== 'main' && currentBranch !== 'master') {
+                // This will be checked later in the normal flow
+              }
+              break;
+            }
+            default:
+              automaticActions.push(`Unknown auto-action type: ${action.type}`);
+          }
+        } catch (error) {
+          automaticActions.push(`Failed to auto-enforce ${action.type}: ${error}`);
+        }
+      }
+    }
+    
     // Get GitHub token from gh CLI
     const token = getGitHubToken();
     const octokit = new Octokit({ auth: token });
@@ -1036,6 +1076,62 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         }
 
         if (hasCommits) {
+          // Check enforcement policy for PR creation
+          const enforcement = workflowState.enforcementPolicies.create_pr_when_commits_exist;
+          
+          if (enforcement === 'auto') {
+            // Auto-create the PR
+            automaticActions.push(`Auto-creating PR for issue #${branchIssueNumber} (enforcement: auto)`);
+            
+            try {
+              // Import and call workflow_create_pr
+              const { workflowCreatePR } = await import('./workflow-create-pr.js');
+              const prResult = await workflowCreatePR({});
+              
+              automaticActions.push(`Successfully created PR #${prResult.requestedData.pr?.number}`);
+              completeAction('create_pr_when_commits_exist');
+              
+              // Update workflow state
+              updateWorkflowState({
+                phase: 'pr_created',
+                currentIssue: branchIssueNumber,
+                currentBranch,
+              });
+              
+              return {
+                requestedData: {
+                  context: {
+                    currentBranch,
+                    hasUncommittedChanges,
+                    existingPR: prResult.requestedData.pr ? {
+                      number: prResult.requestedData.pr.number,
+                      title: prResult.requestedData.pr.title
+                    } : null,
+                  },
+                },
+                automaticActions,
+                issuesFound: [],
+                suggestedActions: [`Monitor PR #${prResult.requestedData.pr?.number} for reviews`],
+                nextSteps: [
+                  {
+                    action: 'monitor_pr_reviews',
+                    description: `Monitor PR #${prResult.requestedData.pr?.number} for review feedback`,
+                    priority: 'high',
+                    category: 'immediate',
+                    tool: 'workflow_monitor_reviews',
+                    prNumber: prResult.requestedData.pr?.number,
+                    suggestion: `PR created automatically. Monitor for reviews.`,
+                  },
+                ],
+                allPRStatus: [],
+              };
+            } catch (error) {
+              automaticActions.push(`Failed to auto-create PR: ${error}`);
+              // Fall through to manual suggestion
+            }
+          }
+          
+          // Manual suggestion (if auto failed or enforcement is not auto)
           const nextSteps: WorkflowNextStepAction[] = [
             {
               action: 'todos_complete',
@@ -1387,7 +1483,101 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         }
       }
 
-      // No issues or epics in progress
+      // No issues or epics in progress - search for available work
+      automaticActions.push('No issues in progress - searching for available work');
+      
+      // Find unassigned issues with "Todo" status
+      const availableIssues = items.filter((item) => {
+        if (!item.content) return false;
+
+        // Skip if it's an epic (epics should not be assigned directly)
+        const isEpic =
+          item.content?.labels && item.content.labels.nodes.some((label) => label.name === 'epic');
+        if (isEpic) return false;
+
+        // Check if unassigned (no assignees)
+        const isUnassigned = !item.content.assignees || 
+          item.content.assignees.nodes.length === 0;
+
+        // Check if status is "Todo"
+        const statusField = item.fieldValues.nodes.find(
+          (field) => field.field && field.field.name === 'Status'
+        );
+        const isTodo = statusField && statusField.name === 'Todo';
+
+        // Check if the issue is open
+        const isOpen = item.content.state === 'OPEN';
+
+        return isUnassigned && isTodo && isOpen;
+      });
+
+      if (availableIssues.length === 0) {
+        // No available issues found
+        return {
+          requestedData: {
+            context: {
+              assignedIssues: 0,
+              inProgressIssues: 0,
+            },
+          },
+          automaticActions,
+          issuesFound,
+          suggestedActions: ['Visit the project board to select your next task'],
+          nextSteps: [
+            {
+              action: 'select_work',
+              description: 'Visit project board to select next task',
+              priority: 'high',
+              category: 'immediate',
+              projectUrl: `https://github.com/users/${owner.login}/projects/9`,
+              reason: 'No available issues found. Visit project board to create or assign work.',
+            },
+          ],
+          allPRStatus: [],
+        };
+      }
+
+      // Present available issues for selection
+      if (availableIssues.length === 1) {
+        // Only one available issue - suggest it directly
+        const availableIssue = availableIssues[0].content!;
+        automaticActions.push(`Found 1 available issue: #${availableIssue.number}`);
+
+        return {
+          requestedData: {
+            context: {
+              assignedIssues: 0,
+              inProgressIssues: 0,
+            },
+          },
+          automaticActions,
+          issuesFound,
+          suggestedActions: [`Start work on issue #${availableIssue.number}: ${availableIssue.title}`],
+          nextSteps: [
+            {
+              action: 'start_new_work',
+              description: `Start work on issue #${availableIssue.number}: ${availableIssue.title}`,
+              priority: 'high',
+              category: 'immediate',
+              tool: 'git_branch',
+              parameters: {
+                action: 'start-work',
+                issueNumber: availableIssue.number,
+              },
+              issueNumber: availableIssue.number,
+              title: availableIssue.title,
+              status: 'Todo',
+              suggestion: `Start work on issue #${availableIssue.number}: ${availableIssue.title}`,
+            },
+          ],
+          allPRStatus: [],
+        };
+      }
+
+      // Multiple available issues - request LLM decision
+      const decisionId = `select-available-work-${Date.now()}`;
+      automaticActions.push(`Found ${availableIssues.length} available issues - requesting decision`);
+
       return {
         requestedData: {
           context: {
@@ -1397,15 +1587,35 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         },
         automaticActions,
         issuesFound,
-        suggestedActions: ['Visit the project board to select your next task'],
+        suggestedActions: ['Awaiting decision on which issue to work on next'],
         nextSteps: [
           {
-            action: 'select_work',
-            description: 'Visit project board to select next task',
+            action: 'requires_llm_decision',
+            description: `Choose which of ${availableIssues.length} available issues to work on next`,
             priority: 'high',
             category: 'immediate',
-            projectUrl: `https://github.com/users/${owner.login}/projects/9`,
-            reason: 'No issues in progress. Visit project board to select next item.',
+            tool: 'workflow_decide',
+            parameters: {
+              decisionId,
+            },
+            decisionType: 'select_next_issue',
+            decisionId,
+            choices: availableIssues.map((item) => ({
+              id: item.content!.number,
+              title: item.content!.title,
+              description: `Issue #${item.content!.number}`,
+              metadata: {
+                state: item.content!.state,
+                labels: item.content!.labels?.nodes?.map((l) => l.name) || [],
+              },
+            })),
+            decisionContext: {
+              prompt: `Which issue should be worked on next? Consider priorities, dependencies, and logical work ordering.`,
+              additionalInfo: {
+                currentBranch,
+                existingPR: null,
+              },
+            },
           },
         ],
         allPRStatus: [],
