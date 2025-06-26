@@ -24,6 +24,8 @@ pub struct EventModelDiagram {
     views: HashMap<yaml_types::ViewName, yaml_types::ViewDefinition>,
     /// The commands defined in the model.
     commands: HashMap<yaml_types::CommandName, yaml_types::CommandDefinition>,
+    /// The events defined in the model.
+    events: HashMap<yaml_types::EventName, yaml_types::EventDefinition>,
 }
 
 impl EventModelDiagram {
@@ -35,6 +37,7 @@ impl EventModelDiagram {
             slices: model.slices.clone(),
             views: model.views.clone(),
             commands: model.commands.clone(),
+            events: model.events.clone(),
         })
     }
 
@@ -61,5 +64,10 @@ impl EventModelDiagram {
     /// Gets the commands.
     pub fn commands(&self) -> &HashMap<yaml_types::CommandName, yaml_types::CommandDefinition> {
         &self.commands
+    }
+
+    /// Gets the events.
+    pub fn events(&self) -> &HashMap<yaml_types::EventName, yaml_types::EventDefinition> {
+        &self.events
     }
 }

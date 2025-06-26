@@ -39,6 +39,7 @@ const ENTITY_NAME_FONT_SIZE: u32 = 10; // Font size for entity names
 // Entity colors
 const VIEW_BACKGROUND_COLOR: &str = "#ffffff"; // White for views
 const COMMAND_BACKGROUND_COLOR: &str = "#4a90e2"; // Blue for commands
+const EVENT_BACKGROUND_COLOR: &str = "#9b59b6"; // Purple for events
 
 /// Renders an event model diagram to SVG format.
 ///
@@ -63,6 +64,12 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
         let dimensions = calculate_entity_dimensions(name_str, "Command");
         entity_dimensions_map.insert(name_str.to_string(), dimensions);
     }
+    for event_name in diagram.events().keys() {
+        let name_string = event_name.clone().into_inner();
+        let name_str = name_string.as_str();
+        let dimensions = calculate_entity_dimensions(name_str, "Event");
+        entity_dimensions_map.insert(name_str.to_string(), dimensions);
+    }
 
     // Build temporary maps for entity lookups
     let view_lookup: HashMap<String, &yaml_types::ViewDefinition> = diagram
@@ -73,6 +80,12 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
 
     let command_lookup: HashMap<String, &yaml_types::CommandDefinition> = diagram
         .commands()
+        .iter()
+        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
+        .collect();
+
+    let event_lookup: HashMap<String, &yaml_types::EventDefinition> = diagram
+        .events()
         .iter()
         .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
         .collect();
@@ -91,12 +104,14 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
                 &connection.from,
                 &view_lookup,
                 &command_lookup,
+                &event_lookup,
                 &mut entities_by_swimlane,
             );
             process_entity_for_slice(
                 &connection.to,
                 &view_lookup,
                 &command_lookup,
+                &event_lookup,
                 &mut entities_by_swimlane,
             );
         }
@@ -156,6 +171,18 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
     for (command_name, command_def) in diagram.commands() {
         if let Some(swimlane_index) = swimlanes.iter().position(|s| s.id == command_def.swimlane) {
             let name_string = command_name.clone().into_inner();
+            let name_str = name_string.as_str();
+            if let Some(dimensions) = entity_dimensions_map.get(name_str) {
+                // Account for entity height plus margins
+                swimlane_content_heights[swimlane_index] = swimlane_content_heights[swimlane_index]
+                    .max(dimensions.height + 2 * ENTITY_MARGIN);
+            }
+        }
+    }
+
+    for (event_name, event_def) in diagram.events() {
+        if let Some(swimlane_index) = swimlanes.iter().position(|s| s.id == event_def.swimlane) {
+            let name_string = event_name.clone().into_inner();
             let name_str = name_string.as_str();
             if let Some(dimensions) = entity_dimensions_map.get(name_str) {
                 // Account for entity height plus margins
@@ -380,6 +407,7 @@ fn extract_entity_info<'a>(
     entity_ref: &yaml_types::EntityReference,
     view_lookup: &HashMap<String, &'a yaml_types::ViewDefinition>,
     command_lookup: &HashMap<String, &'a yaml_types::CommandDefinition>,
+    event_lookup: &HashMap<String, &'a yaml_types::EventDefinition>,
 ) -> Option<(String, &'a yaml_types::SwimlaneId)> {
     match entity_ref {
         yaml_types::EntityReference::View(view_path) => {
@@ -399,6 +427,14 @@ fn extract_entity_info<'a>(
                 .get(command_name_str)
                 .map(|command_def| (command_name_str.to_string(), &command_def.swimlane))
         }
+        yaml_types::EntityReference::Event(event_name) => {
+            let event_name_string = event_name.clone().into_inner();
+            let event_name_str = event_name_string.as_str();
+
+            event_lookup
+                .get(event_name_str)
+                .map(|event_def| (event_name_str.to_string(), &event_def.swimlane))
+        }
         _ => None, // Other entity types not yet implemented
     }
 }
@@ -408,10 +444,11 @@ fn process_entity_for_slice<'a>(
     entity_ref: &yaml_types::EntityReference,
     view_lookup: &HashMap<String, &'a yaml_types::ViewDefinition>,
     command_lookup: &HashMap<String, &'a yaml_types::CommandDefinition>,
+    event_lookup: &HashMap<String, &'a yaml_types::EventDefinition>,
     entities_by_swimlane: &mut HashMap<&'a yaml_types::SwimlaneId, Vec<String>>,
 ) {
     if let Some((entity_name, swimlane_id)) =
-        extract_entity_info(entity_ref, view_lookup, command_lookup)
+        extract_entity_info(entity_ref, view_lookup, command_lookup, event_lookup)
     {
         entities_by_swimlane
             .entry(swimlane_id)
@@ -420,16 +457,17 @@ fn process_entity_for_slice<'a>(
     }
 }
 
-/// Process an entity reference and add it to the entities_by_slice_and_swimlane map if it's a view or command.
+/// Process an entity reference and add it to the entities_by_slice_and_swimlane map if it's a view, command, or event.
 fn process_entity_reference<'a>(
     entity_ref: &yaml_types::EntityReference,
     slice_index: usize,
     view_lookup: &HashMap<String, &'a yaml_types::ViewDefinition>,
     command_lookup: &HashMap<String, &'a yaml_types::CommandDefinition>,
+    event_lookup: &HashMap<String, &'a yaml_types::EventDefinition>,
     entities_by_slice_and_swimlane: &mut HashMap<(usize, &'a yaml_types::SwimlaneId), Vec<String>>,
 ) {
     if let Some((entity_name, swimlane_id)) =
-        extract_entity_info(entity_ref, view_lookup, command_lookup)
+        extract_entity_info(entity_ref, view_lookup, command_lookup, event_lookup)
     {
         let key = (slice_index, swimlane_id);
         entities_by_slice_and_swimlane
@@ -481,6 +519,13 @@ fn render_entities(ctx: &EntityRenderContext) -> String {
         .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
         .collect();
 
+    let event_lookup: HashMap<String, &yaml_types::EventDefinition> = ctx
+        .diagram
+        .events()
+        .iter()
+        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
+        .collect();
+
     // Parse slice connections to find view positions
     for (slice_index, slice) in ctx.slices.iter().enumerate() {
         for connection in slice.connections.iter() {
@@ -490,6 +535,7 @@ fn render_entities(ctx: &EntityRenderContext) -> String {
                 slice_index,
                 &view_lookup,
                 &command_lookup,
+                &event_lookup,
                 &mut entities_by_slice_and_swimlane,
             );
             process_entity_reference(
@@ -497,6 +543,7 @@ fn render_entities(ctx: &EntityRenderContext) -> String {
                 slice_index,
                 &view_lookup,
                 &command_lookup,
+                &event_lookup,
                 &mut entities_by_slice_and_swimlane,
             );
         }
@@ -563,6 +610,13 @@ fn render_entities(ctx: &EntityRenderContext) -> String {
                     ));
                 } else if command_lookup.contains_key(entity_name) {
                     svg.push_str(&render_command_box(
+                        entity_x,
+                        entity_y,
+                        entity_name,
+                        dimensions,
+                    ));
+                } else if event_lookup.contains_key(entity_name) {
+                    svg.push_str(&render_event_box(
                         entity_x,
                         entity_y,
                         entity_name,
@@ -747,6 +801,37 @@ fn render_command_box(x: u32, y: u32, _name: &str, dimensions: &EntityDimensions
     let text_start_y = y + (dimensions.height - total_text_height) / 2 + ENTITY_NAME_FONT_SIZE;
 
     // Use white text on blue background for better contrast
+    for (i, line) in dimensions.text_lines.iter().enumerate() {
+        let text_y = text_start_y + (i as u32 * line_height);
+        svg.push_str(&format!(
+            "  <text x=\"{}\" y=\"{}\" font-family=\"Arial, sans-serif\" font-size=\"{}\" fill=\"#ffffff\" text-anchor=\"middle\">{}</text>\n",
+            text_center_x, text_y, ENTITY_NAME_FONT_SIZE, line
+        ));
+    }
+
+    svg
+}
+
+/// Renders a single event box with proper text wrapping.
+fn render_event_box(x: u32, y: u32, _name: &str, dimensions: &EntityDimensions) -> String {
+    let mut svg = String::new();
+
+    // Draw the box (purple for events)
+    svg.push_str(&format!(
+        r#"  <rect x="{x}" y="{y}" width="{}" height="{}" fill="{EVENT_BACKGROUND_COLOR}" stroke="{SWIMLANE_BORDER_COLOR}" stroke-width="1"/>
+"#,
+        dimensions.width, dimensions.height
+    ));
+
+    // Draw the entity name with multiple lines (no label needed)
+    let line_height = (ENTITY_NAME_FONT_SIZE as f32 * 1.2) as u32;
+    let text_center_x = x + dimensions.width / 2;
+
+    // Center the text vertically in the box
+    let total_text_height = dimensions.text_lines.len() as u32 * line_height;
+    let text_start_y = y + (dimensions.height - total_text_height) / 2 + ENTITY_NAME_FONT_SIZE;
+
+    // Use white text on purple background for better contrast
     for (i, line) in dimensions.text_lines.iter().enumerate() {
         let text_y = text_start_y + (i as u32 * line_height);
         svg.push_str(&format!(
