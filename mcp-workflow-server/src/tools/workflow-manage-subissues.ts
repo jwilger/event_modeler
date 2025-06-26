@@ -91,7 +91,7 @@ async function getIssueNodeId(
   return issue.id;
 }
 
-async function checkCircularDependency(
+async function skipCircularDependencyCheck(
   _octokit: Octokit,
   _parentId: string,
   _childId: string
@@ -143,8 +143,8 @@ export async function workflowManageSubissues(
         getIssueNodeId(octokit, owner, repo, issueNumber!),
       ]);
 
-      // Check for circular dependency
-      const hasCircular = await checkCircularDependency(
+      // Check for circular dependency (currently disabled due to API limitations)
+      const hasCircular = await skipCircularDependencyCheck(
         octokit,
         epicNodeId,
         issueNodeId
