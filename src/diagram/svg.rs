@@ -259,6 +259,30 @@ fn render_slice_headers(
     svg
 }
 
+/// Process an entity reference and add it to the entities_by_slice_and_swimlane map if it's a view.
+fn process_entity_reference<'a>(
+    entity_ref: &yaml_types::EntityReference,
+    slice_index: usize,
+    view_lookup: &HashMap<String, &'a yaml_types::ViewDefinition>,
+    entities_by_slice_and_swimlane: &mut HashMap<(usize, &'a yaml_types::SwimlaneId), Vec<String>>,
+) {
+    if let yaml_types::EntityReference::View(view_path) = entity_ref {
+        // Extract the view name from the path (before any dots)
+        let view_name_string = view_path.clone().into_inner();
+        let view_name_str = view_name_string.as_str();
+        let base_view_name = view_name_str.split('.').next().unwrap_or(view_name_str);
+
+        // Find the view definition using the lookup map
+        if let Some(view_def) = view_lookup.get(base_view_name) {
+            let key = (slice_index, &view_def.swimlane);
+            entities_by_slice_and_swimlane
+                .entry(key)
+                .or_default()
+                .push(base_view_name.to_string());
+        }
+    }
+}
+
 /// Renders all entities (views, commands, events, etc.) in their respective positions.
 fn render_entities(
     diagram: &EventModelDiagram,
@@ -293,45 +317,29 @@ fn render_entities(
     let mut entities_by_slice_and_swimlane: HashMap<(usize, &yaml_types::SwimlaneId), Vec<String>> =
         HashMap::new();
 
+    // Build a lookup map from view names to definitions for performance
+    let view_lookup: HashMap<String, &yaml_types::ViewDefinition> = diagram
+        .views()
+        .iter()
+        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
+        .collect();
+
     // Parse slice connections to find view positions
     for (slice_index, slice) in slices.iter().enumerate() {
         for connection in slice.connections.iter() {
-            // Check if the connection involves views
-            if let yaml_types::EntityReference::View(view_path) = &connection.from {
-                // Extract the view name from the path (before any dots)
-                let view_name_string = view_path.clone().into_inner();
-                let view_name_str = view_name_string.as_str();
-                let base_view_name = view_name_str.split('.').next().unwrap_or(view_name_str);
-
-                // Find the view definition
-                for (view_name, view_def) in diagram.views() {
-                    if view_name.clone().into_inner().as_str() == base_view_name {
-                        let key = (slice_index, &view_def.swimlane);
-                        entities_by_slice_and_swimlane
-                            .entry(key)
-                            .or_default()
-                            .push(base_view_name.to_string());
-                    }
-                }
-            }
-
-            if let yaml_types::EntityReference::View(view_path) = &connection.to {
-                // Extract the view name from the path (before any dots)
-                let view_name_string = view_path.clone().into_inner();
-                let view_name_str = view_name_string.as_str();
-                let base_view_name = view_name_str.split('.').next().unwrap_or(view_name_str);
-
-                // Find the view definition
-                for (view_name, view_def) in diagram.views() {
-                    if view_name.clone().into_inner().as_str() == base_view_name {
-                        let key = (slice_index, &view_def.swimlane);
-                        entities_by_slice_and_swimlane
-                            .entry(key)
-                            .or_default()
-                            .push(base_view_name.to_string());
-                    }
-                }
-            }
+            // Process both sides of the connection
+            process_entity_reference(
+                &connection.from,
+                slice_index,
+                &view_lookup,
+                &mut entities_by_slice_and_swimlane,
+            );
+            process_entity_reference(
+                &connection.to,
+                slice_index,
+                &view_lookup,
+                &mut entities_by_slice_and_swimlane,
+            );
         }
     }
 
