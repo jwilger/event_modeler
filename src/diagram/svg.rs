@@ -34,7 +34,6 @@ const ENTITY_BOX_WIDTH: u32 = 120; // Width of entity boxes
 const ENTITY_BOX_HEIGHT: u32 = 60; // Height of entity boxes
 const ENTITY_PADDING: u32 = 10; // Padding inside entity boxes
 const ENTITY_MARGIN: u32 = 20; // Margin between entities
-const ENTITY_LABEL_FONT_SIZE: u32 = 9; // Font size for entity type labels
 const ENTITY_NAME_FONT_SIZE: u32 = 10; // Font size for entity names
 
 // Entity colors
@@ -530,7 +529,7 @@ fn format_entity_name(name: &str) -> String {
     result
 }
 
-/// Wraps text into balanced lines that fit within the given width.
+/// Wraps text into balanced lines, prioritizing wrapping over width expansion.
 /// Returns the wrapped lines and the actual dimensions needed.
 fn wrap_text(text: &str, max_width: u32, font_size: u32) -> (Vec<String>, u32, u32) {
     // Approximate character width (for Arial font, roughly 0.6x the font size)
@@ -543,92 +542,46 @@ fn wrap_text(text: &str, max_width: u32, font_size: u32) -> (Vec<String>, u32, u
         return (vec![text.to_string()], max_width, font_size);
     }
 
-    // Try different line configurations to find the most balanced
-    let total_length: usize = words.iter().map(|w| w.len()).sum::<usize>() + words.len() - 1;
-    let ideal_lines = ((total_length as f32 / max_chars_per_line as f32)
-        .sqrt()
-        .ceil()) as usize;
+    // First, try to fit within the max width using multiple lines
+    let mut lines = Vec::new();
+    let mut current_line = String::new();
 
-    let mut best_lines = Vec::new();
-    let mut best_score = f32::MAX;
+    for word in &words {
+        // Check if adding this word would exceed the line length
+        let test_line = if current_line.is_empty() {
+            word.to_string()
+        } else {
+            format!("{} {}", current_line, word)
+        };
 
-    for target_lines in ideal_lines.saturating_sub(1)..=ideal_lines + 2 {
-        if target_lines == 0 || target_lines > words.len() {
-            continue;
-        }
-
-        let lines = distribute_words(&words, target_lines, max_chars_per_line as usize);
-        let score = calculate_balance_score(&lines);
-
-        if score < best_score {
-            best_score = score;
-            best_lines = lines;
-        }
-    }
-
-    // Calculate actual dimensions needed
-    let max_line_length = best_lines.iter().map(|line| line.len()).max().unwrap_or(0);
-    let actual_width = (max_line_length as u32 * char_width).max(ENTITY_BOX_WIDTH);
-    let line_height = (font_size as f32 * 1.2) as u32;
-    let actual_height = best_lines.len() as u32 * line_height;
-
-    (best_lines, actual_width, actual_height)
-}
-
-/// Distributes words across a target number of lines.
-fn distribute_words(words: &[&str], target_lines: usize, max_chars: usize) -> Vec<String> {
-    let mut lines = vec![String::new(); target_lines];
-    let mut current_line = 0;
-
-    for word in words {
-        // Find the best line for this word
-        let mut best_line = current_line;
-        let mut min_overflow = i32::MAX;
-
-        for (i, line) in lines.iter().enumerate().take(target_lines) {
-            let new_length = if line.is_empty() {
-                word.len()
-            } else {
-                line.len() + 1 + word.len()
-            };
-
-            let overflow = new_length as i32 - max_chars as i32;
-            if overflow < min_overflow {
-                min_overflow = overflow;
-                best_line = i;
+        if test_line.len() <= max_chars_per_line as usize {
+            current_line = test_line;
+        } else {
+            // Start a new line
+            if !current_line.is_empty() {
+                lines.push(current_line);
             }
+            current_line = word.to_string();
         }
-
-        if !lines[best_line].is_empty() {
-            lines[best_line].push(' ');
-        }
-        lines[best_line].push_str(word);
-        current_line = (best_line + 1) % target_lines;
     }
 
-    lines.into_iter().filter(|line| !line.is_empty()).collect()
-}
-
-/// Calculates a balance score for a set of lines (lower is better).
-fn calculate_balance_score(lines: &[String]) -> f32 {
-    if lines.is_empty() {
-        return 0.0;
+    if !current_line.is_empty() {
+        lines.push(current_line);
     }
 
-    let lengths: Vec<usize> = lines.iter().map(|line| line.len()).collect();
-    let avg_length = lengths.iter().sum::<usize>() as f32 / lengths.len() as f32;
+    // If we have lines that fit, use the standard width
+    let max_line_length = lines.iter().map(|line| line.len()).max().unwrap_or(0);
+    let mut actual_width = ENTITY_BOX_WIDTH;
 
-    // Calculate variance
-    let variance: f32 = lengths
-        .iter()
-        .map(|&len| {
-            let diff = len as f32 - avg_length;
-            diff * diff
-        })
-        .sum::<f32>()
-        / lengths.len() as f32;
+    // Only expand width if a single word is longer than the max characters
+    if max_line_length > max_chars_per_line as usize {
+        actual_width = (max_line_length as u32 * char_width).max(ENTITY_BOX_WIDTH);
+    }
 
-    variance.sqrt()
+    let line_height = (font_size as f32 * 1.2) as u32;
+    let actual_height = lines.len() as u32 * line_height;
+
+    (lines, actual_width, actual_height)
 }
 
 /// Information about entity dimensions.
@@ -660,11 +613,10 @@ fn calculate_entity_dimensions(name: &str, _entity_type: &str) -> EntityDimensio
         ENTITY_NAME_FONT_SIZE,
     );
 
-    // Account for entity type label and padding
-    let label_height = ENTITY_LABEL_FONT_SIZE + ENTITY_PADDING;
-    let total_text_height = label_height + text_height + ENTITY_PADDING;
+    // Only use padding for height calculation (no label)
+    let total_text_height = text_height + 2 * ENTITY_PADDING;
 
-    // Ensure minimum dimensions
+    // Prefer the standard width unless text forces us wider
     let width = text_width.max(ENTITY_BOX_WIDTH);
     let height = total_text_height.max(ENTITY_BOX_HEIGHT);
 
@@ -686,23 +638,18 @@ fn render_view_box(x: u32, y: u32, _name: &str, dimensions: &EntityDimensions) -
         dimensions.width, dimensions.height
     ));
 
-    // Draw the entity type label "View"
-    let label_x = x + dimensions.width / 2;
-    let label_y = y + ENTITY_PADDING + ENTITY_LABEL_FONT_SIZE;
-    svg.push_str(&format!(
-        r#"  <text x="{label_x}" y="{label_y}" font-family="Arial, sans-serif" font-size="{ENTITY_LABEL_FONT_SIZE}" fill="{TEXT_COLOR}" text-anchor="middle">View</text>
-"#
-    ));
-
-    // Draw the entity name with multiple lines
+    // Draw the entity name with multiple lines (no label needed)
     let line_height = (ENTITY_NAME_FONT_SIZE as f32 * 1.2) as u32;
-    let text_start_y =
-        y + ENTITY_PADDING + ENTITY_LABEL_FONT_SIZE + ENTITY_PADDING + ENTITY_NAME_FONT_SIZE;
+    let text_center_x = x + dimensions.width / 2;
+
+    // Center the text vertically in the box
+    let total_text_height = dimensions.text_lines.len() as u32 * line_height;
+    let text_start_y = y + (dimensions.height - total_text_height) / 2 + ENTITY_NAME_FONT_SIZE;
 
     for (i, line) in dimensions.text_lines.iter().enumerate() {
         let text_y = text_start_y + (i as u32 * line_height);
         svg.push_str(&format!(
-            r#"  <text x="{label_x}" y="{text_y}" font-family="Arial, sans-serif" font-size="{ENTITY_NAME_FONT_SIZE}" fill="{TEXT_COLOR}" text-anchor="middle">{line}</text>
+            r#"  <text x="{text_center_x}" y="{text_y}" font-family="Arial, sans-serif" font-size="{ENTITY_NAME_FONT_SIZE}" fill="{TEXT_COLOR}" text-anchor="middle">{line}</text>
 "#
         ));
     }
