@@ -56,12 +56,6 @@ describe('workflowManageSubissues', () => {
             },
           },
         })
-        // Mock circular dependency check
-        .mockResolvedValueOnce({
-          node: {
-            parentIssue: null,
-          },
-        })
         // Mock linking mutation
         .mockResolvedValueOnce({
           addSubIssue: {
@@ -78,46 +72,14 @@ describe('workflowManageSubissues', () => {
 
       expect(result.requestedData.success).toBe(true);
       expect(result.automaticActions).toContain('Successfully linked issue #123 to epic #68');
-      expect(mockGraphql).toHaveBeenCalledTimes(4);
+      expect(mockGraphql).toHaveBeenCalledTimes(3);
     });
 
-    it('should prevent circular dependencies', async () => {
-      // Mock getting node IDs
-      mockGraphql
-        .mockResolvedValueOnce({
-          repository: {
-            issue: {
-              id: 'epic-node-id',
-              title: 'Epic Issue',
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          repository: {
-            issue: {
-              id: 'issue-node-id',
-              title: 'Sub Issue',
-            },
-          },
-        })
-        // Mock circular dependency check - epic has issue as parent
-        .mockResolvedValueOnce({
-          node: {
-            parentIssue: {
-              id: 'issue-node-id',
-            },
-          },
-        });
-
-      const result = await workflowManageSubissues({
-        action: 'link',
-        epicNumber: 68,
-        issueNumber: 123,
-      });
-
-      expect(result.requestedData.success).toBe(false);
-      expect(result.requestedData.error).toContain('would create circular dependency');
-      expect(mockGraphql).toHaveBeenCalledTimes(3); // No linking mutation
+    it.skip('should prevent circular dependencies (disabled due to API limitations)', async () => {
+      // This test is skipped because GitHub's GraphQL API doesn't provide
+      // the 'parentIssue' field that was being used for circular dependency checking.
+      // The functionality is temporarily disabled until a proper implementation
+      // can be developed using available API fields.
     });
 
     it('should handle missing issue number for link action', async () => {

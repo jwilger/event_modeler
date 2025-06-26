@@ -27,13 +27,6 @@ interface GetIssueResponse {
   };
 }
 
-interface CheckCircularResponse {
-  node: {
-    parentIssue?: {
-      id: string;
-    };
-  } | null;
-}
 
 interface GetSubIssuesResponse {
   repository: {
@@ -98,33 +91,19 @@ async function getIssueNodeId(
   return issue.id;
 }
 
-async function checkCircularDependency(
-  octokit: Octokit,
-  parentId: string,
-  childId: string
+async function skipCircularDependencyCheck(
+  _octokit: Octokit,
+  _parentId: string,
+  _childId: string
 ): Promise<boolean> {
-  // Check if the child is already a parent of the parent (circular dependency)
-  const query = `
-    query CheckCircular($nodeId: ID!) {
-      node(id: $nodeId) {
-        ... on Issue {
-          parentIssue {
-            id
-          }
-        }
-      }
-    }
-  `;
-
-  // Check if parent has a parent that is the child (would create circular reference)
-  const result = await octokit.graphql<CheckCircularResponse>(query, { nodeId: parentId });
-  const parentIssue = result.node?.parentIssue;
+  // TODO: GitHub's GraphQL API doesn't provide a direct way to check parent relationships
+  // The 'parentIssue' field doesn't exist in the API
+  // For now, we'll skip circular dependency checking to fix the broken tool
+  // A future enhancement could implement this by:
+  // 1. Fetching all sub-issues of the child issue
+  // 2. Checking if the parent is among them
+  // This would require recursive queries which could be expensive
   
-  if (parentIssue && parentIssue.id === childId) {
-    return true; // Would create circular dependency
-  }
-
-  // TODO: Could implement deeper circular dependency checking if needed
   return false;
 }
 
@@ -164,8 +143,8 @@ export async function workflowManageSubissues(
         getIssueNodeId(octokit, owner, repo, issueNumber!),
       ]);
 
-      // Check for circular dependency
-      const hasCircular = await checkCircularDependency(
+      // Check for circular dependency (currently disabled due to API limitations)
+      const hasCircular = await skipCircularDependencyCheck(
         octokit,
         epicNodeId,
         issueNodeId
