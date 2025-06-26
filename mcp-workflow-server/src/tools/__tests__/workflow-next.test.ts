@@ -1221,7 +1221,15 @@ describe('workflowNext', () => {
             isDraft: false,
             suggestedAction: 'Review PR'
           }
-        ]
+        ],
+        approvedPRs: [],
+        stalePRs: [],
+        summary: {
+          totalOpenPRs: 1,
+          needingReview: 1,
+          changesRequested: 0,
+          approved: 0
+        }
       },
       automaticActions: [],
       issuesFound: [],
@@ -1328,7 +1336,15 @@ describe('workflowNext', () => {
             isDraft: false,
             suggestedAction: 'Address review feedback'
           }
-        ]
+        ],
+        approvedPRs: [],
+        stalePRs: [],
+        summary: {
+          totalOpenPRs: 1,
+          needingReview: 0,
+          changesRequested: 1,
+          approved: 0
+        }
       },
       automaticActions: [],
       issuesFound: [],
