@@ -1,6 +1,6 @@
 import { Octokit } from '@octokit/rest';
 import { execSync } from 'child_process';
-import { WorkflowResponse } from '../types.js';
+import { WorkflowResponse, NextStepAction } from '../types.js';
 import { getProjectConfig, getMissingConfigFields, createConfigRequest } from '../config.js';
 import {
   workflowMonitorReviews,
@@ -43,18 +43,8 @@ interface DecisionContext {
   };
 }
 
-interface NextStepAction {
-  action:
-    | 'work_on_todo'
-    | 'todos_complete'
-    | 'select_work'
-    | 'epic_analysis'
-    | 'complete_epic'
-    | 'requires_llm_decision'
-    | 'requires_config'
-    | 'address_pr_feedback'
-    | 'review_pr'
-    | 'merge_pr';
+// Enhanced NextStepAction that includes all workflow-next context fields
+interface WorkflowNextStepAction extends NextStepAction {
   issueNumber?: number;
   title?: string;
   status?: string;
@@ -115,9 +105,9 @@ interface WorkflowContext {
 
 interface WorkflowNextResponse extends WorkflowResponse {
   requestedData: {
-    nextSteps: NextStepAction[];
     context: WorkflowContext;
   };
+  nextSteps: WorkflowNextStepAction[];
 }
 
 function parseTodoItems(body: string): TodoItem[] {
@@ -159,7 +149,7 @@ async function checkPRMergeReadiness(
   pr: PRReviewStatus
 ): Promise<PRMergeReadiness> {
   const blockingReasons: string[] = [];
-  
+
   try {
     // Get detailed PR information including mergeable state
     const { data: prDetails } = await octokit.pulls.get({
@@ -177,7 +167,7 @@ async function checkPRMergeReadiness(
           repo,
           ref: prDetails.head.sha,
         });
-        
+
         if (combinedStatus.state === 'success') {
           ciStatus = 'success';
         } else if (combinedStatus.state === 'pending') {
@@ -195,13 +185,16 @@ async function checkPRMergeReadiness(
             repo,
             ref: prDetails.head.sha,
           });
-          
+
           if (checkRuns.total_count > 0) {
-            const hasFailures = checkRuns.check_runs.some(run => 
-              run.status === 'completed' && run.conclusion !== 'success' && run.conclusion !== 'skipped'
+            const hasFailures = checkRuns.check_runs.some(
+              (run) =>
+                run.status === 'completed' &&
+                run.conclusion !== 'success' &&
+                run.conclusion !== 'skipped'
             );
-            const hasPending = checkRuns.check_runs.some(run => run.status !== 'completed');
-            
+            const hasPending = checkRuns.check_runs.some((run) => run.status !== 'completed');
+
             if (hasFailures) {
               ciStatus = 'failure';
               blockingReasons.push('CI checks are failing');
@@ -221,7 +214,7 @@ async function checkPRMergeReadiness(
     // Check mergeable state
     const mergeable = prDetails.mergeable === true;
     const mergeableState = prDetails.mergeable_state || 'unknown';
-    
+
     if (!mergeable) {
       if (mergeableState === 'conflicting') {
         blockingReasons.push('Has merge conflicts');
@@ -244,10 +237,10 @@ async function checkPRMergeReadiness(
       blockingReasons.push(`Has ${pr.commentSummary?.unresolved || 0} unresolved comments`);
     }
 
-    const isMergeReady = 
-      hasApprovals && 
-      !hasUnresolvedComments && 
-      mergeable && 
+    const isMergeReady =
+      hasApprovals &&
+      !hasUnresolvedComments &&
+      mergeable &&
       ciStatus === 'success' &&
       mergeableState === 'clean';
 
@@ -300,15 +293,6 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
 
       return {
         requestedData: {
-          nextSteps: [
-            {
-              action: 'requires_config',
-              missingConfig: configRequest.missingFields,
-              configSuggestions: configRequest.suggestions,
-              suggestion:
-                'Configuration is incomplete. Please run workflow_configure to set missing values.',
-            },
-          ],
           context: {
             currentConfig: config,
           },
@@ -316,6 +300,19 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         automaticActions: ['Configuration check failed - missing required fields'],
         issuesFound: [`Missing configuration: ${missingFields.join(', ')}`],
         suggestedActions: configRequest.suggestions,
+        nextSteps: [
+          {
+            action: 'requires_config',
+            description: 'Configure the workflow server with missing settings',
+            priority: 'urgent',
+            category: 'immediate',
+            tool: 'workflow_configure',
+            missingConfig: configRequest.missingFields,
+            configSuggestions: configRequest.suggestions,
+            suggestion:
+              'Configuration is incomplete. Please run workflow_configure to set missing values.',
+          },
+        ],
         allPRStatus: [],
       };
     }
@@ -363,13 +360,6 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
 
         return {
           requestedData: {
-            nextSteps: [
-              {
-                action: 'select_work',
-                suggestion: `Your branch '${currentBranch}' has been merged. ${hasUncommittedChanges ? 'Commit or stash your changes, then s' : 'S'}witch to main and pull latest changes before starting new work.`,
-                reason: 'Current branch has been merged to main',
-              },
-            ],
             context: {
               currentBranch,
               hasUncommittedChanges,
@@ -379,6 +369,21 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
           automaticActions,
           issuesFound,
           suggestedActions,
+          nextSteps: [
+            {
+              action: 'select_work',
+              description: 'Switch to main branch and find next work',
+              priority: 'high',
+              category: 'immediate',
+              tool: 'git_branch',
+              parameters: {
+                action: 'checkout',
+                branch: 'main',
+              },
+              suggestion: `Your branch '${currentBranch}' has been merged. ${hasUncommittedChanges ? 'Commit or stash your changes, then s' : 'S'}witch to main and pull latest changes before starting new work.`,
+              reason: 'Current branch has been merged to main',
+            },
+          ],
           allPRStatus: [],
         };
       }
@@ -510,16 +515,18 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
     if (myPRsNeedingAttention.length > 0) {
       // Process PRs iteratively to find one with unresolved comments
       let prWithUnresolvedComments: PRReviewStatus | null = null;
-      
+
       while (myPRsNeedingAttention.length > 0) {
         const pr = myPRsNeedingAttention[0];
         const summary = pr.commentSummary;
         const unresolvedComments = summary?.unresolved || 0;
         const totalComments = summary?.total || 0;
-        
+
         if (unresolvedComments === 0 && totalComments > 0) {
           // All comments are resolved, skip this PR
-          automaticActions.push(`PR #${pr.prNumber}: All ${totalComments} review comments have been addressed`);
+          automaticActions.push(
+            `PR #${pr.prNumber}: All ${totalComments} review comments have been addressed`
+          );
           myPRsNeedingAttention.shift(); // Remove this PR from the list
         } else if (unresolvedComments > 0) {
           // Found a PR with unresolved comments
@@ -530,7 +537,7 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
           myPRsNeedingAttention.shift();
         }
       }
-      
+
       if (prWithUnresolvedComments) {
         const pr = prWithUnresolvedComments;
         const summary = pr.commentSummary;
@@ -556,17 +563,6 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
 
         return {
           requestedData: {
-            nextSteps: [
-              {
-                action: 'address_pr_feedback',
-                prNumber: pr.prNumber,
-                title: pr.title,
-                reviewStatus: pr.reviewStatus,
-                reviews: pr.reviews,
-                suggestion: `Address ${unresolvedComments} unresolved review comments on PR #${pr.prNumber}${commentStatus}`,
-                prUrl: pr.url,
-              },
-            ],
             context: {
               currentBranch,
               hasUncommittedChanges,
@@ -579,6 +575,24 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
           issuesFound,
           suggestedActions: [
             `Address ${unresolvedComments} unresolved ${pr.reviewStatus === 'changes_requested' ? 'requested changes' : 'review comments'} on PR #${pr.prNumber}`,
+          ],
+          nextSteps: [
+            {
+              action: 'address_pr_feedback',
+              description: `Address ${unresolvedComments} unresolved review comments on PR #${pr.prNumber}`,
+              priority: 'high',
+              category: 'immediate',
+              tool: 'workflow_monitor_reviews',
+              parameters: {
+                prNumber: pr.prNumber,
+              },
+              prNumber: pr.prNumber,
+              title: pr.title,
+              reviewStatus: pr.reviewStatus,
+              reviews: pr.reviews,
+              suggestion: `Address ${unresolvedComments} unresolved review comments on PR #${pr.prNumber}${commentStatus}`,
+              prUrl: pr.url,
+            },
           ],
           allPRStatus: [],
         };
@@ -596,18 +610,6 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
 
       return {
         requestedData: {
-          nextSteps: [
-            {
-              action: 'work_on_todo', // Using existing action type that suggests waiting
-              prNumber: pr.prNumber,
-              title: pr.title,
-              reviewStatus: pr.reviewStatus,
-              suggestion: hasCopilotReview
-                ? `PR #${pr.prNumber} is awaiting human review. Consider reviewing the PR yourself or wait for team review.`
-                : `PR #${pr.prNumber} is awaiting review. Wait for Copilot and/or team review before proceeding.`,
-              prUrl: pr.url,
-            },
-          ],
           context: {
             currentBranch,
             hasUncommittedChanges,
@@ -616,6 +618,23 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
             totalOpenPRs: allOpenPRs.length,
           },
         },
+        nextSteps: [
+          {
+            action: 'work_on_todo', // Using existing action type that suggests waiting
+            description: hasCopilotReview
+              ? `PR #${pr.prNumber} is awaiting human review. Consider reviewing the PR yourself or wait for team review.`
+              : `PR #${pr.prNumber} is awaiting review. Wait for Copilot and/or team review before proceeding.`,
+            priority: 'high',
+            category: 'immediate',
+            prNumber: pr.prNumber,
+            title: pr.title,
+            reviewStatus: pr.reviewStatus,
+            suggestion: hasCopilotReview
+              ? `PR #${pr.prNumber} is awaiting human review. Consider reviewing the PR yourself or wait for team review.`
+              : `PR #${pr.prNumber} is awaiting review. Wait for Copilot and/or team review before proceeding.`,
+            prUrl: pr.url,
+          },
+        ],
         automaticActions,
         issuesFound: [`You have ${myPRsWithoutReview.length} PR(s) awaiting review`],
         suggestedActions: [
@@ -651,19 +670,6 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
 
         return {
           requestedData: {
-            nextSteps: [
-              {
-                action: 'merge_pr',
-                prNumber: pr.prNumber,
-                title: pr.title,
-                reviewStatus: pr.reviewStatus,
-                suggestion: `PR #${pr.prNumber} is fully ready to merge! All checks passed, approved, and no conflicts. Review and merge when ready.`,
-                prUrl: pr.url,
-                ciStatus: readiness.ciStatus,
-                mergeable: readiness.mergeable,
-                mergeableState: readiness.mergeableState,
-              },
-            ],
             context: {
               currentBranch,
               hasUncommittedChanges,
@@ -672,6 +678,22 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
               totalOpenPRs: allOpenPRs.length,
             },
           },
+          nextSteps: [
+            {
+              action: 'merge_pr',
+              description: `PR #${pr.prNumber} is fully ready to merge! All checks passed, approved, and no conflicts. Review and merge when ready.`,
+              priority: 'urgent',
+              category: 'immediate',
+              prNumber: pr.prNumber,
+              title: pr.title,
+              reviewStatus: pr.reviewStatus,
+              suggestion: `PR #${pr.prNumber} is fully ready to merge! All checks passed, approved, and no conflicts. Review and merge when ready.`,
+              prUrl: pr.url,
+              ciStatus: readiness.ciStatus,
+              mergeable: readiness.mergeable,
+              mergeableState: readiness.mergeableState,
+            },
+          ],
           automaticActions,
           issuesFound: [],
           suggestedActions: [`Merge PR #${pr.prNumber}: ${pr.url}`],
@@ -683,26 +705,13 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       if (notYetReadyPRs.length > 0) {
         const { pr, readiness } = notYetReadyPRs[0];
         const blockingReasons = readiness.blockingReasons.join(', ');
-        
+
         automaticActions.push(
           `Found PR #${pr.prNumber} authored by you that is approved but not ready to merge: ${blockingReasons}`
         );
 
         return {
           requestedData: {
-            nextSteps: [
-              {
-                action: 'work_on_todo',
-                prNumber: pr.prNumber,
-                title: pr.title,
-                reviewStatus: pr.reviewStatus,
-                suggestion: `PR #${pr.prNumber} is approved but cannot be merged yet: ${blockingReasons}`,
-                prUrl: pr.url,
-                ciStatus: readiness.ciStatus,
-                mergeable: readiness.mergeable,
-                mergeableState: readiness.mergeableState,
-              },
-            ],
             context: {
               currentBranch,
               hasUncommittedChanges,
@@ -711,6 +720,22 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
               totalOpenPRs: allOpenPRs.length,
             },
           },
+          nextSteps: [
+            {
+              action: 'work_on_todo',
+              description: `PR #${pr.prNumber} is approved but cannot be merged yet: ${blockingReasons}`,
+              priority: 'high',
+              category: 'immediate',
+              prNumber: pr.prNumber,
+              title: pr.title,
+              reviewStatus: pr.reviewStatus,
+              suggestion: `PR #${pr.prNumber} is approved but cannot be merged yet: ${blockingReasons}`,
+              prUrl: pr.url,
+              ciStatus: readiness.ciStatus,
+              mergeable: readiness.mergeable,
+              mergeableState: readiness.mergeableState,
+            },
+          ],
           automaticActions,
           issuesFound: readiness.blockingReasons,
           suggestedActions: [`Address issues with PR #${pr.prNumber}: ${blockingReasons}`],
@@ -728,19 +753,6 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
 
       return {
         requestedData: {
-          nextSteps: [
-            {
-              action: 'review_pr',
-              prNumber: pr.prNumber,
-              title: pr.title,
-              author: pr.author,
-              reviewStatus: pr.reviewStatus,
-              suggestion: hasReviewedBefore
-                ? `Check new updates on PR #${pr.prNumber} by ${pr.author} since your last review`
-                : `Review PR #${pr.prNumber} by ${pr.author}`,
-              prUrl: pr.url,
-            },
-          ],
           context: {
             currentBranch,
             hasUncommittedChanges,
@@ -748,6 +760,24 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
             othersPRsToReview,
           },
         },
+        nextSteps: [
+          {
+            action: 'review_pr',
+            description: hasReviewedBefore
+              ? `Check new updates on PR #${pr.prNumber} by ${pr.author} since your last review`
+              : `Review PR #${pr.prNumber} by ${pr.author}`,
+            priority: 'medium',
+            category: 'next_logical',
+            prNumber: pr.prNumber,
+            title: pr.title,
+            author: pr.author,
+            reviewStatus: pr.reviewStatus,
+            suggestion: hasReviewedBefore
+              ? `Check new updates on PR #${pr.prNumber} by ${pr.author} since your last review`
+              : `Review PR #${pr.prNumber} by ${pr.author}`,
+            prUrl: pr.url,
+          },
+        ],
         automaticActions,
         issuesFound,
         suggestedActions: [
@@ -775,13 +805,6 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
 
       return {
         requestedData: {
-          nextSteps: [
-            {
-              action: 'select_work',
-              suggestion: `Cannot suggest new work while there are ${allOpenPRs.length} open PRs (${prSummary.join(' and ')}). All PRs should be reviewed and merged before starting new work.`,
-              reason: 'Open PRs exist that need attention',
-            },
-          ],
           context: {
             currentBranch,
             hasUncommittedChanges,
@@ -790,6 +813,16 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
             otherOpenPRs: otherPRCount,
           },
         },
+        nextSteps: [
+          {
+            action: 'select_work',
+            description: `Cannot suggest new work while there are ${allOpenPRs.length} open PRs (${prSummary.join(' and ')}). All PRs should be reviewed and merged before starting new work.`,
+            priority: 'high',
+            category: 'immediate',
+            suggestion: `Cannot suggest new work while there are ${allOpenPRs.length} open PRs (${prSummary.join(' and ')}). All PRs should be reviewed and merged before starting new work.`,
+            reason: 'Open PRs exist that need attention',
+          },
+        ],
         automaticActions,
         issuesFound: [`${allOpenPRs.length} open PRs blocking new work`],
         suggestedActions: [
@@ -973,7 +1006,9 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       );
 
       if (branchIssue) {
-        automaticActions.push(`Detected issue #${branchIssueNumber} from branch name: ${currentBranch}`);
+        automaticActions.push(
+          `Detected issue #${branchIssueNumber} from branch name: ${currentBranch}`
+        );
         automaticActions.push(
           `Current branch corresponds to in-progress issue #${branchIssueNumber} but no PR exists`
         );
@@ -984,18 +1019,16 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
           // Detect the default branch
           let defaultBranch = 'origin/master'; // Fallback to origin/master
           try {
-            const branchRef = execSync(
-              `git symbolic-ref refs/remotes/origin/HEAD`,
-              { encoding: 'utf8' }
-            ).trim();
+            const branchRef = execSync(`git symbolic-ref refs/remotes/origin/HEAD`, {
+              encoding: 'utf8',
+            }).trim();
             defaultBranch = branchRef.replace('refs/remotes/', '');
           } catch {
             // If detection fails, fallback to origin/master
           }
-          const commitCount = execSync(
-            `git rev-list --count ${defaultBranch}..HEAD`,
-            { encoding: 'utf8' }
-          ).trim();
+          const commitCount = execSync(`git rev-list --count ${defaultBranch}..HEAD`, {
+            encoding: 'utf8',
+          }).trim();
           hasCommits = parseInt(commitCount, 10) > 0;
         } catch {
           // If the command fails, assume we have commits (safer assumption)
@@ -1003,17 +1036,22 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         }
 
         if (hasCommits) {
+          const nextSteps: WorkflowNextStepAction[] = [
+            {
+              action: 'todos_complete',
+              description: `Create a PR for issue #${branchIssueNumber} - work is complete`,
+              priority: 'high',
+              category: 'immediate',
+              tool: 'workflow_create_pr',
+              issueNumber: branchIssueNumber,
+              title: branchIssue.content!.title,
+              status: 'In Progress',
+              suggestion: `You have commits for issue #${branchIssueNumber} on branch '${currentBranch}'. Create a PR before moving to the next issue.`,
+            },
+          ];
+
           return {
             requestedData: {
-              nextSteps: [
-                {
-                  action: 'todos_complete',
-                  issueNumber: branchIssueNumber,
-                  title: branchIssue.content!.title,
-                  status: 'In Progress',
-                  suggestion: `You have commits for issue #${branchIssueNumber} on branch '${currentBranch}'. Create a PR before moving to the next issue.`,
-                },
-              ],
               context: {
                 currentBranch,
                 hasUncommittedChanges,
@@ -1023,6 +1061,7 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
             automaticActions,
             issuesFound: [`Branch '${currentBranch}' has commits but no PR`],
             suggestedActions: [`Create a PR for issue #${branchIssueNumber}`],
+            nextSteps,
             allPRStatus: [],
           };
         }
@@ -1098,15 +1137,6 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
             // Epic has no open sub-issues
             return {
               requestedData: {
-                nextSteps: [
-                  {
-                    action: 'complete_epic',
-                    epicNumber: epic.number,
-                    epicTitle: epic.title,
-                    suggestion:
-                      'All sub-issues for this epic are complete. Consider marking the epic as done.',
-                  },
-                ],
                 context: {
                   currentBranch,
                   hasUncommittedChanges,
@@ -1118,6 +1148,23 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
               automaticActions,
               issuesFound,
               suggestedActions: [`Mark epic #${epic.number} as complete`],
+              nextSteps: [
+                {
+                  action: 'complete_epic',
+                  description: 'Mark epic as complete - all sub-issues are done',
+                  priority: 'high',
+                  category: 'immediate',
+                  tool: 'workflow_update_issue',
+                  parameters: {
+                    issueNumber: epic.number,
+                    status: 'done',
+                  },
+                  epicNumber: epic.number,
+                  epicTitle: epic.title,
+                  suggestion:
+                    'All sub-issues for this epic are complete. Consider marking the epic as done.',
+                },
+              ],
               allPRStatus: [],
             };
           }
@@ -1129,31 +1176,6 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
 
             return {
               requestedData: {
-                nextSteps: [
-                  {
-                    action: 'requires_llm_decision',
-                    decisionType: 'select_next_issue',
-                    decisionId,
-                    epicNumber: epic.number,
-                    epicTitle: epic.title,
-                    choices: openSubIssues.map((issue) => ({
-                      id: issue.number,
-                      title: issue.title,
-                      description: `Issue #${issue.number}`,
-                      metadata: {
-                        state: issue.state,
-                        labels: issue.labels?.nodes?.map((l) => l.name) || [],
-                      },
-                    })),
-                    decisionContext: {
-                      prompt: `Which sub-issue of the epic "${epic.title}" should be worked on next? Consider dependencies, logical ordering, and which issues might be foundation work that enables others.`,
-                      additionalInfo: {
-                        currentBranch,
-                        existingPR,
-                      },
-                    },
-                  },
-                ],
                 context: {
                   currentBranch,
                   hasUncommittedChanges,
@@ -1165,6 +1187,38 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
               automaticActions,
               issuesFound,
               suggestedActions: ['Awaiting decision on which sub-issue to work on next'],
+              nextSteps: [
+                {
+                  action: 'requires_llm_decision',
+                  description: `Choose which sub-issue of epic "${epic.title}" to work on next`,
+                  priority: 'high',
+                  category: 'immediate',
+                  tool: 'workflow_decide',
+                  parameters: {
+                    decisionId,
+                  },
+                  decisionType: 'select_next_issue',
+                  decisionId,
+                  epicNumber: epic.number,
+                  epicTitle: epic.title,
+                  choices: openSubIssues.map((issue) => ({
+                    id: issue.number,
+                    title: issue.title,
+                    description: `Issue #${issue.number}`,
+                    metadata: {
+                      state: issue.state,
+                      labels: issue.labels?.nodes?.map((l) => l.name) || [],
+                    },
+                  })),
+                  decisionContext: {
+                    prompt: `Which sub-issue of the epic "${epic.title}" should be worked on next? Consider dependencies, logical ordering, and which issues might be foundation work that enables others.`,
+                    additionalInfo: {
+                      currentBranch,
+                      existingPR,
+                    },
+                  },
+                },
+              ],
               allPRStatus: [],
             };
           }
@@ -1174,19 +1228,6 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
 
           return {
             requestedData: {
-              nextSteps: [
-                {
-                  action: 'epic_analysis',
-                  epicNumber: epic.number,
-                  epicTitle: epic.title,
-                  suggestion: `Work on sub-issue #${nextIssue.number}: ${nextIssue.title}`,
-                  subIssues: openSubIssues.map((issue) => ({
-                    number: issue.number,
-                    title: issue.title,
-                    status: issue.state,
-                  })),
-                },
-              ],
               context: {
                 currentBranch,
                 hasUncommittedChanges,
@@ -1199,6 +1240,27 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
             issuesFound,
             suggestedActions: [
               `Start work on issue #${nextIssue.number} from epic #${epic.number}`,
+            ],
+            nextSteps: [
+              {
+                action: 'epic_analysis',
+                description: `Start work on sub-issue #${nextIssue.number}: ${nextIssue.title}`,
+                priority: 'high',
+                category: 'immediate',
+                tool: 'workflow_update_issue',
+                parameters: {
+                  issueNumber: nextIssue.number,
+                  status: 'in_progress',
+                },
+                epicNumber: epic.number,
+                epicTitle: epic.title,
+                suggestion: `Work on sub-issue #${nextIssue.number}: ${nextIssue.title}`,
+                subIssues: openSubIssues.map((issue) => ({
+                  number: issue.number,
+                  title: issue.title,
+                  status: issue.state,
+                })),
+              },
             ],
             allPRStatus: [],
           };
@@ -1262,14 +1324,6 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
           if (relatedIssues.length === 0) {
             return {
               requestedData: {
-                nextSteps: [
-                  {
-                    action: 'complete_epic',
-                    epicNumber: epic.number,
-                    epicTitle: epic.title,
-                    suggestion: 'No open issues found for this epic. Consider marking it as done.',
-                  },
-                ],
                 context: {
                   currentBranch,
                   hasUncommittedChanges,
@@ -1278,6 +1332,17 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
                     : null,
                 },
               },
+              nextSteps: [
+                {
+                  action: 'complete_epic',
+                  description: 'No open issues found for this epic. Consider marking it as done.',
+                  priority: 'medium',
+                  category: 'optional',
+                  epicNumber: epic.number,
+                  epicTitle: epic.title,
+                  suggestion: 'No open issues found for this epic. Consider marking it as done.',
+                },
+              ],
               automaticActions,
               issuesFound,
               suggestedActions: [`Mark epic #${epic.number} as complete`],
@@ -1288,19 +1353,6 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
           const nextIssue = relatedIssues[0];
           return {
             requestedData: {
-              nextSteps: [
-                {
-                  action: 'epic_analysis',
-                  epicNumber: epic.number,
-                  epicTitle: epic.title,
-                  suggestion: `Work on sub-issue #${nextIssue.number}: ${nextIssue.title}`,
-                  subIssues: relatedIssues.map((issue) => ({
-                    number: issue.number,
-                    title: issue.title,
-                    status: issue.state,
-                  })),
-                },
-              ],
               context: {
                 currentBranch,
                 hasUncommittedChanges,
@@ -1309,6 +1361,22 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
                   : null,
               },
             },
+            nextSteps: [
+              {
+                action: 'epic_analysis',
+                description: `Work on sub-issue #${nextIssue.number}: ${nextIssue.title}`,
+                priority: 'high',
+                category: 'next_logical',
+                epicNumber: epic.number,
+                epicTitle: epic.title,
+                suggestion: `Work on sub-issue #${nextIssue.number}: ${nextIssue.title}`,
+                subIssues: relatedIssues.map((issue) => ({
+                  number: issue.number,
+                  title: issue.title,
+                  status: issue.state,
+                })),
+              },
+            ],
             automaticActions,
             issuesFound,
             suggestedActions: [
@@ -1322,13 +1390,6 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       // No issues or epics in progress
       return {
         requestedData: {
-          nextSteps: [
-            {
-              action: 'select_work',
-              projectUrl: `https://github.com/users/${owner.login}/projects/9`,
-              reason: 'No issues in progress. Visit project board to select next item.',
-            },
-          ],
           context: {
             assignedIssues: 0,
             inProgressIssues: 0,
@@ -1337,6 +1398,16 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         automaticActions,
         issuesFound,
         suggestedActions: ['Visit the project board to select your next task'],
+        nextSteps: [
+          {
+            action: 'select_work',
+            description: 'Visit project board to select next task',
+            priority: 'high',
+            category: 'immediate',
+            projectUrl: `https://github.com/users/${owner.login}/projects/9`,
+            reason: 'No issues in progress. Visit project board to select next item.',
+          },
+        ],
         allPRStatus: [],
       };
     }
@@ -1358,15 +1429,6 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
 
       return {
         requestedData: {
-          nextSteps: [
-            {
-              action: 'todos_complete',
-              issueNumber: issue.number,
-              title: issue.title,
-              status: 'In Progress',
-              suggestion,
-            },
-          ],
           context: {
             totalTodos: todos.length,
             completedTodos: todos.length,
@@ -1381,6 +1443,22 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
         suggestedActions: existingPR
           ? [`Check PR #${existingPR.number} for review status`]
           : ['Create a pull request for the completed work'],
+        nextSteps: [
+          {
+            action: 'todos_complete',
+            description: existingPR
+              ? 'Check if PR is ready to merge'
+              : 'Create PR for completed work',
+            priority: 'high',
+            category: 'immediate',
+            tool: existingPR ? 'workflow_monitor_reviews' : 'workflow_create_pr',
+            parameters: existingPR ? { prNumber: existingPR.number } : {},
+            issueNumber: issue.number,
+            title: issue.title,
+            status: 'In Progress',
+            suggestion,
+          },
+        ],
         allPRStatus: [],
       };
     }
@@ -1388,18 +1466,6 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
     // Return next todo to work on
     return {
       requestedData: {
-        nextSteps: [
-          {
-            action: 'work_on_todo',
-            issueNumber: issue.number,
-            title: issue.title,
-            status: 'In Progress',
-            todoItem: nextTodo.text,
-            todoIndex: nextTodo.index,
-            totalTodos: todos.length,
-            completedTodos,
-          },
-        ],
         context: {
           currentBranch,
           hasUncommittedChanges,
@@ -1409,6 +1475,21 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
       automaticActions,
       issuesFound,
       suggestedActions: [`Work on: ${nextTodo.text}`],
+      nextSteps: [
+        {
+          action: 'work_on_todo',
+          description: `Work on todo: ${nextTodo.text}`,
+          priority: 'high',
+          category: 'immediate',
+          issueNumber: issue.number,
+          title: issue.title,
+          status: 'In Progress',
+          todoItem: nextTodo.text,
+          todoIndex: nextTodo.index,
+          totalTodos: todos.length,
+          completedTodos,
+        },
+      ],
       allPRStatus: [],
     };
   } catch (error) {
@@ -1417,12 +1498,12 @@ export async function workflowNext(): Promise<WorkflowNextResponse> {
 
     return {
       requestedData: {
-        nextSteps: [],
         context: {},
       },
       automaticActions,
       issuesFound,
       suggestedActions,
+      nextSteps: [],
       allPRStatus: [],
     };
   }

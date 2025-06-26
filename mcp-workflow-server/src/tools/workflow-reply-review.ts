@@ -67,7 +67,7 @@ export async function workflowReplyReview(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     issuesFound.push(`Failed to reply to review comment: ${errorMessage}`);
-    
+
     // Provide specific guidance for common errors
     if (errorMessage.includes('Parent comment not found') || errorMessage.includes('404')) {
       suggestedActions.push(

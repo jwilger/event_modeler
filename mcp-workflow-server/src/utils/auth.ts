@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execSync } from 'child_process';
 
 let cachedToken: string | null = null;
 
@@ -23,12 +23,12 @@ export function getGitHubToken(): string {
 
   // Fall back to gh CLI
   try {
-    const token = execSync("gh auth token", { encoding: "utf8" }).trim();
+    const token = execSync('gh auth token', { encoding: 'utf8' }).trim();
     if (!token) {
-      throw new Error("gh auth token returned empty");
+      throw new Error('gh auth token returned empty');
     }
     cachedToken = token;
-    console.error("GitHub token extracted from gh CLI and cached");
+    console.error('GitHub token extracted from gh CLI and cached');
     return cachedToken;
   } catch {
     throw new Error(
@@ -43,9 +43,9 @@ export function getGitHubToken(): string {
 export function initializeAuth(): void {
   try {
     getGitHubToken();
-    console.error("GitHub authentication initialized successfully");
+    console.error('GitHub authentication initialized successfully');
   } catch (error) {
-    console.error("WARNING: GitHub authentication not available:", error);
-    console.error("Some tools may not function without authentication");
+    console.error('WARNING: GitHub authentication not available:', error);
+    console.error('Some tools may not function without authentication');
   }
 }

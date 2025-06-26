@@ -1,4 +1,4 @@
-import { WorkflowResponse, PRStatus } from '../types.js';
+import { WorkflowResponse, PRStatus, NextStepAction } from '../types.js';
 import { getGitStatus, isCurrentBranchStale, isBranchMerged } from '../utils/git.js';
 import { getAllPRs } from '../utils/github.js';
 import { StateStore } from '../state/store.js';
@@ -131,6 +131,107 @@ export async function workflowStatusTool(): Promise<WorkflowResponse> {
       });
     }
 
+    // Generate contextual next steps based on current state
+    const nextSteps: NextStepAction[] = [];
+
+    // Handle urgent issues first
+    if (failingPRs.length > 0) {
+      failingPRs.forEach((pr) => {
+        nextSteps.push({
+          action: 'fix_ci_failures',
+          description: `Fix CI failures in PR #${pr.number}`,
+          tool: 'workflow_monitor_reviews',
+          parameters: { prNumber: pr.number },
+          priority: 'urgent',
+          category: 'immediate',
+        });
+      });
+    }
+
+    // Handle PRs needing rebase
+    if (prsNeedingRebase.length > 0) {
+      prsNeedingRebase.forEach((pr) => {
+        nextSteps.push({
+          action: 'rebase_pr',
+          description: `Rebase PR #${pr.number} onto ${pr.baseRef}`,
+          tool: 'workflow_manage_pr',
+          parameters: { action: 'rebase', prNumber: pr.number },
+          priority: 'high',
+          category: 'immediate',
+        });
+      });
+    }
+
+    // Handle PRs with unresolved reviews
+    if (prsWithChangesRequested.length > 0) {
+      prsWithChangesRequested.forEach((pr) => {
+        nextSteps.push({
+          action: 'address_pr_feedback',
+          description: `Address review feedback in PR #${pr.number}`,
+          tool: 'workflow_monitor_reviews',
+          parameters: { prNumber: pr.number },
+          priority: 'high',
+          category: 'immediate',
+        });
+      });
+    }
+
+    // Handle git status issues
+    if (!gitStatus.isClean) {
+      nextSteps.push({
+        action: 'commit_changes',
+        description: 'Commit or stash uncommitted changes',
+        tool: 'git_commit',
+        parameters: { action: 'status' },
+        priority: 'medium',
+        category: 'immediate',
+      });
+    }
+
+    // Provide workflow continuity guidance
+    if (nextSteps.length === 0 || nextSteps.every((step) => step.priority !== 'urgent')) {
+      if (gitStatus.currentBranch === 'main') {
+        nextSteps.push({
+          action: 'check_next_actions',
+          description: 'Use workflow_next to determine what to work on',
+          tool: 'workflow_next',
+          priority: 'high',
+          category: 'immediate',
+        });
+      } else if (allPRs.some((pr) => pr.branch === gitStatus.currentBranch)) {
+        nextSteps.push({
+          action: 'continue_development',
+          description: 'Continue implementing features on current branch',
+          priority: 'medium',
+          category: 'next_logical',
+        });
+      } else {
+        // Only suggest creating PR if branch isn't merged
+        const branchMerged = await isBranchMerged(gitStatus.currentBranch);
+        if (!branchMerged) {
+          nextSteps.push({
+            action: 'create_pr',
+            description: 'Create a PR for your current branch',
+            tool: 'workflow_create_pr',
+            priority: 'high',
+            category: 'next_logical',
+          });
+        }
+      }
+    }
+
+    // Provide additional context for next actions
+    if (gitStatus.currentBranch !== 'main' && gitStatus.aheadBehind.behind > 0) {
+      nextSteps.push({
+        action: 'sync_branch',
+        description: 'Pull latest changes from main or rebase',
+        tool: 'git_branch',
+        parameters: { action: 'pull' },
+        priority: 'medium',
+        category: 'next_logical',
+      });
+    }
+
     // Provide next step guidance based on current state
     if (issuesFound.length === 0) {
       if (gitStatus.currentBranch === 'main') {
@@ -155,6 +256,7 @@ export async function workflowStatusTool(): Promise<WorkflowResponse> {
       automaticActions,
       issuesFound,
       suggestedActions,
+      nextSteps,
       allPRStatus: allPRs,
     };
   } catch (error) {
@@ -164,6 +266,14 @@ export async function workflowStatusTool(): Promise<WorkflowResponse> {
       automaticActions,
       issuesFound: [`Error getting workflow status: ${errorMessage}`],
       suggestedActions: ['Check git and GitHub configuration'],
+      nextSteps: [
+        {
+          action: 'troubleshoot_config',
+          description: 'Check git and GitHub CLI configuration',
+          priority: 'high',
+          category: 'immediate',
+        },
+      ],
       allPRStatus: [],
     };
   }

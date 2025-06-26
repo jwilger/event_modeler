@@ -37,10 +37,7 @@ interface PRChainInfo {
   isMergeable: boolean;
 }
 
-
-export async function workflowManagePR(
-  params: WorkflowManagePRParams
-): Promise<WorkflowResponse> {
+export async function workflowManagePR(params: WorkflowManagePRParams): Promise<WorkflowResponse> {
   const automaticActions: string[] = [];
   const issuesFound: string[] = [];
   const suggestedActions: string[] = [];
@@ -112,9 +109,10 @@ export async function workflowManagePR(
 
     const summary = {
       totalPRsAnalyzed: prChains.length,
-      automaticRebases: actionsPerformed.filter(a => a.action === 'rebased' && a.success).length,
-      conflictsDetected: actionsPerformed.filter(a => a.action === 'conflict_detected').length,
-      chainsUpdated: actionsPerformed.filter(a => a.action === 'updated_base' && a.success).length,
+      automaticRebases: actionsPerformed.filter((a) => a.action === 'rebased' && a.success).length,
+      conflictsDetected: actionsPerformed.filter((a) => a.action === 'conflict_detected').length,
+      chainsUpdated: actionsPerformed.filter((a) => a.action === 'updated_base' && a.success)
+        .length,
     };
 
     return {
@@ -185,21 +183,17 @@ async function analyzePR(
 
 function extractDependencies(prBody: string): number[] {
   const dependencies: number[] = [];
-  
+
   // Look for "Depends on #123" patterns in PR body
   const dependsOnMatches = prBody.match(/depends on #(\d+)/gi);
   if (dependsOnMatches) {
-    dependencies.push(...dependsOnMatches.map(match => 
-      parseInt(match.match(/#(\d+)/)![1])
-    ));
+    dependencies.push(...dependsOnMatches.map((match) => parseInt(match.match(/#(\d+)/)![1])));
   }
 
   // Look for "Closes #123" patterns (these are dependencies too)
   const closesMatches = prBody.match(/closes #(\d+)/gi);
   if (closesMatches) {
-    dependencies.push(...closesMatches.map(match => 
-      parseInt(match.match(/#(\d+)/)![1])
-    ));
+    dependencies.push(...closesMatches.map((match) => parseInt(match.match(/#(\d+)/)![1])));
   }
 
   return dependencies;
@@ -210,7 +204,7 @@ function buildDependencyGraph(prChains: PRChainInfo[]): void {
   for (const pr of prChains) {
     if (pr.dependsOn) {
       for (const depPrNumber of pr.dependsOn) {
-        const depPr = prChains.find(p => p.prNumber === depPrNumber);
+        const depPr = prChains.find((p) => p.prNumber === depPrNumber);
         if (depPr) {
           if (!depPr.dependents) depPr.dependents = [];
           depPr.dependents.push(pr.prNumber);
@@ -276,24 +270,34 @@ function generateSuggestions(
   interventions: ManualIntervention[],
   suggestions: string[]
 ): void {
-  const needsRebase = prChains.filter(pr => pr.needsRebase).length;
-  const conflicts = prChains.filter(pr => pr.status === 'blocked_conflict').length;
+  const needsRebase = prChains.filter((pr) => pr.needsRebase).length;
+  const conflicts = prChains.filter((pr) => pr.status === 'blocked_conflict').length;
 
   if (needsRebase > 0) {
-    suggestions.push(`${needsRebase} PR${needsRebase === 1 ? '' : 's'} need${needsRebase === 1 ? 's' : ''} rebasing`);
+    suggestions.push(
+      `${needsRebase} PR${needsRebase === 1 ? '' : 's'} need${needsRebase === 1 ? 's' : ''} rebasing`
+    );
   }
 
   if (conflicts > 0) {
-    suggestions.push(`${conflicts} PR${conflicts === 1 ? '' : 's'} ${conflicts === 1 ? 'has' : 'have'} merge conflicts that need manual resolution`);
+    suggestions.push(
+      `${conflicts} PR${conflicts === 1 ? '' : 's'} ${conflicts === 1 ? 'has' : 'have'} merge conflicts that need manual resolution`
+    );
   }
 
   if (interventions.length > 0) {
-    suggestions.push(`${interventions.length} PR${interventions.length === 1 ? '' : 's'} require${interventions.length === 1 ? 's' : ''} manual intervention`);
+    suggestions.push(
+      `${interventions.length} PR${interventions.length === 1 ? '' : 's'} require${interventions.length === 1 ? 's' : ''} manual intervention`
+    );
   }
 
   // Suggest next actions based on PR chain analysis
-  const readyPRs = prChains.filter(pr => pr.status === 'ready' && (!pr.dependsOn || pr.dependsOn.length === 0));
+  const readyPRs = prChains.filter(
+    (pr) => pr.status === 'ready' && (!pr.dependsOn || pr.dependsOn.length === 0)
+  );
   if (readyPRs.length > 0) {
-    suggestions.push(`${readyPRs.length} PR${readyPRs.length === 1 ? '' : 's'} ${readyPRs.length === 1 ? 'is' : 'are'} ready to merge (no dependencies)`);
+    suggestions.push(
+      `${readyPRs.length} PR${readyPRs.length === 1 ? '' : 's'} ${readyPRs.length === 1 ? 'is' : 'are'} ready to merge (no dependencies)`
+    );
   }
 }

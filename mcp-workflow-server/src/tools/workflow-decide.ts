@@ -238,11 +238,11 @@ export async function workflowDecide(input: DecisionInput): Promise<WorkflowDeci
             execSync('git checkout main', { encoding: 'utf8' });
             automaticActions.push('Switched to main branch');
           }
-          
+
           // Pull latest changes from origin/main
           execSync('git pull origin main', { encoding: 'utf8' });
           automaticActions.push('Updated main branch with latest changes');
-          
+
           // Now create the feature branch from updated main
           execSync(`git checkout -b ${branchName}`, { encoding: 'utf8' });
           automaticActions.push(`Created and switched to new branch: ${branchName}`);

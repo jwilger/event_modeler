@@ -1,6 +1,6 @@
 import { execSync } from 'child_process';
 import { Octokit } from '@octokit/rest';
-import { WorkflowResponse } from '../types.js';
+import { WorkflowResponse, NextStepAction } from '../types.js';
 import { getProjectConfig } from '../config.js';
 import { getRepoInfo } from '../utils/github.js';
 import { getGitHubToken } from '../utils/auth.js';
@@ -151,6 +151,23 @@ export async function workflowCreatePR(
         automaticActions,
         issuesFound: ['PR already exists for this branch'],
         suggestedActions: [`View existing PR: ${existingPR.html_url}`],
+        nextSteps: [
+          {
+            action: 'monitor_existing_pr',
+            description: `Monitor existing PR #${existingPR.number} for review feedback`,
+            tool: 'workflow_monitor_reviews',
+            parameters: { prNumber: existingPR.number },
+            priority: 'high',
+            category: 'immediate',
+          },
+          {
+            action: 'check_pr_status',
+            description: 'Check if PR is ready to merge or needs attention',
+            tool: 'workflow_status',
+            priority: 'medium',
+            category: 'next_logical',
+          },
+        ],
         allPRStatus: [],
       };
     }
@@ -429,6 +446,29 @@ export async function workflowCreatePR(
       automaticActions,
       issuesFound,
       suggestedActions,
+      nextSteps: [
+        {
+          action: 'monitor_pr_reviews',
+          description: `Monitor PR #${pr.data.number} for review feedback`,
+          tool: 'workflow_monitor_reviews',
+          priority: 'high',
+          category: 'immediate',
+        },
+        {
+          action: 'find_next_work',
+          description: 'Use workflow_next to determine what to work on next',
+          tool: 'workflow_next',
+          priority: 'medium',
+          category: 'next_logical',
+        },
+        {
+          action: 'check_ci_status',
+          description: 'Monitor CI status and resolve any failures',
+          tool: 'workflow_status',
+          priority: 'medium',
+          category: 'next_logical',
+        },
+      ] as NextStepAction[],
       allPRStatus: [],
     };
   } catch (error) {
@@ -442,6 +482,21 @@ export async function workflowCreatePR(
       automaticActions,
       issuesFound,
       suggestedActions: ['Fix the error and try again'],
+      nextSteps: [
+        {
+          action: 'troubleshoot_pr_creation',
+          description: 'Resolve PR creation error and retry',
+          priority: 'high',
+          category: 'immediate',
+        },
+        {
+          action: 'check_branch_status',
+          description: 'Verify branch has commits and is ready for PR',
+          tool: 'workflow_status',
+          priority: 'medium',
+          category: 'next_logical',
+        },
+      ] as NextStepAction[],
       allPRStatus: [],
     };
   }

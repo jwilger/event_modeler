@@ -33,17 +33,17 @@ interface GitCommitResponse extends WorkflowResponse {
 function parseGitStatus(): FileStatus[] {
   const statusOutput = execSync('git status --porcelain', { encoding: 'utf8' });
   const files: FileStatus[] = [];
-  
+
   for (const line of statusOutput.split('\n')) {
     if (!line.trim()) continue;
-    
+
     const indexStatus = line[0];
     const workingStatus = line[1];
     const filePath = line.substring(3);
-    
+
     let status: FileStatus['status'] = 'modified';
     let staged = false;
-    
+
     // Determine staging status and file status
     if (indexStatus === 'M') {
       staged = true;
@@ -69,14 +69,14 @@ function parseGitStatus(): FileStatus[] {
     } else if (indexStatus === ' ' && workingStatus === ' ') {
       continue; // Skip clean files
     }
-    
+
     files.push({
       path: filePath,
       status,
       staged,
     });
   }
-  
+
   return files;
 }
 
@@ -97,18 +97,18 @@ function extractIssueNumber(branchName: string): number | undefined {
   return undefined;
 }
 
-
 function formatCommitMessage(message: string, issueNumber?: number): string {
   let formattedMessage = message.trim();
-  
+
   // Add issue reference if not already present
   if (issueNumber && !formattedMessage.includes(`#${issueNumber}`)) {
     formattedMessage += ` (#${issueNumber})`;
   }
-  
+
   // Add Claude footer
-  formattedMessage += '\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>';
-  
+  formattedMessage +=
+    '\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>';
+
   return formattedMessage;
 }
 
@@ -122,40 +122,40 @@ function processPreCommitFailure(
   suggestedActions: string[]
 ): void {
   const errorMessage = error.message;
-  
+
   // Extract useful error information from stderr
   if ('stderr' in error) {
     const stderr = (error as Error & { stderr?: string }).stderr || '';
     const stdout = (error as Error & { stdout?: string }).stdout || '';
     const fullOutput = stdout + stderr;
-    
+
     // Parse the pre-commit output for structured errors
     const toolErrors = parsePreCommitOutput(fullOutput);
-    
+
     if (toolErrors.length > 0) {
       // Add categorized error summary
-      const errorTypes = toolErrors.map(te => te.tool).join(', ');
+      const errorTypes = toolErrors.map((te) => te.tool).join(', ');
       issuesFound.push(`Pre-commit checks failed: ${errorTypes}`);
-      
+
       // Add formatted parsed errors
       automaticActions.push('Pre-commit hook failures:');
       const formattedErrors = formatParsedErrors(toolErrors);
       automaticActions.push(...formattedErrors);
-      
+
       // Add all unique fix suggestions
       const allSuggestions = new Set<string>();
-      toolErrors.forEach(te => te.fixSuggestions.forEach(s => allSuggestions.add(s)));
+      toolErrors.forEach((te) => te.fixSuggestions.forEach((s) => allSuggestions.add(s)));
       suggestedActions.push(...Array.from(allSuggestions));
     } else {
       // Fallback to raw output if we can't parse structured errors
       issuesFound.push('Pre-commit checks failed');
-      
-      const outputLines = fullOutput.split('\n').filter(line => line.trim());
+
+      const outputLines = fullOutput.split('\n').filter((line) => line.trim());
       if (outputLines.length > 0) {
         automaticActions.push('Pre-commit hook output:');
         automaticActions.push(...outputLines);
       }
-      
+
       // Keep basic suggestions as fallback
       if (fullOutput.includes('cargo fmt')) {
         suggestedActions.push('Run `cargo fmt` to fix formatting issues');
@@ -173,7 +173,7 @@ function processPreCommitFailure(
   } else {
     issuesFound.push(`Failed to create commit: ${errorMessage}`);
   }
-  
+
   suggestedActions.push('Fix the issues and try again');
 }
 
@@ -181,17 +181,19 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
   const automaticActions: string[] = [];
   const issuesFound: string[] = [];
   const suggestedActions: string[] = [];
-  
+
   try {
     switch (input.action) {
       case 'status': {
         const fileStatuses = parseGitStatus();
-        const stagedFiles = fileStatuses.filter(f => f.staged).map(f => f.path);
-        const unstagedFiles = fileStatuses.filter(f => !f.staged && f.status !== 'untracked').map(f => f.path);
-        
+        const stagedFiles = fileStatuses.filter((f) => f.staged).map((f) => f.path);
+        const unstagedFiles = fileStatuses
+          .filter((f) => !f.staged && f.status !== 'untracked')
+          .map((f) => f.path);
+
         automaticActions.push(`Found ${fileStatuses.length} files with changes`);
         automaticActions.push(`${stagedFiles.length} staged, ${unstagedFiles.length} unstaged`);
-        
+
         return {
           requestedData: {
             fileStatuses,
@@ -204,11 +206,11 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
           allPRStatus: [],
         };
       }
-      
+
       case 'stage': {
         const fileStatuses = parseGitStatus();
         let filesToStage: string[] = [];
-        
+
         if (input.files && input.files.length > 0) {
           // Stage specific files
           filesToStage = input.files;
@@ -216,8 +218,10 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
           // Stage all tracked files (git add -u)
           execSync('git add -u', { encoding: 'utf8' });
           automaticActions.push('Staged all tracked files with modifications');
-          
-          const stagedFiles = parseGitStatus().filter(f => f.staged).map(f => f.path);
+
+          const stagedFiles = parseGitStatus()
+            .filter((f) => f.staged)
+            .map((f) => f.path);
           return {
             requestedData: { stagedFiles },
             automaticActions,
@@ -227,9 +231,9 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
           };
         } else {
           // Stage all changes (git add .)
-          filesToStage = fileStatuses.filter(f => !f.staged).map(f => f.path);
+          filesToStage = fileStatuses.filter((f) => !f.staged).map((f) => f.path);
         }
-        
+
         if (filesToStage.length === 0) {
           issuesFound.push('No files to stage');
           return {
@@ -240,19 +244,23 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
             allPRStatus: [],
           };
         }
-        
+
         // Stage the files
         for (const file of filesToStage) {
           try {
             execSync(`git add "${file}"`, { encoding: 'utf8' });
             automaticActions.push(`Staged: ${file}`);
           } catch (error) {
-            issuesFound.push(`Failed to stage ${file}: ${error instanceof Error ? error.message : 'unknown error'}`);
+            issuesFound.push(
+              `Failed to stage ${file}: ${error instanceof Error ? error.message : 'unknown error'}`
+            );
           }
         }
-        
-        const stagedFiles = parseGitStatus().filter(f => f.staged).map(f => f.path);
-        
+
+        const stagedFiles = parseGitStatus()
+          .filter((f) => f.staged)
+          .map((f) => f.path);
+
         return {
           requestedData: { stagedFiles },
           automaticActions,
@@ -261,10 +269,14 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
           allPRStatus: [],
         };
       }
-      
+
       case 'unstage': {
-        const filesToUnstage = input.files || parseGitStatus().filter(f => f.staged).map(f => f.path);
-        
+        const filesToUnstage =
+          input.files ||
+          parseGitStatus()
+            .filter((f) => f.staged)
+            .map((f) => f.path);
+
         if (filesToUnstage.length === 0) {
           issuesFound.push('No staged files to unstage');
           return {
@@ -275,19 +287,21 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
             allPRStatus: [],
           };
         }
-        
+
         // Unstage the files
         for (const file of filesToUnstage) {
           try {
             execSync(`git reset HEAD "${file}"`, { encoding: 'utf8' });
             automaticActions.push(`Unstaged: ${file}`);
           } catch (error) {
-            issuesFound.push(`Failed to unstage ${file}: ${error instanceof Error ? error.message : 'unknown error'}`);
+            issuesFound.push(
+              `Failed to unstage ${file}: ${error instanceof Error ? error.message : 'unknown error'}`
+            );
           }
         }
-        
+
         const unstagedFiles = filesToUnstage;
-        
+
         return {
           requestedData: { unstagedFiles },
           automaticActions,
@@ -296,14 +310,16 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
           allPRStatus: [],
         };
       }
-      
+
       case 'commit': {
         if (!input.message) {
           throw new Error('Commit message is required');
         }
-        
+
         // Check for staged files
-        const stagedFiles = parseGitStatus().filter(f => f.staged).map(f => f.path);
+        const stagedFiles = parseGitStatus()
+          .filter((f) => f.staged)
+          .map((f) => f.path);
         if (stagedFiles.length === 0) {
           issuesFound.push('No staged files to commit');
           suggestedActions.push('Stage files first using stage action');
@@ -315,40 +331,40 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
             allPRStatus: [],
           };
         }
-        
+
         automaticActions.push(`Committing ${stagedFiles.length} files`);
-        
+
         // Auto-detect issue number if not provided
         const issueNumber = input.issueNumber || extractIssueNumber(getCurrentBranch());
         if (issueNumber) {
           automaticActions.push(`Detected issue number: #${issueNumber}`);
         }
-        
+
         // Format commit message
         const commitMessage = formatCommitMessage(input.message, issueNumber);
-        
+
         // Create commit - let git run pre-commit hooks naturally
         try {
           // Write message to temp file to handle multiline properly
           const tempFile = path.join(os.tmpdir(), `git-commit-msg-${Date.now()}.txt`);
           await fs.writeFile(tempFile, commitMessage);
-          
+
           // Run git commit and capture output
-          const commitOutput = execSync(`git commit -F "${tempFile}" 2>&1`, { 
+          const commitOutput = execSync(`git commit -F "${tempFile}" 2>&1`, {
             encoding: 'utf8',
-            stdio: 'pipe'
+            stdio: 'pipe',
           });
           await fs.unlink(tempFile);
-          
+
           // Parse output for useful information
           if (commitOutput) {
-            const outputLines = commitOutput.split('\n').filter(line => line.trim());
+            const outputLines = commitOutput.split('\n').filter((line) => line.trim());
             automaticActions.push(...outputLines);
           }
-          
+
           const commitHash = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
           automaticActions.push(`Created commit: ${commitHash.substring(0, 7)}`);
-          
+
           return {
             requestedData: {
               commitHash,
@@ -368,7 +384,7 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
             issuesFound.push(`Failed to create commit: ${String(error)}`);
             suggestedActions.push('Fix the issues and try again');
           }
-          
+
           return {
             requestedData: {},
             automaticActions,
@@ -378,7 +394,7 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
           };
         }
       }
-      
+
       case 'amend': {
         // Check if we have a commit to amend
         try {
@@ -386,7 +402,7 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
         } catch {
           throw new Error('No commits to amend');
         }
-        
+
         // Get current commit message if no new message provided
         let commitMessage: string;
         if (input.message) {
@@ -396,33 +412,35 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
           // Keep existing message
           commitMessage = execSync('git log -1 --pretty=%B', { encoding: 'utf8' }).trim();
         }
-        
+
         // Check for staged files
-        const stagedFiles = parseGitStatus().filter(f => f.staged).map(f => f.path);
+        const stagedFiles = parseGitStatus()
+          .filter((f) => f.staged)
+          .map((f) => f.path);
         if (stagedFiles.length > 0) {
           automaticActions.push(`Adding ${stagedFiles.length} files to previous commit`);
         }
-        
+
         // Amend commit - let git run pre-commit hooks naturally
         try {
           const tempFile = path.join(os.tmpdir(), `git-commit-msg-${Date.now()}.txt`);
           await fs.writeFile(tempFile, commitMessage);
-          
-          const amendOutput = execSync(`git commit --amend -F "${tempFile}" 2>&1`, { 
+
+          const amendOutput = execSync(`git commit --amend -F "${tempFile}" 2>&1`, {
             encoding: 'utf8',
-            stdio: 'pipe'
+            stdio: 'pipe',
           });
           await fs.unlink(tempFile);
-          
+
           // Parse output for useful information
           if (amendOutput) {
             const outputLines = amendOutput.split('\n').filter((line: string) => line.trim());
             automaticActions.push(...outputLines);
           }
-          
+
           const commitHash = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
           automaticActions.push(`Amended commit: ${commitHash.substring(0, 7)}`);
-          
+
           return {
             requestedData: {
               commitHash,
@@ -438,22 +456,27 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
           if (error instanceof Error) {
             // Override the default message for amend case
             const originalPush = issuesFound.push.bind(issuesFound);
-            issuesFound.push = function(item: string): number {
+            issuesFound.push = function (item: string): number {
               if (item.includes('Pre-commit checks failed:')) {
-                return originalPush(item.replace('Pre-commit checks failed:', 'Pre-commit checks failed during amend:'));
+                return originalPush(
+                  item.replace(
+                    'Pre-commit checks failed:',
+                    'Pre-commit checks failed during amend:'
+                  )
+                );
               }
               return originalPush(item);
             };
-            
+
             processPreCommitFailure(error, automaticActions, issuesFound, suggestedActions);
-            
+
             // Restore original push method
             issuesFound.push = originalPush;
           } else {
             issuesFound.push(`Failed to amend commit: ${String(error)}`);
             suggestedActions.push('Fix the issues and try again');
           }
-          
+
           return {
             requestedData: {},
             automaticActions,
@@ -463,13 +486,13 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitRespons
           };
         }
       }
-      
+
       default:
         throw new Error(`Unknown action: ${input.action}`);
     }
   } catch (error) {
     issuesFound.push(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    
+
     return {
       requestedData: {},
       automaticActions,

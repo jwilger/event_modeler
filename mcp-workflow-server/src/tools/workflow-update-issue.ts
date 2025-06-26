@@ -1,4 +1,4 @@
-import { WorkflowResponse, PRStatus } from '../types.js';
+import { WorkflowResponse, PRStatus, NextStepAction } from '../types.js';
 import { getRepoInfo } from '../utils/github.js';
 import { Octokit } from '@octokit/rest';
 import { getGitHubToken } from '../utils/auth.js';
@@ -43,7 +43,6 @@ interface ProjectQueryResult {
   };
 }
 
-
 export async function workflowUpdateIssue(
   params: UpdateIssueFieldsParams
 ): Promise<WorkflowResponse> {
@@ -54,14 +53,18 @@ export async function workflowUpdateIssue(
 
   try {
     const { issueNumber, status, type, priority } = params;
-    
+
     if (!issueNumber) {
       throw new Error('Issue number is required');
     }
 
     // Get configuration
     const configResult = getProjectConfig();
-    if (!configResult.isComplete || !configResult.config.github.projectId || !configResult.config.github.projectNumber) {
+    if (
+      !configResult.isComplete ||
+      !configResult.config.github.projectId ||
+      !configResult.config.github.projectNumber
+    ) {
       throw new Error('Project configuration not found. Run workflow_configure first.');
     }
     const config = configResult.config.github;
@@ -116,9 +119,7 @@ export async function workflowUpdateIssue(
 
     // Find the project item for this issue
     const projectItems = projectResult.user?.projectV2?.items?.nodes || [];
-    const projectItem = projectItems.find(
-      (item) => item.content?.number === issueNumber
-    );
+    const projectItem = projectItems.find((item) => item.content?.number === issueNumber);
 
     if (!projectItem) {
       throw new Error(`Issue #${issueNumber} not found in project`);
@@ -140,17 +141,13 @@ export async function workflowUpdateIssue(
         const statusOption = statusField.options?.find(
           (opt) => opt.name.toLowerCase() === status.replace(/_/g, ' ')
         );
-        
+
         if (!statusOption) {
           issuesFound.push(`Invalid status value: ${status}`);
         } else {
-          await updateProjectField(
-            octokit,
-            config.projectId!,
-            projectItemId,
-            statusField.id,
-            { singleSelectOptionId: statusOption.id }
-          );
+          await updateProjectField(octokit, config.projectId!, projectItemId, statusField.id, {
+            singleSelectOptionId: statusOption.id,
+          });
           updatedFields.status = statusOption.name;
           automaticActions.push(`Updated status to "${statusOption.name}"`);
         }
@@ -166,17 +163,13 @@ export async function workflowUpdateIssue(
         const typeOption = typeField.options?.find(
           (opt) => opt.name.toLowerCase() === type.toLowerCase()
         );
-        
+
         if (!typeOption) {
           issuesFound.push(`Invalid type value: ${type}`);
         } else {
-          await updateProjectField(
-            octokit,
-            config.projectId!,
-            projectItemId,
-            typeField.id,
-            { singleSelectOptionId: typeOption.id }
-          );
+          await updateProjectField(octokit, config.projectId!, projectItemId, typeField.id, {
+            singleSelectOptionId: typeOption.id,
+          });
           updatedFields.type = typeOption.name;
           automaticActions.push(`Updated type to "${typeOption.name}"`);
         }
@@ -192,17 +185,13 @@ export async function workflowUpdateIssue(
         const priorityOption = priorityField.options?.find(
           (opt) => opt.name.toLowerCase() === priority.toLowerCase()
         );
-        
+
         if (!priorityOption) {
           issuesFound.push(`Invalid priority value: ${priority}`);
         } else {
-          await updateProjectField(
-            octokit,
-            config.projectId!,
-            projectItemId,
-            priorityField.id,
-            { singleSelectOptionId: priorityOption.id }
-          );
+          await updateProjectField(octokit, config.projectId!, projectItemId, priorityField.id, {
+            singleSelectOptionId: priorityOption.id,
+          });
           updatedFields.priority = priorityOption.name;
           automaticActions.push(`Updated priority to "${priorityOption.name}"`);
         }
@@ -211,6 +200,57 @@ export async function workflowUpdateIssue(
 
     if (Object.keys(updatedFields).length === 0) {
       suggestedActions.push('No fields were updated. Specify status, type, or priority to update.');
+    }
+
+    // Generate contextual next steps based on what was updated
+    const nextSteps: NextStepAction[] = [];
+
+    // If we marked an issue as "In Progress", suggest next workflow steps
+    if (updatedFields.status === 'In Progress') {
+      nextSteps.push({
+        action: 'start_work_on_issue',
+        description: `Start working on issue #${issueNumber}`,
+        tool: 'git_branch',
+        parameters: {
+          action: 'start-work',
+          issueNumber,
+        },
+        priority: 'high',
+        category: 'immediate',
+      });
+    }
+
+    // If we marked an issue as "Done", suggest PR creation or next work
+    if (updatedFields.status === 'Done') {
+      nextSteps.push({
+        action: 'create_pr_or_next_work',
+        description: 'Create PR if not done, or use workflow_next to find next work',
+        tool: 'workflow_next',
+        priority: 'high',
+        category: 'immediate',
+      });
+    }
+
+    // If we marked as "Todo", suggest prioritizing work
+    if (updatedFields.status === 'Todo') {
+      nextSteps.push({
+        action: 'check_work_priority',
+        description: 'Use workflow_next to determine work priority',
+        tool: 'workflow_next',
+        priority: 'medium',
+        category: 'next_logical',
+      });
+    }
+
+    // Always suggest checking workflow status after updates
+    if (nextSteps.length === 0) {
+      nextSteps.push({
+        action: 'continue_workflow',
+        description: 'Check workflow status or determine next actions',
+        tool: 'workflow_next',
+        priority: 'medium',
+        category: 'next_logical',
+      });
     }
 
     return {
@@ -222,6 +262,7 @@ export async function workflowUpdateIssue(
       automaticActions,
       issuesFound,
       suggestedActions,
+      nextSteps,
       allPRStatus,
     };
   } catch (error) {
@@ -233,6 +274,15 @@ export async function workflowUpdateIssue(
       automaticActions,
       issuesFound,
       suggestedActions,
+      nextSteps: [
+        {
+          action: 'troubleshoot_config',
+          description: 'Check GitHub project configuration or authentication',
+          tool: 'workflow_configure',
+          priority: 'high',
+          category: 'immediate',
+        },
+      ],
       allPRStatus,
     };
   }

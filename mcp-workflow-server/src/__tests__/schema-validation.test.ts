@@ -10,29 +10,29 @@ describe('Schema Validation Tests', () => {
 
     for (const modulePath of toolModules) {
       const module = await import(modulePath);
-      
+
       // Find exported tool definitions
       const toolExports = Object.entries(module).filter(([key]) => key.endsWith('Tool'));
-      
+
       for (const [, tool] of toolExports) {
         if (typeof tool === 'object' && tool !== null && 'inputSchema' in tool) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const inputSchema = (tool as any).inputSchema;
-          
+
           // Verify it's a plain object, not a Zod schema
           expect(inputSchema).not.toHaveProperty('_def'); // Zod schemas have _def
           expect(inputSchema).not.toHaveProperty('parse'); // Zod schemas have parse
-          
+
           // Verify it's a valid JSON Schema structure
           expect(inputSchema).toHaveProperty('type');
           expect(inputSchema.type).toBe('object');
           if ('properties' in inputSchema) {
             expect(typeof inputSchema.properties).toBe('object');
           }
-          
+
           // Verify it can be serialized - this is the key test that would have caught our bug
           expect(() => JSON.stringify(tool)).not.toThrow();
-          
+
           // Verify serialization doesn't produce [object Object]
           const serialized = JSON.stringify(tool);
           expect(serialized).not.toContain('[object Object]');
@@ -43,12 +43,12 @@ describe('Schema Validation Tests', () => {
 
   it('should validate MCP tool schema requirements', async () => {
     const { workflowRequestReviewTool } = await import('../tools/workflow-request-review.js');
-    
+
     // MCP requires these properties
     expect(workflowRequestReviewTool).toHaveProperty('name');
     expect(workflowRequestReviewTool).toHaveProperty('description');
     expect(workflowRequestReviewTool).toHaveProperty('inputSchema');
-    
+
     // Input schema must be JSON Schema format
     const schema = workflowRequestReviewTool.inputSchema;
     expect(schema).toHaveProperty('type');
