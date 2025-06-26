@@ -551,7 +551,7 @@ fn wrap_text(text: &str, max_width: u32, font_size: u32) -> (Vec<String>, u32, u
         let test_line = if current_line.is_empty() {
             word.to_string()
         } else {
-            format!("{} {}", current_line, word)
+            format!("{current_line} {word}")
         };
 
         if test_line.len() <= max_chars_per_line as usize {
