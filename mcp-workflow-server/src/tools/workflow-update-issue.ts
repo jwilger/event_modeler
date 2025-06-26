@@ -1,4 +1,4 @@
-import { WorkflowResponse, PRStatus } from '../types.js';
+import { WorkflowResponse, PRStatus, NextStepAction } from '../types.js';
 import { getRepoInfo } from '../utils/github.js';
 import { Octokit } from '@octokit/rest';
 import { getGitHubToken } from '../utils/auth.js';
@@ -213,6 +213,57 @@ export async function workflowUpdateIssue(
       suggestedActions.push('No fields were updated. Specify status, type, or priority to update.');
     }
 
+    // Generate contextual next steps based on what was updated
+    const nextSteps: NextStepAction[] = [];
+
+    // If we marked an issue as "In Progress", suggest next workflow steps
+    if (updatedFields.status === 'In Progress') {
+      nextSteps.push({
+        action: 'start_work_on_issue',
+        description: `Start working on issue #${issueNumber}`,
+        tool: 'git_branch',
+        parameters: {
+          action: 'start-work',
+          issueNumber,
+        },
+        priority: 'high',
+        category: 'immediate',
+      });
+    }
+
+    // If we marked an issue as "Done", suggest PR creation or next work
+    if (updatedFields.status === 'Done') {
+      nextSteps.push({
+        action: 'create_pr_or_next_work',
+        description: 'Create PR if not done, or use workflow_next to find next work',
+        tool: 'workflow_next',
+        priority: 'high',
+        category: 'immediate',
+      });
+    }
+
+    // If we marked as "Todo", suggest prioritizing work
+    if (updatedFields.status === 'Todo') {
+      nextSteps.push({
+        action: 'check_work_priority',
+        description: 'Use workflow_next to determine work priority',
+        tool: 'workflow_next',
+        priority: 'medium',
+        category: 'next_logical',
+      });
+    }
+
+    // Always suggest checking workflow status after updates
+    if (nextSteps.length === 0) {
+      nextSteps.push({
+        action: 'continue_workflow',
+        description: 'Check workflow status or determine next actions',
+        tool: 'workflow_next',
+        priority: 'medium',
+        category: 'next_logical',
+      });
+    }
+
     return {
       requestedData: {
         issueNumber,
@@ -222,6 +273,7 @@ export async function workflowUpdateIssue(
       automaticActions,
       issuesFound,
       suggestedActions,
+      nextSteps,
       allPRStatus,
     };
   } catch (error) {
@@ -233,6 +285,15 @@ export async function workflowUpdateIssue(
       automaticActions,
       issuesFound,
       suggestedActions,
+      nextSteps: [
+        {
+          action: 'troubleshoot_config',
+          description: 'Check GitHub project configuration or authentication',
+          tool: 'workflow_configure',
+          priority: 'high',
+          category: 'immediate',
+        },
+      ],
       allPRStatus,
     };
   }
