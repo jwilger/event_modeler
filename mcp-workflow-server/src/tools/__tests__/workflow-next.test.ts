@@ -1139,4 +1139,217 @@ describe('workflowNext', () => {
       suggestion: expect.stringContaining('Create a PR')
     });
   });
+
+  it('should prioritize failing CI builds above all other work', async () => {
+    // Clear module cache to ensure fresh import
+    vi.resetModules();
+    
+    // Mock getAllPRs to return PRs with failing CI
+    vi.doMock('../../utils/github.js', () => ({
+      getRepoInfo: vi.fn(() => ({ owner: 'testowner', repo: 'testrepo' })),
+      getAllPRs: vi.fn(() => Promise.resolve([
+        {
+          number: 123,
+          title: 'Feature PR with failing CI',
+          branch: 'feature/failing-ci',
+          baseRef: 'main',
+          state: 'open',
+          isDraft: false,
+          url: 'https://github.com/testowner/testrepo/pull/123',
+          checks: {
+            total: 3,
+            passed: 1,
+            failed: 2,
+            pending: 0,
+            details: [
+              {
+                name: 'CI / Build',
+                status: 'completed',
+                conclusion: 'failure',
+                url: 'https://github.com/testowner/testrepo/actions/runs/123',
+                output: {
+                  title: 'Build failed',
+                  summary: 'TypeScript compilation error: Cannot find module \'./missing-module\''
+                }
+              },
+              {
+                name: 'CI / Test',
+                status: 'completed',
+                conclusion: 'failure',
+                output: {
+                  title: 'Tests failed',
+                  summary: '5 tests failed, 10 passed'
+                }
+              },
+              {
+                name: 'CI / Lint',
+                status: 'completed',
+                conclusion: 'success'
+              }
+            ]
+          },
+          hasUnresolvedReviews: false,
+          needsRebase: false,
+          isMergeable: true
+        }
+      ])),
+    }));
+
+    // Mock other required functions
+    mockExecSync.mockImplementation((cmd: string) => {
+      if (cmd === 'gh auth token') return 'mock-token\n';
+      if (cmd === 'gh api user --jq .login') return 'testuser\n';
+      if (cmd === 'git status --porcelain') return '';
+      if (cmd === 'git branch --show-current') return 'main\n';
+      return '';
+    });
+
+    // Mock monitor reviews to show other work available
+    const mockMonitorReviews = vi.mocked(workflowMonitorReviews);
+    mockMonitorReviews.mockResolvedValue({
+      requestedData: {
+        reviewsNeedingAttention: [
+          {
+            prNumber: 456,
+            title: 'Other PR needing review',
+            author: 'otheruser',
+            lastUpdated: '2024-01-01T00:00:00Z',
+            url: 'https://github.com/testowner/testrepo/pull/456',
+            reviewStatus: 'pending_review',
+            reviews: [],
+            commentSummary: { total: 0, resolved: 0, unresolved: 0 },
+            isDraft: false,
+            suggestedAction: 'Review PR'
+          }
+        ]
+      },
+      automaticActions: [],
+      issuesFound: [],
+      suggestedActions: [],
+      nextSteps: [],
+      allPRStatus: []
+    });
+
+    // Import after mocking
+    const { workflowNext } = await import('../workflow-next.js');
+    const result = await workflowNext();
+
+    // Should return CI failure as the priority
+    expect(result.issuesFound).toContain('🔴 CI is failing on 1 PR(s) - this must be fixed first!');
+    expect(result.issuesFound).toContain('  ❌ CI / Build: TypeScript compilation error: Cannot find module \'./missing-module\'');
+    expect(result.issuesFound).toContain('  ❌ CI / Test: 5 tests failed, 10 passed');
+    
+    expect(result.nextSteps[0]).toMatchObject({
+      action: 'fix_ci_failures',
+      description: expect.stringContaining('Fix CI failures in PR #123'),
+      priority: 'urgent',
+      category: 'immediate',
+      tool: 'git_branch',
+      parameters: {
+        action: 'checkout',
+        branch: 'feature/failing-ci'
+      },
+      prNumber: 123,
+      title: 'Feature PR with failing CI',
+      branch: 'feature/failing-ci',
+      failedChecks: ['CI / Build', 'CI / Test']
+    });
+  });
+
+  it('should continue with normal workflow when no CI failures exist', async () => {
+    // Clear module cache to ensure fresh import
+    vi.resetModules();
+    
+    // Mock getAllPRs to return PRs with passing CI
+    vi.doMock('../../utils/github.js', () => ({
+      getRepoInfo: vi.fn(() => ({ owner: 'testowner', repo: 'testrepo' })),
+      getAllPRs: vi.fn(() => Promise.resolve([
+        {
+          number: 789,
+          title: 'Feature PR with passing CI',
+          branch: 'feature/passing-ci',
+          baseRef: 'main',
+          state: 'open',
+          isDraft: false,
+          url: 'https://github.com/testowner/testrepo/pull/789',
+          checks: {
+            total: 3,
+            passed: 3,
+            failed: 0,
+            pending: 0,
+            details: [
+              {
+                name: 'CI / Build',
+                status: 'completed',
+                conclusion: 'success'
+              },
+              {
+                name: 'CI / Test',
+                status: 'completed',
+                conclusion: 'success'
+              },
+              {
+                name: 'CI / Lint',
+                status: 'completed',
+                conclusion: 'success'
+              }
+            ]
+          },
+          hasUnresolvedReviews: true,
+          needsRebase: false,
+          isMergeable: true
+        }
+      ])),
+    }));
+
+    // Mock other required functions
+    mockExecSync.mockImplementation((cmd: string) => {
+      if (cmd === 'gh auth token') return 'mock-token\n';
+      if (cmd === 'gh api user --jq .login') return 'testuser\n';
+      if (cmd === 'git status --porcelain') return '';
+      if (cmd === 'git branch --show-current') return 'main\n';
+      return '';
+    });
+
+    // Mock monitor reviews to show PR needs attention
+    const mockMonitorReviews = vi.mocked(workflowMonitorReviews);
+    mockMonitorReviews.mockResolvedValue({
+      requestedData: {
+        reviewsNeedingAttention: [
+          {
+            prNumber: 789,
+            title: 'Feature PR with passing CI',
+            author: 'testuser',
+            lastUpdated: '2024-01-01T00:00:00Z',
+            url: 'https://github.com/testowner/testrepo/pull/789',
+            reviewStatus: 'changes_requested',
+            reviews: [],
+            commentSummary: { total: 3, resolved: 0, unresolved: 3 },
+            isDraft: false,
+            suggestedAction: 'Address review feedback'
+          }
+        ]
+      },
+      automaticActions: [],
+      issuesFound: [],
+      suggestedActions: [],
+      nextSteps: [],
+      allPRStatus: []
+    });
+
+    // Import after mocking
+    const { workflowNext } = await import('../workflow-next.js');
+    const result = await workflowNext();
+
+    // Should not mention CI failures
+    expect(result.issuesFound).not.toContain(expect.stringContaining('CI is failing'));
+    
+    // Should suggest addressing PR feedback instead
+    expect(result.nextSteps[0]).toMatchObject({
+      action: 'address_pr_feedback',
+      prNumber: 789,
+      priority: 'high',
+      category: 'immediate'
+    });
+  });
 });

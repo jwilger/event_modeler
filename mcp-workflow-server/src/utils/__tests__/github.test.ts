@@ -11,8 +11,7 @@ vi.mock('../auth.js', () => ({
   getGitHubToken: vi.fn(() => 'mock-token'),
 }));
 
-// Import after mocks
-import { getAllPRs } from '../github.js';
+// Import will be done per test after mocking
 
 describe('GitHub Utilities', () => {
   beforeEach(() => {
@@ -38,6 +37,7 @@ describe('GitHub Utilities', () => {
       vi.mocked(Octokit).mockImplementation(() => mockOctokit as unknown as Octokit);
 
       // This should not throw
+      const { getAllPRs } = await import('../github.js');
       expect(async () => await getAllPRs()).not.toThrow();
     });
 
@@ -56,6 +56,7 @@ describe('GitHub Utilities', () => {
       };
       vi.mocked(Octokit).mockImplementation(() => mockOctokit as unknown as Octokit);
 
+      const { getAllPRs } = await import('../github.js');
       expect(async () => await getAllPRs()).not.toThrow();
     });
 
@@ -77,6 +78,7 @@ describe('GitHub Utilities', () => {
       };
       vi.mocked(Octokit).mockImplementation(() => mockOctokit as unknown as Octokit);
 
+      const { getAllPRs } = await import('../github.js');
       expect(async () => await getAllPRs()).not.toThrow();
     });
 
@@ -91,6 +93,7 @@ describe('GitHub Utilities', () => {
         throw new Error('Unexpected command');
       });
 
+      const { getAllPRs } = await import('../github.js');
       await expect(getAllPRs()).rejects.toThrow('Failed to get repository info');
     });
   });
@@ -114,8 +117,132 @@ describe('GitHub Utilities', () => {
       };
       vi.mocked(Octokit).mockImplementation(() => mockOctokit as unknown as Octokit);
 
+      const { getAllPRs } = await import('../github.js');
       const result = await getAllPRs();
       expect(result).toEqual([]);
+    });
+
+    it('should fetch detailed check run information', async () => {
+      // Reset modules to ensure fresh import
+      vi.resetModules();
+      
+      vi.mocked(execSync).mockImplementation((cmd) => {
+        if (cmd === 'gh auth token') {
+          return 'mock-token' as unknown as Buffer;
+        }
+        if (cmd === 'git config --get remote.origin.url') {
+          return 'git@github.com:owner/repository.git\n' as unknown as Buffer;
+        }
+        return '' as unknown as Buffer;
+      });
+
+      const mockPR = {
+        number: 123,
+        title: 'Test PR',
+        head: { ref: 'feature/test', sha: 'abc123' },
+        base: { ref: 'main' },
+        state: 'open',
+        draft: false,
+        html_url: 'https://github.com/owner/repository/pull/123',
+      };
+
+      const mockCheckRuns = {
+        total_count: 3,
+        check_runs: [
+          {
+            name: 'CI / Build',
+            status: 'completed',
+            conclusion: 'failure',
+            html_url: 'https://github.com/owner/repository/actions/runs/456',
+            output: {
+              title: 'Build failed',
+              summary: 'Compilation error in main.ts\nCannot find module',
+            },
+          },
+          {
+            name: 'CI / Test',
+            status: 'completed',
+            conclusion: 'success',
+            html_url: 'https://github.com/owner/repository/actions/runs/457',
+            output: null,
+          },
+          {
+            name: 'CI / Lint',
+            status: 'in_progress',
+            conclusion: null,
+            html_url: 'https://github.com/owner/repository/actions/runs/458',
+            output: null,
+          },
+        ],
+      };
+
+      const mockOctokit = {
+        pulls: {
+          list: vi.fn().mockResolvedValue({ data: [mockPR] }),
+          get: vi.fn().mockResolvedValue({ 
+            data: { 
+              mergeable: true, 
+              mergeable_state: 'clean' 
+            } 
+          }),
+          listReviews: vi.fn().mockResolvedValue({ data: [] }),
+        },
+        checks: {
+          listForRef: vi.fn().mockResolvedValue({ data: mockCheckRuns }),
+        },
+        graphql: vi.fn().mockResolvedValue({
+          repository: {
+            pullRequest: {
+              reviewThreads: {
+                nodes: [],
+              },
+            },
+          },
+        }),
+      };
+      vi.mocked(Octokit).mockImplementation(() => mockOctokit as unknown as Octokit);
+
+      const { getAllPRs } = await import('../github.js');
+      const result = await getAllPRs();
+      
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        number: 123,
+        title: 'Test PR',
+        branch: 'feature/test',
+        checks: {
+          total: 3,
+          passed: 1,
+          failed: 1,
+          pending: 1,
+          details: expect.arrayContaining([
+            {
+              name: 'CI / Build',
+              status: 'completed',
+              conclusion: 'failure',
+              url: 'https://github.com/owner/repository/actions/runs/456',
+              output: {
+                title: 'Build failed',
+                summary: 'Compilation error in main.ts\nCannot find module',
+              },
+            },
+            {
+              name: 'CI / Test',
+              status: 'completed',
+              conclusion: 'success',
+              url: 'https://github.com/owner/repository/actions/runs/457',
+              output: undefined,
+            },
+            {
+              name: 'CI / Lint',
+              status: 'in_progress',
+              conclusion: null,
+              url: 'https://github.com/owner/repository/actions/runs/458',
+              output: undefined,
+            },
+          ]),
+        },
+      });
     });
   });
 });
