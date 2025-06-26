@@ -369,26 +369,23 @@ fn render_view_box(x: u32, y: u32, name: &str) -> String {
 
     // Draw the box
     svg.push_str(&format!(
-        r#"  <rect x="{}" y="{}" width="{}" height="{}" fill="{}" stroke="{}" stroke-width="1"/>
-"#,
-        x, y, ENTITY_BOX_WIDTH, ENTITY_BOX_HEIGHT, VIEW_BACKGROUND_COLOR, SWIMLANE_BORDER_COLOR
+        r#"  <rect x="{x}" y="{y}" width="{ENTITY_BOX_WIDTH}" height="{ENTITY_BOX_HEIGHT}" fill="{VIEW_BACKGROUND_COLOR}" stroke="{SWIMLANE_BORDER_COLOR}" stroke-width="1"/>
+"#
     ));
 
     // Draw the entity type label "View"
     let label_x = x + ENTITY_BOX_WIDTH / 2;
     let label_y = y + ENTITY_PADDING + ENTITY_LABEL_FONT_SIZE;
     svg.push_str(&format!(
-        r#"  <text x="{}" y="{}" font-family="Arial, sans-serif" font-size="{}" fill="{}" text-anchor="middle">View</text>
-"#,
-        label_x, label_y, ENTITY_LABEL_FONT_SIZE, TEXT_COLOR
+        r#"  <text x="{label_x}" y="{label_y}" font-family="Arial, sans-serif" font-size="{ENTITY_LABEL_FONT_SIZE}" fill="{TEXT_COLOR}" text-anchor="middle">View</text>
+"#
     ));
 
     // Draw the entity name
     let name_y = y + ENTITY_BOX_HEIGHT / 2 + ENTITY_NAME_FONT_SIZE / 2;
     svg.push_str(&format!(
-        r#"  <text x="{}" y="{}" font-family="Arial, sans-serif" font-size="{}" fill="{}" text-anchor="middle">{}</text>
-"#,
-        label_x, name_y, ENTITY_NAME_FONT_SIZE, TEXT_COLOR, name
+        r#"  <text x="{label_x}" y="{name_y}" font-family="Arial, sans-serif" font-size="{ENTITY_NAME_FONT_SIZE}" fill="{TEXT_COLOR}" text-anchor="middle">{name}</text>
+"#
     ));
 
     svg
