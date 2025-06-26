@@ -41,6 +41,36 @@ const VIEW_BACKGROUND_COLOR: &str = "#ffffff"; // White for views
 const COMMAND_BACKGROUND_COLOR: &str = "#4a90e2"; // Blue for commands
 const EVENT_BACKGROUND_COLOR: &str = "#9b59b6"; // Purple for events
 
+/// Creates a lookup map from view names to their definitions.
+fn create_view_lookup(
+    views: &HashMap<yaml_types::ViewName, yaml_types::ViewDefinition>,
+) -> HashMap<String, &yaml_types::ViewDefinition> {
+    views
+        .iter()
+        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
+        .collect()
+}
+
+/// Creates a lookup map from command names to their definitions.
+fn create_command_lookup(
+    commands: &HashMap<yaml_types::CommandName, yaml_types::CommandDefinition>,
+) -> HashMap<String, &yaml_types::CommandDefinition> {
+    commands
+        .iter()
+        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
+        .collect()
+}
+
+/// Creates a lookup map from event names to their definitions.
+fn create_event_lookup(
+    events: &HashMap<yaml_types::EventName, yaml_types::EventDefinition>,
+) -> HashMap<String, &yaml_types::EventDefinition> {
+    events
+        .iter()
+        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
+        .collect()
+}
+
 /// Renders an event model diagram to SVG format.
 ///
 /// This function takes a constructed diagram and produces the SVG representation.
@@ -72,23 +102,9 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
     }
 
     // Build temporary maps for entity lookups
-    let view_lookup: HashMap<String, &yaml_types::ViewDefinition> = diagram
-        .views()
-        .iter()
-        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
-        .collect();
-
-    let command_lookup: HashMap<String, &yaml_types::CommandDefinition> = diagram
-        .commands()
-        .iter()
-        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
-        .collect();
-
-    let event_lookup: HashMap<String, &yaml_types::EventDefinition> = diagram
-        .events()
-        .iter()
-        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
-        .collect();
+    let view_lookup = create_view_lookup(diagram.views());
+    let command_lookup = create_command_lookup(diagram.commands());
+    let event_lookup = create_event_lookup(diagram.events());
 
     // Analyze entities in each slice to determine required widths
     let mut slice_required_widths = vec![MIN_SLICE_WIDTH; num_slices];
@@ -505,26 +521,9 @@ fn render_entities(ctx: &EntityRenderContext) -> String {
         HashMap::new();
 
     // Build lookup maps from entity names to definitions for performance
-    let view_lookup: HashMap<String, &yaml_types::ViewDefinition> = ctx
-        .diagram
-        .views()
-        .iter()
-        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
-        .collect();
-
-    let command_lookup: HashMap<String, &yaml_types::CommandDefinition> = ctx
-        .diagram
-        .commands()
-        .iter()
-        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
-        .collect();
-
-    let event_lookup: HashMap<String, &yaml_types::EventDefinition> = ctx
-        .diagram
-        .events()
-        .iter()
-        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
-        .collect();
+    let view_lookup = create_view_lookup(ctx.diagram.views());
+    let command_lookup = create_command_lookup(ctx.diagram.commands());
+    let event_lookup = create_event_lookup(ctx.diagram.events());
 
     // Parse slice connections to find view positions
     for (slice_index, slice) in ctx.slices.iter().enumerate() {
@@ -602,26 +601,11 @@ fn render_entities(ctx: &EntityRenderContext) -> String {
 
                 // Determine entity type and render appropriate box
                 if view_lookup.contains_key(entity_name) {
-                    svg.push_str(&render_view_box(
-                        entity_x,
-                        entity_y,
-                        entity_name,
-                        dimensions,
-                    ));
+                    svg.push_str(&render_view_box(entity_x, entity_y, dimensions));
                 } else if command_lookup.contains_key(entity_name) {
-                    svg.push_str(&render_command_box(
-                        entity_x,
-                        entity_y,
-                        entity_name,
-                        dimensions,
-                    ));
+                    svg.push_str(&render_command_box(entity_x, entity_y, dimensions));
                 } else if event_lookup.contains_key(entity_name) {
-                    svg.push_str(&render_event_box(
-                        entity_x,
-                        entity_y,
-                        entity_name,
-                        dimensions,
-                    ));
+                    svg.push_str(&render_event_box(entity_x, entity_y, dimensions));
                 }
             }
         }
@@ -752,7 +736,7 @@ fn calculate_entity_dimensions(name: &str, _entity_type: &str) -> EntityDimensio
 }
 
 /// Renders a single view box with proper text wrapping.
-fn render_view_box(x: u32, y: u32, _name: &str, dimensions: &EntityDimensions) -> String {
+fn render_view_box(x: u32, y: u32, dimensions: &EntityDimensions) -> String {
     let mut svg = String::new();
 
     // Draw the box
@@ -782,7 +766,7 @@ fn render_view_box(x: u32, y: u32, _name: &str, dimensions: &EntityDimensions) -
 }
 
 /// Renders a single command box with proper text wrapping.
-fn render_command_box(x: u32, y: u32, _name: &str, dimensions: &EntityDimensions) -> String {
+fn render_command_box(x: u32, y: u32, dimensions: &EntityDimensions) -> String {
     let mut svg = String::new();
 
     // Draw the box (blue for commands)
@@ -813,7 +797,7 @@ fn render_command_box(x: u32, y: u32, _name: &str, dimensions: &EntityDimensions
 }
 
 /// Renders a single event box with proper text wrapping.
-fn render_event_box(x: u32, y: u32, _name: &str, dimensions: &EntityDimensions) -> String {
+fn render_event_box(x: u32, y: u32, dimensions: &EntityDimensions) -> String {
     let mut svg = String::new();
 
     // Draw the box (purple for events)
