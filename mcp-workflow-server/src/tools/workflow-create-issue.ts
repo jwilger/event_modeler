@@ -215,14 +215,18 @@ export async function workflowCreateIssue(
           getIssueNodeId(octokit, owner, repo, epicNumber),
           getIssueNodeId(octokit, owner, repo, issue.data.number),
         ]);
-        
+
         // Cache the issue node ID for potential reuse
         cachedIssueNodeId = issueNodeId;
 
         await linkSubIssue(octokit, epicNodeId, issueNodeId);
         linkedToEpic = true;
-        automaticActions.push(`Successfully linked issue #${issue.data.number} to epic #${epicNumber}`);
-        suggestedActions.push(`View epic: https://github.com/${owner}/${repo}/issues/${epicNumber}`);
+        automaticActions.push(
+          `Successfully linked issue #${issue.data.number} to epic #${epicNumber}`
+        );
+        suggestedActions.push(
+          `View epic: https://github.com/${owner}/${repo}/issues/${epicNumber}`
+        );
       } catch (linkError) {
         const linkErrorMessage = linkError instanceof Error ? linkError.message : String(linkError);
         issuesFound.push(`Could not link to epic #${epicNumber}: ${linkErrorMessage}`);
@@ -235,8 +239,9 @@ export async function workflowCreateIssue(
       const projectConfig = getProjectConfig();
       if (projectConfig.isComplete) {
         // Use cached node ID if available, otherwise fetch it
-        const issueNodeId = cachedIssueNodeId ?? await getIssueNodeId(octokit, owner, repo, issue.data.number);
-        
+        const issueNodeId =
+          cachedIssueNodeId ?? (await getIssueNodeId(octokit, owner, repo, issue.data.number));
+
         await addToProject(
           octokit,
           projectConfig.config.github.projectId!,
@@ -250,7 +255,8 @@ export async function workflowCreateIssue(
         automaticActions.push('Project configuration incomplete - skipping project board update');
       }
     } catch (projectError) {
-      const projectErrorMessage = projectError instanceof Error ? projectError.message : String(projectError);
+      const projectErrorMessage =
+        projectError instanceof Error ? projectError.message : String(projectError);
       issuesFound.push(`Could not add to project board: ${projectErrorMessage}`);
       automaticActions.push('Warning: Failed to add to project board');
     }

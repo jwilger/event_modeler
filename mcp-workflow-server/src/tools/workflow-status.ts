@@ -189,7 +189,7 @@ export async function workflowStatusTool(): Promise<WorkflowResponse> {
     }
 
     // Provide workflow continuity guidance
-    if (nextSteps.length === 0 || nextSteps.every(step => step.priority !== 'urgent')) {
+    if (nextSteps.length === 0 || nextSteps.every((step) => step.priority !== 'urgent')) {
       if (gitStatus.currentBranch === 'main') {
         nextSteps.push({
           action: 'check_next_actions',

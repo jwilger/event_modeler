@@ -27,7 +27,6 @@ interface GetIssueResponse {
   };
 }
 
-
 interface GetSubIssuesResponse {
   repository: {
     issue: {
@@ -103,7 +102,7 @@ async function skipCircularDependencyCheck(
   // 1. Fetching all sub-issues of the child issue
   // 2. Checking if the parent is among them
   // This would require recursive queries which could be expensive
-  
+
   return false;
 }
 
@@ -144,11 +143,7 @@ export async function workflowManageSubissues(
       ]);
 
       // Check for circular dependency (currently disabled due to API limitations)
-      const hasCircular = await skipCircularDependencyCheck(
-        octokit,
-        epicNodeId,
-        issueNodeId
-      );
+      const hasCircular = await skipCircularDependencyCheck(octokit, epicNodeId, issueNodeId);
 
       if (hasCircular) {
         throw new Error(
@@ -178,7 +173,9 @@ export async function workflowManageSubissues(
       });
 
       automaticActions.push(`Successfully linked issue #${issueNumber} to epic #${epicNumber}`);
-      suggestedActions.push(`View epic #${epicNumber}: https://github.com/${owner}/${repo}/issues/${epicNumber}`);
+      suggestedActions.push(
+        `View epic #${epicNumber}: https://github.com/${owner}/${repo}/issues/${epicNumber}`
+      );
 
       return {
         requestedData: {

@@ -100,8 +100,8 @@ describe('workflowNext', () => {
 
     const result = await workflowNext();
 
-    expect(result.requestedData.nextSteps).toHaveLength(1);
-    expect(result.requestedData.nextSteps[0]).toMatchObject({
+    expect(result.nextSteps).toHaveLength(1);
+    expect(result.nextSteps[0]).toMatchObject({
       action: 'select_work',
       projectUrl: 'https://github.com/users/jwilger/projects/9',
       reason: 'No issues in progress. Visit project board to select next item.'
@@ -143,8 +143,8 @@ describe('workflowNext', () => {
 
     const result = await workflowNext();
 
-    expect(result.requestedData.nextSteps).toHaveLength(1);
-    expect(result.requestedData.nextSteps[0]).toMatchObject({
+    expect(result.nextSteps).toHaveLength(1);
+    expect(result.nextSteps[0]).toMatchObject({
       action: 'work_on_todo',
       issueNumber: 42,
       title: 'Test Issue',
@@ -190,8 +190,8 @@ describe('workflowNext', () => {
 
     const result = await workflowNext();
 
-    expect(result.requestedData.nextSteps).toHaveLength(1);
-    expect(result.requestedData.nextSteps[0]).toMatchObject({
+    expect(result.nextSteps).toHaveLength(1);
+    expect(result.nextSteps[0]).toMatchObject({
       action: 'todos_complete',
       issueNumber: 42,
       title: 'Test Issue',
@@ -211,7 +211,7 @@ describe('workflowNext', () => {
 
     expect(result.issuesFound[0]).toContain('GitHub token not found');
     expect(result.suggestedActions).toContain('Check that gh CLI is authenticated and has access to the repository');
-    expect(result.requestedData.nextSteps).toHaveLength(0);
+    expect(result.nextSteps).toHaveLength(0);
   });
 
   it('should parse various todo formats correctly', async () => {
@@ -256,7 +256,7 @@ describe('workflowNext', () => {
 
     const result = await workflowNext();
 
-    expect(result.requestedData.nextSteps[0]).toMatchObject({
+    expect(result.nextSteps[0]).toMatchObject({
       action: 'work_on_todo',
       todoItem: 'Pending task',
       totalTodos: 6,  // 6 valid todos total
@@ -330,7 +330,7 @@ describe('workflowNext', () => {
 
     const result = await workflowNext();
 
-    expect(result.requestedData.nextSteps[0]).toMatchObject({
+    expect(result.nextSteps[0]).toMatchObject({
       action: 'todos_complete',
       issueNumber: 42,
       title: 'Test Issue',
@@ -402,7 +402,7 @@ describe('workflowNext', () => {
     const result = await workflowNext();
 
     // Should pick the regular issue, not the epic
-    expect(result.requestedData.nextSteps[0]).toMatchObject({
+    expect(result.nextSteps[0]).toMatchObject({
       action: 'work_on_todo',
       issueNumber: 2,
       title: 'Regular Issue',
@@ -517,19 +517,19 @@ describe('workflowNext', () => {
     const result = await workflowNext();
 
     // Debug output
-    if (!result.requestedData.nextSteps[0]) {
+    if (!result.nextSteps[0]) {
       console.error('No next steps returned');
       console.error('Issues found:', result.issuesFound);
       console.error('Automatic actions:', result.automaticActions);
     }
 
-    expect(result.requestedData.nextSteps[0]).toMatchObject({
+    expect(result.nextSteps[0]).toMatchObject({
       action: 'requires_llm_decision',  // With 2 sub-issues, it asks for LLM decision
       decisionType: 'select_next_issue',
       epicNumber: 100,
       epicTitle: 'Epic: Test Epic',
     });
-    expect(result.requestedData.nextSteps[0].choices).toHaveLength(2);
+    expect(result.nextSteps[0].choices).toHaveLength(2);
   });
 
   it('should suggest completing epic when no sub-issues are open', async () => {
@@ -613,7 +613,7 @@ describe('workflowNext', () => {
 
     const result = await workflowNext();
 
-    expect(result.requestedData.nextSteps[0]).toMatchObject({
+    expect(result.nextSteps[0]).toMatchObject({
       action: 'complete_epic',
       epicNumber: 100,
       epicTitle: 'Epic: Completed Epic',
@@ -678,8 +678,8 @@ describe('workflowNext', () => {
 
     const result = await workflowNext();
 
-    expect(result.requestedData.nextSteps).toHaveLength(1);
-    expect(result.requestedData.nextSteps[0]).toMatchObject({
+    expect(result.nextSteps).toHaveLength(1);
+    expect(result.nextSteps[0]).toMatchObject({
       action: 'todos_complete',
       issueNumber: 78,
       title: 'Test Issue #78',
@@ -739,7 +739,7 @@ describe('workflowNext', () => {
     const result = await workflowNext();
 
     // Should proceed with normal todo workflow since there are no commits
-    expect(result.requestedData.nextSteps[0]).toMatchObject({
+    expect(result.nextSteps[0]).toMatchObject({
       action: 'work_on_todo',
       issueNumber: 78,
       todoItem: 'Todo 1'
@@ -853,7 +853,7 @@ describe('workflowNext', () => {
     const result = await workflowNext();
 
     // Should not suggest PR creation since issue is not in progress
-    expect(result.requestedData.nextSteps[0]).toMatchObject({
+    expect(result.nextSteps[0]).toMatchObject({
       action: 'select_work',
       reason: 'No issues in progress. Visit project board to select next item.'
     });
@@ -913,7 +913,7 @@ describe('workflowNext', () => {
 
     const result = await workflowNext();
 
-    expect(result.requestedData.nextSteps[0]).toMatchObject({
+    expect(result.nextSteps[0]).toMatchObject({
       action: 'merge_pr',
       prNumber: 42,
       title: 'Ready to merge PR',
@@ -978,7 +978,7 @@ describe('workflowNext', () => {
 
     const result = await workflowNext();
 
-    expect(result.requestedData.nextSteps[0]).toMatchObject({
+    expect(result.nextSteps[0]).toMatchObject({
       action: 'work_on_todo',
       prNumber: 43,
       title: 'Approved but blocked PR',
@@ -1054,7 +1054,7 @@ describe('workflowNext', () => {
 
     const result = await workflowNext();
 
-    expect(result.requestedData.nextSteps[0]).toMatchObject({
+    expect(result.nextSteps[0]).toMatchObject({
       action: 'merge_pr',
       prNumber: 44,
       ciStatus: 'success'
@@ -1120,7 +1120,7 @@ describe('workflowNext', () => {
 
     const result = await workflowNext();
 
-    expect(result.requestedData.nextSteps[0]).toMatchObject({
+    expect(result.nextSteps[0]).toMatchObject({
       action: 'todos_complete',
       issueNumber: 78,
       suggestion: expect.stringContaining('Create a PR')

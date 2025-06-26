@@ -82,8 +82,7 @@ function determineThreadResolution(
     .slice(1)
     .filter(
       (comment) =>
-        comment.author.login !== prAuthor &&
-        new Date(comment.createdAt) > lastAuthorReplyDate
+        comment.author.login !== prAuthor && new Date(comment.createdAt) > lastAuthorReplyDate
     );
 
   if (reviewerCommentsAfterReply.length === 0) {
@@ -520,8 +519,11 @@ export async function workflowMonitorReviews(
         isDraft: pr.draft || false,
         reviewStatus,
         reviews: reviewInfos,
-        suggestedAction: suggestAction(reviewStatus, pr.draft || false) + 
-          (outdatedComments > 0 ? ` (${outdatedComments} outdated comment${outdatedComments === 1 ? '' : 's'})` : ''),
+        suggestedAction:
+          suggestAction(reviewStatus, pr.draft || false) +
+          (outdatedComments > 0
+            ? ` (${outdatedComments} outdated comment${outdatedComments === 1 ? '' : 's'})`
+            : ''),
         url: pr.html_url,
         lastUpdated: pr.updated_at,
         commentSummary:

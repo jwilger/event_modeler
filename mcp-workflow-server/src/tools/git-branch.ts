@@ -75,17 +75,18 @@ function createBranchNameFromIssue(issueTitle: string, issueNumber: number): str
     .replace(/\s+/g, '-') // Replace spaces with hyphens
     .replace(/-+/g, '-') // Replace multiple hyphens with single
     .trim();
-  
+
   // Truncate if too long (git has branch name limits)
   // Account for "feature/" prefix and "-{issueNumber}"
   const prefix = 'feature/';
   const suffix = `-${issueNumber}`;
   const maxTitleLength = MAX_BRANCH_TITLE_LENGTH - prefix.length - suffix.length;
-  
-  const truncatedTitle = cleanTitle.length > maxTitleLength 
-    ? cleanTitle.substring(0, maxTitleLength).replace(/-$/, '')
-    : cleanTitle;
-  
+
+  const truncatedTitle =
+    cleanTitle.length > maxTitleLength
+      ? cleanTitle.substring(0, maxTitleLength).replace(/-$/, '')
+      : cleanTitle;
+
   return `${prefix}${truncatedTitle}${suffix}`;
 }
 
@@ -94,19 +95,21 @@ async function getIssueDetails(issueNumber: number): Promise<{ title: string; ur
     const token = getGitHubToken();
     const octokit = new Octokit({ auth: token });
     const { owner, repo } = getRepoInfo();
-    
+
     const { data: issue } = await octokit.issues.get({
       owner,
       repo,
       issue_number: issueNumber,
     });
-    
+
     return {
       title: issue.title,
       url: issue.html_url,
     };
   } catch (error) {
-    throw new Error(`Failed to get issue #${issueNumber}: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `Failed to get issue #${issueNumber}: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }
 
@@ -114,17 +117,17 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
   const automaticActions: string[] = [];
   const issuesFound: string[] = [];
   const suggestedActions: string[] = [];
-  
+
   try {
     const currentBranch = getCurrentBranch();
     automaticActions.push(`Current branch: ${currentBranch}`);
-    
+
     switch (input.action) {
       case 'checkout': {
         if (!input.branch) {
           throw new Error('Branch name is required for checkout');
         }
-        
+
         // Check for uncommitted changes
         if (hasUncommittedChanges() && !input.force) {
           issuesFound.push('You have uncommitted changes');
@@ -133,7 +136,7 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
             'Or stash them: use git_stash tool with action: "save"',
             'Or force checkout with force: true'
           );
-          
+
           return {
             requestedData: {},
             automaticActions,
@@ -142,7 +145,7 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
             allPRStatus: [],
           };
         }
-        
+
         // Check if branch exists
         if (!branchExists(input.branch)) {
           // Try to fetch it from remote
@@ -153,15 +156,15 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
             throw new Error(`Branch '${input.branch}' does not exist locally or remotely`);
           }
         }
-        
+
         // Checkout the branch
         execSync(`git checkout ${input.branch}`, { encoding: 'utf8' });
         automaticActions.push(`Switched to branch '${input.branch}'`);
-        
+
         // Pull latest changes if it tracks a remote branch
         try {
-          const tracking = execSync(`git rev-parse --abbrev-ref ${input.branch}@{upstream}`, { 
-            encoding: 'utf8' 
+          const tracking = execSync(`git rev-parse --abbrev-ref ${input.branch}@{upstream}`, {
+            encoding: 'utf8',
           }).trim();
           if (tracking) {
             execSync('git pull', { encoding: 'utf8' });
@@ -170,7 +173,7 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
         } catch {
           // Branch doesn't track a remote, that's ok
         }
-        
+
         return {
           requestedData: {
             currentBranch: input.branch,
@@ -182,31 +185,33 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
           allPRStatus: [],
         };
       }
-      
+
       case 'create': {
         if (!input.branch && !input.issueNumber) {
           throw new Error('Either branch name or issue number is required for create');
         }
-        
+
         let branchName = input.branch;
         let issueDetails;
-        
+
         // If issue number provided, create branch name from issue
         if (input.issueNumber) {
           issueDetails = await getIssueDetails(input.issueNumber);
           branchName = createBranchNameFromIssue(issueDetails.title, input.issueNumber);
-          automaticActions.push(`Creating branch for issue #${input.issueNumber}: ${issueDetails.title}`);
+          automaticActions.push(
+            `Creating branch for issue #${input.issueNumber}: ${issueDetails.title}`
+          );
         }
-        
+
         if (!branchName) {
           throw new Error('Failed to determine branch name');
         }
-        
+
         // Check if branch already exists
         if (branchExists(branchName)) {
           issuesFound.push(`Branch '${branchName}' already exists`);
           suggestedActions.push(`Checkout existing branch: git checkout ${branchName}`);
-          
+
           return {
             requestedData: {},
             automaticActions,
@@ -215,54 +220,58 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
             allPRStatus: [],
           };
         }
-        
+
         // Ensure we're on main/master and up to date
         const mainBranch = branchExists('main') ? 'main' : 'master';
         if (currentBranch !== mainBranch) {
           execSync(`git checkout ${mainBranch}`, { encoding: 'utf8' });
           automaticActions.push(`Switched to ${mainBranch}`);
         }
-        
+
         execSync('git pull', { encoding: 'utf8' });
         automaticActions.push('Updated base branch');
-        
+
         // Create and checkout new branch
         execSync(`git checkout -b ${branchName}`, { encoding: 'utf8' });
         automaticActions.push(`Created and switched to new branch: ${branchName}`);
-        
+
         return {
           requestedData: {
             createdBranch: branchName,
             currentBranch: branchName,
             previousBranch: mainBranch,
-            issueDetails: issueDetails ? {
-              number: input.issueNumber!,
-              title: issueDetails.title,
-              url: issueDetails.url,
-            } : undefined,
+            issueDetails: issueDetails
+              ? {
+                  number: input.issueNumber!,
+                  title: issueDetails.title,
+                  url: issueDetails.url,
+                }
+              : undefined,
           },
           automaticActions,
           issuesFound,
-          suggestedActions: issueDetails 
+          suggestedActions: issueDetails
             ? [`Start working on issue #${input.issueNumber}`]
             : [`Branch '${branchName}' created and ready`],
           allPRStatus: [],
         };
       }
-      
+
       case 'pull': {
         // Pull on current branch
         try {
           const result = execSync('git pull', { encoding: 'utf8' });
           automaticActions.push('Pulled latest changes');
-          
+
           if (result.includes('Already up to date')) {
             automaticActions.push('Branch is already up to date');
           }
         } catch (error) {
-          throw new Error(`Failed to pull: ${error instanceof Error ? error.message : String(error)}`);
+          throw new Error(
+            `Failed to pull: ${error instanceof Error ? error.message : String(error)}`
+          );
         }
-        
+
         return {
           requestedData: {
             currentBranch,
@@ -273,10 +282,10 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
           allPRStatus: [],
         };
       }
-      
+
       case 'push': {
         const branch = input.branch || currentBranch;
-        
+
         try {
           // Check if branch has upstream
           try {
@@ -288,12 +297,14 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
             execSync(`git push -u origin ${branch}`, { encoding: 'utf8' });
             automaticActions.push(`Set upstream branch to origin/${branch}`);
           }
-          
+
           automaticActions.push(`Pushed branch '${branch}' to remote`);
         } catch (error) {
-          throw new Error(`Failed to push: ${error instanceof Error ? error.message : String(error)}`);
+          throw new Error(
+            `Failed to push: ${error instanceof Error ? error.message : String(error)}`
+          );
         }
-        
+
         return {
           requestedData: {
             pushedBranch: branch,
@@ -305,36 +316,36 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
           allPRStatus: [],
         };
       }
-      
+
       case 'list': {
         // Get all branches with their remote tracking info
         const branchOutput = execSync('git branch -vv', { encoding: 'utf8' });
         const branches: BranchInfo[] = [];
-        
+
         for (const line of branchOutput.split('\n')) {
           if (!line.trim()) continue;
-          
+
           const current = line.startsWith('*');
           const parts = line.substring(2).trim().split(/\s+/);
           const name = parts[0];
-          
+
           // Check if branch has remote tracking
           const hasRemote = line.includes('[origin/');
-          
+
           // Parse ahead/behind separately
           let ahead: number | undefined;
           let behind: number | undefined;
-          
+
           const aheadMatch = line.match(/ahead (\d+)/);
           if (aheadMatch) {
             ahead = parseInt(aheadMatch[1]);
           }
-          
+
           const behindMatch = line.match(/behind (\d+)/);
           if (behindMatch) {
             behind = parseInt(behindMatch[1]);
           }
-          
+
           branches.push({
             name,
             current,
@@ -343,9 +354,9 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
             behind,
           });
         }
-        
+
         automaticActions.push(`Found ${branches.length} branches`);
-        
+
         return {
           requestedData: {
             branches,
@@ -357,15 +368,15 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
           allPRStatus: [],
         };
       }
-      
+
       case 'start-work': {
         if (!input.issueNumber) {
           throw new Error('Issue number is required for start-work action');
         }
-        
+
         // This is a high-level action that combines multiple operations
         automaticActions.push(`Starting work on issue #${input.issueNumber}`);
-        
+
         // First, check for uncommitted changes
         if (hasUncommittedChanges()) {
           issuesFound.push('You have uncommitted changes');
@@ -373,7 +384,7 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
             'Commit your changes before starting new work: use git_commit tool',
             'Or stash them: use git_stash tool with action: "save"'
           );
-          
+
           return {
             requestedData: {},
             automaticActions,
@@ -382,17 +393,17 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
             allPRStatus: [],
           };
         }
-        
+
         // Get issue details
         const issueDetails = await getIssueDetails(input.issueNumber);
         const branchName = createBranchNameFromIssue(issueDetails.title, input.issueNumber);
-        
+
         // Check if branch already exists
         if (branchExists(branchName)) {
           // Just checkout the existing branch
           execSync(`git checkout ${branchName}`, { encoding: 'utf8' });
           automaticActions.push(`Switched to existing branch: ${branchName}`);
-          
+
           // Pull latest
           try {
             execSync('git pull', { encoding: 'utf8' });
@@ -408,7 +419,7 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
           execSync(`git checkout -b ${branchName}`, { encoding: 'utf8' });
           automaticActions.push(`Created new branch: ${branchName}`);
         }
-        
+
         return {
           requestedData: {
             currentBranch: branchName,
@@ -455,13 +466,13 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchRespons
           allPRStatus: [],
         };
       }
-      
+
       default:
         throw new Error(`Unknown action: ${input.action}`);
     }
   } catch (error) {
     issuesFound.push(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    
+
     return {
       requestedData: {},
       automaticActions,
