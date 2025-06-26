@@ -239,7 +239,7 @@ describe('workflowManagePR', () => {
       action: 'analyze',
     });
 
-    expect(result.suggestedActions).toContain('1 PRs need rebasing');
-    expect(result.suggestedActions).toContain('1 PRs are ready to merge (no dependencies)');
+    expect(result.suggestedActions).toContain('1 PR needs rebasing');
+    expect(result.suggestedActions).toContain('1 PR is ready to merge (no dependencies)');
   });
 });

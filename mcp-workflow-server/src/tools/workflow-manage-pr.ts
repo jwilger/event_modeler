@@ -47,7 +47,7 @@ export async function workflowManagePR(
   const allPRStatus: PRStatus[] = [];
 
   try {
-    const { action, prNumber, targetBranch = 'main', force = false } = params;
+    const { action, prNumber, targetBranch = 'main' } = params;
 
     const token = getGitHubToken();
     const octokit = new Octokit({ auth: token });
@@ -85,7 +85,7 @@ export async function workflowManagePR(
 
       case 'rebase': {
         if (prNumber) {
-          const result = await rebaseSinglePR(octokit, owner, repo, prNumber, force);
+          const result = await rebaseSinglePR(octokit, owner, repo, prNumber);
           actionsPerformed.push(result.action);
           if (result.intervention) {
             manualInterventionNeeded.push(result.intervention);
@@ -230,8 +230,7 @@ async function rebaseSinglePR(
   _octokit: Octokit,
   _owner: string,
   _repo: string,
-  prNumber: number,
-  _force: boolean
+  prNumber: number
 ): Promise<{ action: PRAction; intervention?: ManualIntervention }> {
   // This is a placeholder for the actual rebase implementation
   // In a real implementation, this would:
@@ -281,20 +280,20 @@ function generateSuggestions(
   const conflicts = prChains.filter(pr => pr.status === 'blocked_conflict').length;
 
   if (needsRebase > 0) {
-    suggestions.push(`${needsRebase} PRs need rebasing`);
+    suggestions.push(`${needsRebase} PR${needsRebase === 1 ? '' : 's'} need${needsRebase === 1 ? 's' : ''} rebasing`);
   }
 
   if (conflicts > 0) {
-    suggestions.push(`${conflicts} PRs have merge conflicts that need manual resolution`);
+    suggestions.push(`${conflicts} PR${conflicts === 1 ? '' : 's'} ${conflicts === 1 ? 'has' : 'have'} merge conflicts that need manual resolution`);
   }
 
   if (interventions.length > 0) {
-    suggestions.push(`${interventions.length} PRs require manual intervention`);
+    suggestions.push(`${interventions.length} PR${interventions.length === 1 ? '' : 's'} require${interventions.length === 1 ? 's' : ''} manual intervention`);
   }
 
   // Suggest next actions based on PR chain analysis
   const readyPRs = prChains.filter(pr => pr.status === 'ready' && (!pr.dependsOn || pr.dependsOn.length === 0));
   if (readyPRs.length > 0) {
-    suggestions.push(`${readyPRs.length} PRs are ready to merge (no dependencies)`);
+    suggestions.push(`${readyPRs.length} PR${readyPRs.length === 1 ? '' : 's'} ${readyPRs.length === 1 ? 'is' : 'are'} ready to merge (no dependencies)`);
   }
 }
