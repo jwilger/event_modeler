@@ -968,9 +968,9 @@ fn render_automation(x: u32, y: u32, dimensions: &EntityDimensions) -> String {
     let icon_x = x + dimensions.width / 2;
     let icon_y = y + ENTITY_PADDING + 15; // 15 is half the icon size for vertical centering
 
-    // Render robot emoji
+    // Render automation icon (gear emoji for a friendlier appearance)
     svg.push_str(&format!(
-        r#"  <text x="{icon_x}" y="{icon_y}" font-family="Arial, sans-serif" font-size="30" text-anchor="middle">🤖</text>
+        r#"  <text x="{icon_x}" y="{icon_y}" font-family="Arial, sans-serif" font-size="30" text-anchor="middle">⚙️</text>
 "#
     ));
 
