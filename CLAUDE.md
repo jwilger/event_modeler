@@ -15,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Collaboration Style
 
 Act as a peer programmer, not an assistant:
+
 - **Be direct**: Skip excessive agreement and enthusiasm. No need for "Excellent!", "You're absolutely right!", etc.
 - **Think critically**: Question approaches that seem suboptimal. Offer alternatives when you see better solutions.
 - **Seek clarity**: If reasoning isn't clear, ask why before proceeding.
@@ -24,6 +25,7 @@ Act as a peer programmer, not an assistant:
 ## Conversation Compaction
 
 When the conversation is compacted (manual or auto-compact), ensure [CLAUDE.md](CLAUDE.md) is reviewed and check GitHub issues to maintain awareness of:
+
 - Critical development rules and architecture principles
 - Current work status via GitHub issues and epics
 - Active PRs and their status
@@ -103,7 +105,7 @@ Event Modeler uses a three-stage pipeline for YAML processing:
 // Stage 1: Parse YAML text
 let parsed: YamlEventModel = parse_yaml(content)?;
 
-// Stage 2: Convert to domain types  
+// Stage 2: Convert to domain types
 let domain: domain::YamlEventModel = convert_yaml_to_domain(parsed)?;
 
 // Stage 3: Transform to diagram (in progress)
@@ -120,6 +122,7 @@ let diagram: EventModelDiagram = transform_to_diagram(domain)?;
 ### YAML Development Tasks
 
 When modifying YAML support:
+
 1. Update parsing types in `yaml_parser.rs`
 2. Update domain types in `yaml_types.rs`
 3. Update converter in `yaml_converter.rs`
@@ -128,7 +131,7 @@ When modifying YAML support:
 
 ## Git Commit Guidelines
 
-- Make high-quality commits that explain the *why* not just the *how*
+- Make high-quality commits that explain the _why_ not just the _how_
 - NO commit prefixes (no "feat:", "fix:", "chore:")
 - Keep commits focused and atomic
 - See [README.md](README.md) for commit message format
@@ -146,17 +149,19 @@ When modifying YAML support:
 
 Development work is tracked using GitHub issues with the following structure:
 
-1. **Epics**: Major phases labeled with "epic" 
+1. **Epics**: Major phases labeled with "epic"
+
    - Track overall progress for large features
    - Contain multiple sub-issues
    - Examples: "Phase 6: Diagram Module Rewrite", "MCP Workflow Server Development"
 
 2. **Sub-Issues**: Individual work items
+
    - Linked to epics using GitHub's sub-issue feature
    - Include acceptance criteria, dependencies, and implementation notes
    - Use "Depends on #X" pattern for dependencies
 
-3. **Finding Work**: 
+3. **Finding Work**:
    - ALWAYS use MCP `workflow_next` tool to determine what to work on
    - Use MCP `workflow_status` tool to check current state
    - Use MCP `workflow_create_pr` tool to create pull requests
@@ -177,5 +182,9 @@ Development work is tracked using GitHub issues with the following structure:
 - **Development Process**: [DEVELOPMENT_PROCESS.md](DEVELOPMENT_PROCESS.md)
 - **Roadmap & Vision**: [ROADMAP.md](ROADMAP.md)
 - **YAML Syntax**: [docs/yaml-syntax-guide.md](docs/yaml-syntax-guide.md)
-- **Current Epics**: Check GitHub issues labeled "epic"
-- **Active Work**: Use `gh issue list --state open` or MCP tools
+
+## REMEMBER
+
+- ALWAYS prefer MCP tools available to you instead of Bash commands.
+- If an MCP tool call fails, make sure you are calling it properly rather than immediately falling back to a Bash command.
+- ALWAYS use our workflow MCP server to determine your next task and follow the suggested next actions its responses provide.
