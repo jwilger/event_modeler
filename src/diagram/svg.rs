@@ -882,14 +882,21 @@ fn should_use_curve(
     to: &EntityPosition,
     entity_positions: &HashMap<String, EntityPosition>,
 ) -> bool {
-    let (from_x, from_y) = calculate_connection_point(from, to, true);
-    let (to_x, to_y) = calculate_connection_point(to, from, false);
+    let from_center_x = from.x + from.width / 2;
+    let from_center_y = from.y + from.height / 2;
+    let to_center_x = to.x + to.width / 2;
+    let to_center_y = to.y + to.height / 2;
 
-    // Check if perfectly vertical or horizontal
-    let is_vertical = (from_x as i32 - to_x as i32).abs() < 5;
-    let is_horizontal = (from_y as i32 - to_y as i32).abs() < 5;
+    // Check if centers are aligned vertically or horizontally
+    let is_vertical = (from_center_x as i32 - to_center_x as i32).abs() < (from.width / 4) as i32;
+    let is_horizontal =
+        (from_center_y as i32 - to_center_y as i32).abs() < (from.height / 4) as i32;
 
     if is_vertical || is_horizontal {
+        // Get actual connection points for collision detection
+        let (from_x, from_y) = calculate_connection_point(from, to, true);
+        let (to_x, to_y) = calculate_connection_point(to, from, false);
+
         // Check if there are any entities blocking the straight path
         let entities_in_path =
             find_entities_in_path(from_x, from_y, to_x, to_y, from, to, entity_positions);
@@ -921,8 +928,10 @@ fn render_curved_arrow(
     let (from_x, from_y) = calculate_connection_point(from, to, true);
     let (to_x, to_y) = calculate_connection_point(to, from, false);
 
-    // Calculate the angle for the final approach to ensure arrow points to center
-    let _to_center_x = to.x + to.width / 2;
+    // Calculate centers for better curve control
+    let _from_center_x = from.x + from.width / 2;
+    let from_center_y = from.y + from.height / 2;
+    let to_center_x = to.x + to.width / 2;
     let to_center_y = to.y + to.height / 2;
 
     // Calculate control points for bezier curve
@@ -939,13 +948,13 @@ fn render_curved_arrow(
         calculate_avoidance_curve(from_x, from_y, to_x, to_y, from, to, &entities_to_avoid)
     } else if from.slice_index < to.slice_index {
         // Moving right across slices
-        if dy.abs() < 20 {
+        if (from_center_y as i32 - to_center_y as i32).abs() < (from.height / 3) as i32 {
             // Same row - gentle horizontal curve
-            let _curve_height = 40;
+            let _curve_offset = 30.min(dx.unsigned_abs() / 4);
             (
-                from_x + dx.unsigned_abs() / 2,
+                from_x + dx.unsigned_abs() / 3,
                 from_y,
-                to_x - dx.unsigned_abs() / 2,
+                to_x - dx.unsigned_abs() / 3,
                 to_y,
             )
         } else {
@@ -973,8 +982,26 @@ fn render_curved_arrow(
                 )
             }
         } else {
-            // Horizontal within same slice
-            (from_x + 20, from_y, to_x - 20, to_y)
+            // Within same slice - create appropriate curve
+            if dy.abs() > dx.abs() {
+                // More vertical than horizontal
+                let offset = 40.min(dx.unsigned_abs() / 2 + 20);
+                if from_x < to_x {
+                    // Going right and down/up
+                    (from_x + offset, from_y, to_x - offset, to_y)
+                } else {
+                    // Going left and down/up
+                    (from_x - offset, from_y, to_x + offset, to_y)
+                }
+            } else {
+                // More horizontal - gentle curve
+                (
+                    from_x + dx.unsigned_abs() / 3,
+                    from_y,
+                    to_x - dx.unsigned_abs() / 3,
+                    to_y,
+                )
+            }
         }
     } else {
         // Moving left (back to previous slice)
@@ -983,15 +1010,31 @@ fn render_curved_arrow(
         (from_x - 40, mid_y, to_x + 40, mid_y)
     };
 
-    // Ensure the final segment points toward the center of the target
-    let adjusted_cx2 = cx2;
-    let adjusted_cy2 = if (to_center_y as i32 - to_y as i32).abs() > 5 {
-        // Adjust control point to aim at center
-        let offset = (to_center_y as i32 - to_y as i32) / 2;
-        if offset > 0 {
-            to_y + offset as u32
+    // Adjust the last control point to ensure arrow points at center
+    // Calculate where the arrow should be pointing
+    let target_angle_x = to_center_x as i32 - cx2 as i32;
+    let target_angle_y = to_center_y as i32 - cy2 as i32;
+
+    // Adjust control point to create proper approach angle
+    let adjusted_cx2 = if target_angle_x.abs() > 10 {
+        // Need to adjust horizontal approach
+        if (to_x as i32 - to_center_x as i32).abs() < 5 {
+            // Entering from top/bottom, adjust to point at center
+            to_center_x
         } else {
-            to_y.saturating_sub((-offset) as u32)
+            cx2
+        }
+    } else {
+        cx2
+    };
+
+    let adjusted_cy2 = if target_angle_y.abs() > 10 {
+        // Need to adjust vertical approach
+        if (to_y as i32 - to_center_y as i32).abs() < 5 {
+            // Entering from left/right, adjust to point at center
+            to_center_y
+        } else {
+            cy2
         }
     } else {
         cy2
@@ -1176,36 +1219,55 @@ fn calculate_connection_point(
     let other_center_x = other.x + other.width / 2;
     let other_center_y = other.y + other.height / 2;
 
-    // Determine which edge to use based on relative positions
+    // Calculate angle from entity center to other center
+    let dx = other_center_x as i32 - entity_center_x as i32;
+    let dy = other_center_y as i32 - entity_center_y as i32;
+
+    // Determine primary direction based on angle
+    let abs_dx = dx.abs();
+    let abs_dy = dy.abs();
+
     if is_source {
-        // For source entity, exit from the edge closest to target
-        if other_center_x > entity_center_x + 20 {
-            // Exit from right edge
-            (entity.x + entity.width, entity_center_y)
-        } else if other_center_x < entity_center_x - 20 {
-            // Exit from left edge
-            (entity.x, entity_center_y)
-        } else if other_center_y > entity_center_y {
-            // Exit from bottom edge
-            (entity_center_x, entity.y + entity.height)
+        // For source, exit toward target
+        if abs_dx > abs_dy {
+            // Primarily horizontal
+            if dx > 0 {
+                // Exit right
+                (entity.x + entity.width, entity_center_y)
+            } else {
+                // Exit left
+                (entity.x, entity_center_y)
+            }
         } else {
-            // Exit from top edge
-            (entity_center_x, entity.y)
+            // Primarily vertical
+            if dy > 0 {
+                // Exit bottom
+                (entity_center_x, entity.y + entity.height)
+            } else {
+                // Exit top
+                (entity_center_x, entity.y)
+            }
         }
     } else {
-        // For target entity, enter from the edge closest to source
-        if other_center_x < entity_center_x - 20 {
-            // Enter from left edge
-            (entity.x, entity_center_y)
-        } else if other_center_x > entity_center_x + 20 {
-            // Enter from right edge
-            (entity.x + entity.width, entity_center_y)
-        } else if other_center_y < entity_center_y {
-            // Enter from top edge
-            (entity_center_x, entity.y)
+        // For target, enter from direction of source
+        if abs_dx > abs_dy {
+            // Primarily horizontal
+            if dx > 0 {
+                // Enter from left
+                (entity.x, entity_center_y)
+            } else {
+                // Enter from right
+                (entity.x + entity.width, entity_center_y)
+            }
         } else {
-            // Enter from bottom edge
-            (entity_center_x, entity.y + entity.height)
+            // Primarily vertical
+            if dy > 0 {
+                // Enter from top
+                (entity_center_x, entity.y)
+            } else {
+                // Enter from bottom
+                (entity_center_x, entity.y + entity.height)
+            }
         }
     }
 }
