@@ -50,22 +50,28 @@ fn build_libavoid() {
         build.file(source);
     }
 
-    // Compile the library
     build.compile("libavoid");
 
-    // Link the library
+    // Tell cargo to link against our library
     println!("cargo:rustc-link-lib=static=libavoid");
     println!("cargo:rustc-link-lib=dylib=stdc++");
+
+    // Re-run if any libavoid files change
+    println!("cargo:rerun-if-changed=vendor/adaptagrams/cola/libavoid");
 }
 
+// TODO: Implement generate_bindings() once libclang is available
 /*
-// TODO: Uncomment when libclang is available
 fn generate_bindings() {
-    let libavoid_dir = Path::new("vendor/adaptagrams/cola/libavoid");
+    let libavoid_dir = PathBuf::from("vendor/adaptagrams/cola/libavoid");
 
-    // TODO: Set up autocxx for generating bindings
-    autocxx_build::Builder::new("src/routing/libavoid_ffi.rs", &[libavoid_dir])
+    let mut b = autocxx_build::Builder::new("src/routing/libavoid_ffi.rs", [&libavoid_dir])
         .build()
-        .expect("Failed to generate bindings");
+        .expect("Failed to build autocxx bindings");
+
+    b.flag_if_supported("-std=c++11")
+     .compile("autocxx-libavoid-bindings");
+
+    println!("cargo:rerun-if-changed=src/routing/libavoid_ffi.rs");
 }
 */
