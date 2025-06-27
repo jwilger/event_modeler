@@ -43,6 +43,10 @@ const EVENT_BACKGROUND_COLOR: &str = "#9b59b6"; // Purple for events
 const PROJECTION_BACKGROUND_COLOR: &str = "#f1c40f"; // Yellow for projections
 const QUERY_BACKGROUND_COLOR: &str = "#27ae60"; // Green for queries
 
+// Automation entity constants
+const ROBOT_ICON_SIZE: u32 = 30; // Size of the robot emoji
+const ICON_TEXT_SPACING: u32 = 5; // Space between icon and text
+
 /// Creates a lookup map from view names to their definitions.
 fn create_view_lookup(
     views: &HashMap<yaml_types::ViewName, yaml_types::ViewDefinition>,
@@ -937,10 +941,6 @@ fn render_query_box(x: u32, y: u32, dimensions: &EntityDimensions) -> String {
 
 /// Calculate dimensions for automation entities (robot icon + text below).
 fn calculate_automation_dimensions(name: &str) -> EntityDimensions {
-    // Robot icon dimensions
-    const ROBOT_ICON_SIZE: u32 = 30; // Size of the robot emoji
-    const ICON_TEXT_SPACING: u32 = 5; // Space between icon and text
-
     let formatted_name = format_entity_name(name);
     let (text_lines, text_width, text_height) = wrap_text(
         &formatted_name,
@@ -975,8 +975,6 @@ fn render_automation(x: u32, y: u32, dimensions: &EntityDimensions) -> String {
     ));
 
     // Render automation name below the icon
-    const ROBOT_ICON_SIZE: u32 = 30;
-    const ICON_TEXT_SPACING: u32 = 5;
     let text_start_y =
         y + ENTITY_PADDING + ROBOT_ICON_SIZE + ICON_TEXT_SPACING + ENTITY_NAME_FONT_SIZE;
     let text_center_x = x + dimensions.width / 2;
