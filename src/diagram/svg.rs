@@ -47,6 +47,9 @@ const QUERY_BACKGROUND_COLOR: &str = "#27ae60"; // Green for queries
 const ROBOT_ICON_SIZE: u32 = 30; // Size of the robot emoji
 const ICON_TEXT_SPACING: u32 = 5; // Space between icon and text
 
+// Arrow rendering constants
+const MIN_ARROW_EXTENSION: u32 = 30; // Minimum extension for arrow lead lines
+
 /// Creates a lookup map from view names to their definitions.
 fn create_view_lookup(
     views: &HashMap<yaml_types::ViewName, yaml_types::ViewDefinition>,
@@ -826,9 +829,10 @@ fn find_entity_position<'a>(
     // If not in current slice, find the closest instance
     let mut closest_pos: Option<&EntityPosition> = None;
     let mut closest_distance = usize::MAX;
+    let prefix = format!("{}_", entity_name);
 
     for (key, pos) in entity_positions {
-        if key.starts_with(&format!("{}_", entity_name)) {
+        if key.starts_with(&prefix) {
             let distance = if pos.slice_index > current_slice {
                 pos.slice_index - current_slice
             } else {
@@ -877,7 +881,7 @@ fn render_straight_arrow(from: &EntityPosition, to: &EntityPosition) -> String {
     let (to_x, to_y) = calculate_connection_point(to, from, false);
 
     // Add minimum lead line extensions for proper spacing
-    let min_extension = 30; // Match the routing system's minimum extension
+    let min_extension = MIN_ARROW_EXTENSION; // Match the routing system's minimum extension
 
     // Calculate extended start and end points
     let (extended_from_x, extended_from_y) =
