@@ -90,17 +90,13 @@ impl LeadOrigin {
         )
     }
 
-    /// Gets all possible lead origins
-    pub fn all() -> [Self; 8] {
+    /// Gets all possible lead origins (only edge centers, not entity center)
+    pub fn all() -> [Self; 4] {
         [
             Self::TopCenter,
             Self::RightCenter,
             Self::BottomCenter,
             Self::LeftCenter,
-            Self::CenterNorth,
-            Self::CenterEast,
-            Self::CenterSouth,
-            Self::CenterWest,
         ]
     }
 }
