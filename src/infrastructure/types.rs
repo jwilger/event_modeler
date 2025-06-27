@@ -126,6 +126,15 @@ impl<T> NonEmpty<T> {
         self.head()
     }
 
+    /// Creates a NonEmpty from a Vec if it's not empty.
+    pub fn new(vec: Vec<T>) -> Option<Self> {
+        let mut iter = vec.into_iter();
+        iter.next().map(|head| Self {
+            head,
+            tail: iter.collect(),
+        })
+    }
+
     /// Returns a reference to the last element.
     ///
     /// If there are no tail elements, returns the head element.

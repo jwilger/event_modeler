@@ -7,7 +7,7 @@ use crate::event_model::yaml_types;
 use crate::infrastructure::types::NonEmpty;
 use std::collections::HashMap;
 
-use super::routing::algorithm::OrthogonalRouter;
+use super::routing::OrthogonalRouterNew;
 use super::routing::{Rectangle, RoutingConfig};
 
 // Constants for SVG dimensions and text coordinates
@@ -792,7 +792,7 @@ fn render_connections(
 
     // Create the orthogonal router with default configuration
     let config = RoutingConfig::default();
-    let router = OrthogonalRouter::new(config);
+    let router = OrthogonalRouterNew::new(config);
 
     // Process connections from each slice
     for (slice_index, slice) in slices.iter().enumerate() {

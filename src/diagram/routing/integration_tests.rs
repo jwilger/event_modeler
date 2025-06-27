@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use super::super::algorithm::OrthogonalRouter;
+    use super::super::orthogonal_router::OrthogonalRouter;
     use super::super::{Rectangle, RoutingConfig};
 
     #[test]
@@ -94,10 +94,7 @@ mod tests {
 
     #[test]
     fn test_routing_with_margin() {
-        let config = RoutingConfig {
-            entity_margin: 5,
-            ..Default::default()
-        };
+        let config = RoutingConfig { margin: 5 };
         let router = OrthogonalRouter::new(config);
 
         let from = Rectangle::new(10, 20, 20, 15);

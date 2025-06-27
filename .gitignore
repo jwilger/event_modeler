@@ -12,3 +12,6 @@ node_modules
 /*.svg
 # But keep example SVGs
 !/examples/*.svg
+
+# Reference implementations for porting
+routing_reference/
