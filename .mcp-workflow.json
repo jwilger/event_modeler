@@ -18,7 +18,7 @@
       "assign_issue_on_status_change": "auto",
       "request_review_when_pr_ready": "suggest"
     },
-    "currentIssue": 47,
-    "currentBranch": "feature/phase-6-step-9-automation-entities-47"
+    "currentIssue": 143,
+    "currentBranch": "feature/phase-71-libavoid-integration-setup-143"
   }
 }

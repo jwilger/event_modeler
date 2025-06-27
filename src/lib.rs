@@ -26,3 +26,6 @@ pub mod event_model;
 
 /// Infrastructure and utility types.
 pub mod infrastructure;
+
+/// Connector routing using libavoid.
+pub mod routing;

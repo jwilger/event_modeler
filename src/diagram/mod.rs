@@ -8,6 +8,7 @@ use thiserror::Error;
 
 mod builder;
 mod layout_types;
+pub mod routing_types;
 mod svg;
 
 pub use self::builder::EventModelDiagram;

@@ -47,6 +47,9 @@ const QUERY_BACKGROUND_COLOR: &str = "#27ae60"; // Green for queries
 const ROBOT_ICON_SIZE: u32 = 30; // Size of the robot emoji
 const ICON_TEXT_SPACING: u32 = 5; // Space between icon and text
 
+// Arrow rendering constants
+const MIN_ARROW_EXTENSION: u32 = 30; // Minimum extension for arrow lead lines
+
 /// Creates a lookup map from view names to their definitions.
 fn create_view_lookup(
     views: &HashMap<yaml_types::ViewName, yaml_types::ViewDefinition>,
@@ -329,8 +332,15 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
 
     // SVG header
     svg_content.push_str(&format!(
-        r#"<?xml version="1.0" encoding="UTF-8"?>
+        r##"<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {} {}">
+  <!-- Arrow marker definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333333" />
+    </marker>
+  </defs>
+  
   <!-- Canvas background -->
   <rect x="0" y="0" width="{}" height="{}" fill="{}" stroke="none"/>
   
@@ -338,7 +348,7 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
   <text x="{}" y="{}" font-family="Arial, sans-serif" font-size="{}" font-weight="normal" fill="{}">
     {}
   </text>
-"#,
+"##,
         total_width,
         total_height,
         total_width,
@@ -381,7 +391,15 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
         start_x: SWIMLANE_LABEL_WIDTH,
         entity_dimensions_map: &entity_dimensions_map,
     };
-    svg_content.push_str(&render_entities(&render_ctx));
+    let (entities_svg, entity_positions) = render_entities(&render_ctx);
+    svg_content.push_str(&entities_svg);
+
+    // Render connections (arrows between entities)
+    svg_content.push_str(&render_connections(
+        slices,
+        &entity_positions,
+        &entity_dimensions_map,
+    ));
 
     // Close SVG
     svg_content.push_str("</svg>");
@@ -620,8 +638,10 @@ fn process_entity_reference<'a>(
 }
 
 /// Renders all entities (views, commands, events, etc.) in their respective positions.
-fn render_entities(ctx: &EntityRenderContext) -> String {
+/// Returns the SVG string and a map of entity names to their positions.
+fn render_entities(ctx: &EntityRenderContext) -> (String, HashMap<String, EntityPosition>) {
     let mut svg = String::new();
+    let mut entity_positions = HashMap::new();
 
     svg.push_str("  <!-- Entities -->\n");
 
@@ -726,6 +746,19 @@ fn render_entities(ctx: &EntityRenderContext) -> String {
                 // Center entity vertically in swimlane
                 let entity_y = swimlane_y + (swimlane_height - dimensions.height) / 2;
 
+                // Store entity position with slice index to handle multiple instances
+                let position_key = format!("{}_{}", entity_name, slice_index);
+                entity_positions.insert(
+                    position_key,
+                    EntityPosition {
+                        x: entity_x,
+                        y: entity_y,
+                        width: dimensions.width,
+                        height: dimensions.height,
+                        slice_index: *slice_index,
+                    },
+                );
+
                 // Determine entity type and render appropriate box
                 if lookups.view_lookup.contains_key(entity_name) {
                     svg.push_str(&render_view_box(entity_x, entity_y, dimensions));
@@ -744,8 +777,558 @@ fn render_entities(ctx: &EntityRenderContext) -> String {
         }
     }
 
+    (svg, entity_positions)
+}
+
+/// Renders connection arrows between entities based on slice definitions.
+fn render_connections(
+    slices: &[yaml_types::Slice],
+    entity_positions: &HashMap<String, EntityPosition>,
+    _entity_dimensions_map: &HashMap<String, EntityDimensions>,
+) -> String {
+    let mut svg = String::new();
+
+    svg.push_str("  <!-- Connections -->\n");
+
+    // Create the orthogonal router with better spacing configuration
+    // TODO: Routing implementation will be replaced with libavoid integration
+
+    // Process connections from each slice
+    for (slice_index, slice) in slices.iter().enumerate() {
+        for connection in slice.connections.iter() {
+            // Extract entity names from references
+            let from_name = extract_entity_name(&connection.from);
+            let to_name = extract_entity_name(&connection.to);
+
+            // Find the correct entity instances
+            let from_pos = find_entity_position(&from_name, slice_index, entity_positions);
+            let to_pos = find_entity_position(&to_name, slice_index, entity_positions);
+
+            if let (Some(from_pos), Some(to_pos)) = (from_pos, to_pos) {
+                // Use simple straight arrow for now (until libavoid integration)
+                svg.push_str(&render_straight_arrow(from_pos, to_pos));
+            }
+        }
+    }
+
     svg
 }
+
+/// Finds the position of an entity, preferring instances in the current or nearby slices.
+fn find_entity_position<'a>(
+    entity_name: &str,
+    current_slice: usize,
+    entity_positions: &'a HashMap<String, EntityPosition>,
+) -> Option<&'a EntityPosition> {
+    // First, try to find in current slice
+    let current_key = format!("{}_{}", entity_name, current_slice);
+    if let Some(pos) = entity_positions.get(&current_key) {
+        return Some(pos);
+    }
+
+    // If not in current slice, find the closest instance
+    let mut closest_pos: Option<&EntityPosition> = None;
+    let mut closest_distance = usize::MAX;
+    let prefix = format!("{}_", entity_name);
+
+    for (key, pos) in entity_positions {
+        if key.starts_with(&prefix) {
+            let distance = if pos.slice_index > current_slice {
+                pos.slice_index - current_slice
+            } else {
+                current_slice - pos.slice_index
+            };
+
+            if distance < closest_distance {
+                closest_distance = distance;
+                closest_pos = Some(pos);
+            }
+        }
+    }
+
+    closest_pos
+}
+
+/// Extracts the base entity name from an EntityReference.
+fn extract_entity_name(entity_ref: &yaml_types::EntityReference) -> String {
+    match entity_ref {
+        yaml_types::EntityReference::View(view_path) => {
+            let path_string = view_path.clone().into_inner();
+            let path_str = path_string.as_str();
+            path_str.split('.').next().unwrap_or(path_str).to_string()
+        }
+        yaml_types::EntityReference::Command(command_name) => {
+            command_name.clone().into_inner().as_str().to_string()
+        }
+        yaml_types::EntityReference::Event(event_name) => {
+            event_name.clone().into_inner().as_str().to_string()
+        }
+        yaml_types::EntityReference::Projection(projection_name) => {
+            projection_name.clone().into_inner().as_str().to_string()
+        }
+        yaml_types::EntityReference::Query(query_name) => {
+            query_name.clone().into_inner().as_str().to_string()
+        }
+        yaml_types::EntityReference::Automation(automation_name) => {
+            automation_name.clone().into_inner().as_str().to_string()
+        }
+    }
+}
+
+/// Renders a straight arrow between two entities.
+fn render_straight_arrow(from: &EntityPosition, to: &EntityPosition) -> String {
+    let (from_x, from_y) = calculate_connection_point(from, to, true);
+    let (to_x, to_y) = calculate_connection_point(to, from, false);
+
+    // Add minimum lead line extensions for proper spacing
+    let min_extension = MIN_ARROW_EXTENSION; // Match the routing system's minimum extension
+
+    // Calculate extended start and end points
+    let (extended_from_x, extended_from_y) =
+        extend_connection_point(from_x, from_y, from, to, min_extension, true);
+    let (extended_to_x, extended_to_y) =
+        extend_connection_point(to_x, to_y, to, from, min_extension, false);
+
+    // Create an orthogonal path with proper extensions
+    render_orthogonal_fallback(
+        extended_from_x,
+        extended_from_y,
+        extended_to_x,
+        extended_to_y,
+    )
+}
+
+/// Extends a connection point away from an entity by the specified distance.
+fn extend_connection_point(
+    x: u32,
+    y: u32,
+    entity: &EntityPosition,
+    _other: &EntityPosition,
+    extension: u32,
+    _is_source: bool,
+) -> (u32, u32) {
+    // Determine which edge this connection point is on
+    let on_left = x == entity.x;
+    let on_right = x == entity.x + entity.width;
+    let on_top = y == entity.y;
+    let on_bottom = y == entity.y + entity.height;
+
+    // Extend away from the entity
+    if on_left {
+        // Left edge - extend leftward
+        (x.saturating_sub(extension), y)
+    } else if on_right {
+        // Right edge - extend rightward
+        (x + extension, y)
+    } else if on_top {
+        // Top edge - extend upward
+        (x, y.saturating_sub(extension))
+    } else if on_bottom {
+        // Bottom edge - extend downward
+        (x, y + extension)
+    } else {
+        // Fallback - no extension
+        (x, y)
+    }
+}
+
+/// Creates a simple orthogonal path between two points as a fallback.
+fn render_orthogonal_fallback(from_x: u32, from_y: u32, to_x: u32, to_y: u32) -> String {
+    // Create a simple L-shaped or Z-shaped path
+    let mut path = format!("M {} {}", from_x, from_y);
+
+    // If points are already aligned, draw a straight line
+    if from_x == to_x || from_y == to_y {
+        path.push_str(&format!(" L {} {}", to_x, to_y));
+    } else {
+        // Create an L-shaped path
+        // Go horizontally first, then vertically
+        let mid_x = if from_x < to_x {
+            from_x + (to_x - from_x) / 2
+        } else {
+            to_x + (from_x - to_x) / 2
+        };
+        path.push_str(&format!(" L {} {}", mid_x, from_y));
+        path.push_str(&format!(" L {} {}", mid_x, to_y));
+        path.push_str(&format!(" L {} {}", to_x, to_y));
+    }
+
+    format!(
+        r##"  <path d="{}" fill="none" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)" />
+"##,
+        path
+    )
+}
+
+/// Renders a curved arrow using bezier curves.
+#[allow(dead_code)]
+fn render_curved_arrow(
+    from: &EntityPosition,
+    to: &EntityPosition,
+    entity_positions: &HashMap<String, EntityPosition>,
+) -> String {
+    let (from_x, from_y) = calculate_connection_point(from, to, true);
+    let (to_x, to_y) = calculate_connection_point(to, from, false);
+
+    // Calculate centers for better curve control
+    let _from_center_x = from.x + from.width / 2;
+    let from_center_y = from.y + from.height / 2;
+    let to_center_x = to.x + to.width / 2;
+    let to_center_y = to.y + to.height / 2;
+
+    // Calculate control points for bezier curve
+    let dx = to_x as i32 - from_x as i32;
+    let dy = to_y as i32 - from_y as i32;
+
+    // Check if we need to avoid any entities
+    let entities_to_avoid =
+        find_entities_in_path(from_x, from_y, to_x, to_y, from, to, entity_positions);
+
+    // Determine curve control points based on relative positions and obstacles
+    let (cx1, cy1, cx2, cy2) = if !entities_to_avoid.is_empty() {
+        // Complex routing to avoid entities
+        calculate_avoidance_curve(from_x, from_y, to_x, to_y, from, to, &entities_to_avoid)
+    } else if from.slice_index < to.slice_index {
+        // Moving right across slices
+        if (from_center_y as i32 - to_center_y as i32).abs() < (from.height / 3) as i32 {
+            // Same row - gentle horizontal curve
+            let _curve_offset = 30.min(dx.unsigned_abs() / 4);
+            (
+                from_x + dx.unsigned_abs() / 3,
+                from_y,
+                to_x - dx.unsigned_abs() / 3,
+                to_y,
+            )
+        } else {
+            // Diagonal movement
+            (from_x + dx.unsigned_abs() / 2, from_y, to_x - 20, to_y)
+        }
+    } else if from.slice_index == to.slice_index {
+        // Same slice
+        if dx.abs() < 20 {
+            // Vertical in same column - curve out to avoid overlap
+            let curve_width = 60;
+            if dy > 0 {
+                (
+                    from_x + curve_width,
+                    from_y + 20,
+                    to_x + curve_width,
+                    to_y - 20,
+                )
+            } else {
+                (
+                    from_x - curve_width,
+                    from_y - 20,
+                    to_x - curve_width,
+                    to_y + 20,
+                )
+            }
+        } else {
+            // Within same slice - create appropriate curve
+            if dy.abs() > dx.abs() {
+                // More vertical than horizontal
+                let offset = 40.min(dx.unsigned_abs() / 2 + 20);
+                if from_x < to_x {
+                    // Going right and down/up
+                    (from_x + offset, from_y, to_x - offset, to_y)
+                } else {
+                    // Going left and down/up
+                    (from_x - offset, from_y, to_x + offset, to_y)
+                }
+            } else {
+                // More horizontal - gentle curve
+                (
+                    from_x + dx.unsigned_abs() / 3,
+                    from_y,
+                    to_x - dx.unsigned_abs() / 3,
+                    to_y,
+                )
+            }
+        }
+    } else {
+        // Moving left (back to previous slice)
+        let _mid_x = (from_x + to_x) / 2;
+        let mid_y = (from_y + to_y) / 2;
+        (from_x - 40, mid_y, to_x + 40, mid_y)
+    };
+
+    // Adjust the last control point to ensure arrow points at center
+    // Calculate where the arrow should be pointing
+    let target_angle_x = to_center_x as i32 - cx2 as i32;
+    let target_angle_y = to_center_y as i32 - cy2 as i32;
+
+    // Adjust control point to create proper approach angle
+    let adjusted_cx2 = if target_angle_x.abs() > 10 {
+        // Need to adjust horizontal approach
+        if (to_x as i32 - to_center_x as i32).abs() < 5 {
+            // Entering from top/bottom, adjust to point at center
+            to_center_x
+        } else {
+            cx2
+        }
+    } else {
+        cx2
+    };
+
+    let adjusted_cy2 = if target_angle_y.abs() > 10 {
+        // Need to adjust vertical approach
+        if (to_y as i32 - to_center_y as i32).abs() < 5 {
+            // Entering from left/right, adjust to point at center
+            to_center_y
+        } else {
+            cy2
+        }
+    } else {
+        cy2
+    };
+
+    format!(
+        r##"  <path d="M {} {} C {} {}, {} {}, {} {}" stroke="#333333" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
+"##,
+        from_x, from_y, cx1, cy1, adjusted_cx2, adjusted_cy2, to_x, to_y
+    )
+}
+
+/// Find entities that are in the path between two points
+#[allow(dead_code)]
+fn find_entities_in_path<'a>(
+    from_x: u32,
+    from_y: u32,
+    to_x: u32,
+    to_y: u32,
+    from_entity: &EntityPosition,
+    to_entity: &EntityPosition,
+    entity_positions: &'a HashMap<String, EntityPosition>,
+) -> Vec<&'a EntityPosition> {
+    let mut obstacles = Vec::new();
+
+    // Create a bounding box for the path
+    let min_x = from_x.min(to_x);
+    let max_x = from_x.max(to_x);
+    let min_y = from_y.min(to_y);
+    let max_y = from_y.max(to_y);
+
+    for pos in entity_positions.values() {
+        // Skip source and target
+        if (pos.x == from_entity.x && pos.y == from_entity.y)
+            || (pos.x == to_entity.x && pos.y == to_entity.y)
+        {
+            continue;
+        }
+
+        // Check if entity overlaps with path bounding box
+        if pos.x + pos.width >= min_x
+            && pos.x <= max_x
+            && pos.y + pos.height >= min_y
+            && pos.y <= max_y
+        {
+            // More precise check if entity is actually in the path
+            if is_entity_in_line_path(from_x, from_y, to_x, to_y, pos) {
+                obstacles.push(pos);
+            }
+        }
+    }
+
+    obstacles
+}
+
+/// Check if an entity intersects with a line path
+#[allow(dead_code)]
+fn is_entity_in_line_path(x1: u32, y1: u32, x2: u32, y2: u32, entity: &EntityPosition) -> bool {
+    // Simple rectangle-line intersection check
+    let entity_left = entity.x;
+    let entity_right = entity.x + entity.width;
+    let entity_top = entity.y;
+    let entity_bottom = entity.y + entity.height;
+
+    let dx = x2 as i32 - x1 as i32;
+    let dy = y2 as i32 - y1 as i32;
+
+    // Check for zero-length line
+    if dx == 0 && dy == 0 {
+        return false;
+    }
+
+    // If line is mostly horizontal
+    if dx.abs() > dy.abs() && dx != 0 {
+        let y_at_left = y1 as i32 + ((entity_left as i32 - x1 as i32) * dy) / dx;
+        let y_at_right = y1 as i32 + ((entity_right as i32 - x1 as i32) * dy) / dx;
+
+        (y_at_left >= entity_top as i32 && y_at_left <= entity_bottom as i32)
+            || (y_at_right >= entity_top as i32 && y_at_right <= entity_bottom as i32)
+    } else if dy != 0 {
+        // Line is mostly vertical
+        let x_at_top = x1 as i32 + ((entity_top as i32 - y1 as i32) * dx) / dy;
+        let x_at_bottom = x1 as i32 + ((entity_bottom as i32 - y1 as i32) * dx) / dy;
+
+        (x_at_top >= entity_left as i32 && x_at_top <= entity_right as i32)
+            || (x_at_bottom >= entity_left as i32 && x_at_bottom <= entity_right as i32)
+    } else {
+        false
+    }
+}
+
+/// Calculate curve control points to avoid obstacles
+#[allow(dead_code)]
+fn calculate_avoidance_curve(
+    from_x: u32,
+    from_y: u32,
+    to_x: u32,
+    to_y: u32,
+    _from_entity: &EntityPosition,
+    _to_entity: &EntityPosition,
+    obstacles: &[&EntityPosition],
+) -> (u32, u32, u32, u32) {
+    // Simple avoidance: route around the side with more space
+    let dx = to_x as i32 - from_x as i32;
+    let dy = to_y as i32 - from_y as i32;
+
+    // Find the main obstacle (closest to the midpoint)
+    let mid_x = (from_x + to_x) / 2;
+    let mid_y = (from_y + to_y) / 2;
+
+    let main_obstacle = obstacles.iter().min_by_key(|obs| {
+        let obs_center_x = obs.x + obs.width / 2;
+        let obs_center_y = obs.y + obs.height / 2;
+        ((obs_center_x as i32 - mid_x as i32).pow(2) + (obs_center_y as i32 - mid_y as i32).pow(2))
+            as u32
+    });
+
+    if let Some(obstacle) = main_obstacle {
+        // Route around the obstacle
+        let obs_center_y = obstacle.y + obstacle.height / 2;
+
+        if dx.abs() > dy.abs() {
+            // Mostly horizontal - route above or below
+            if mid_y < obs_center_y {
+                // Route above
+                let detour_y = obstacle.y.saturating_sub(30);
+                (
+                    from_x + dx.unsigned_abs() / 3,
+                    detour_y,
+                    to_x - dx.unsigned_abs() / 3,
+                    detour_y,
+                )
+            } else {
+                // Route below
+                let detour_y = obstacle.y + obstacle.height + 30;
+                (
+                    from_x + dx.unsigned_abs() / 3,
+                    detour_y,
+                    to_x - dx.unsigned_abs() / 3,
+                    detour_y,
+                )
+            }
+        } else {
+            // Mostly vertical - route left or right
+            let obs_center_x = obstacle.x + obstacle.width / 2;
+            if mid_x < obs_center_x {
+                // Route left
+                let detour_x = obstacle.x.saturating_sub(30);
+                (
+                    detour_x,
+                    from_y + dy.unsigned_abs() / 3,
+                    detour_x,
+                    to_y - dy.unsigned_abs() / 3,
+                )
+            } else {
+                // Route right
+                let detour_x = obstacle.x + obstacle.width + 30;
+                (
+                    detour_x,
+                    from_y + dy.unsigned_abs() / 3,
+                    detour_x,
+                    to_y - dy.unsigned_abs() / 3,
+                )
+            }
+        }
+    } else {
+        // Fallback to simple curve
+        (
+            from_x + dx.unsigned_abs() / 3,
+            from_y,
+            to_x - dx.unsigned_abs() / 3,
+            to_y,
+        )
+    }
+}
+
+/// Calculates the connection point on an entity's edge.
+fn calculate_connection_point(
+    entity: &EntityPosition,
+    other: &EntityPosition,
+    is_source: bool,
+) -> (u32, u32) {
+    let entity_center_x = entity.x + entity.width / 2;
+    let entity_center_y = entity.y + entity.height / 2;
+    let other_center_x = other.x + other.width / 2;
+    let other_center_y = other.y + other.height / 2;
+
+    // Calculate angle from entity center to other center
+    let dx = other_center_x as i32 - entity_center_x as i32;
+    let dy = other_center_y as i32 - entity_center_y as i32;
+
+    // Determine primary direction based on angle
+    let abs_dx = dx.abs();
+    let abs_dy = dy.abs();
+
+    if is_source {
+        // For source, exit toward target
+        if abs_dx > abs_dy {
+            // Primarily horizontal
+            if dx > 0 {
+                // Exit right
+                (entity.x + entity.width, entity_center_y)
+            } else {
+                // Exit left
+                (entity.x, entity_center_y)
+            }
+        } else {
+            // Primarily vertical
+            if dy > 0 {
+                // Exit bottom
+                (entity_center_x, entity.y + entity.height)
+            } else {
+                // Exit top
+                (entity_center_x, entity.y)
+            }
+        }
+    } else {
+        // For target, enter from direction of source
+        if abs_dx > abs_dy {
+            // Primarily horizontal
+            if dx > 0 {
+                // Enter from left
+                (entity.x, entity_center_y)
+            } else {
+                // Enter from right
+                (entity.x + entity.width, entity_center_y)
+            }
+        } else {
+            // Primarily vertical
+            if dy > 0 {
+                // Enter from top
+                (entity_center_x, entity.y)
+            } else {
+                // Enter from bottom
+                (entity_center_x, entity.y + entity.height)
+            }
+        }
+    }
+}
+
+/// Renders a routed path as an SVG path element with an arrowhead.
+#[allow(dead_code)] // Will be used once libavoid is integrated
+fn render_routed_path(route: &super::routing_types::RoutePath) -> String {
+    let svg_path = route.to_svg_path();
+    format!(
+        r##"  <path d="{}" fill="none" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)" />
+"##,
+        svg_path
+    )
+}
+
+// TODO: Debug function removed - will be replaced with libavoid debug info
 
 /// Formats an entity name by inserting spaces before capital letters.
 /// E.g., "LoginScreen" becomes "Login Screen", "UserProfileScreen" becomes "User Profile Screen"
@@ -841,6 +1424,16 @@ struct EntityLookups<'a> {
     projection_lookup: HashMap<String, &'a yaml_types::ProjectionDefinition>,
     query_lookup: HashMap<String, &'a yaml_types::QueryDefinition>,
     automation_lookup: HashMap<String, &'a yaml_types::AutomationDefinition>,
+}
+
+/// Position information for a rendered entity.
+#[derive(Debug, Clone)]
+struct EntityPosition {
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+    slice_index: usize,
 }
 
 /// Context for rendering entities.
