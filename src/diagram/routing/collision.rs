@@ -96,32 +96,39 @@ impl CollisionDetector {
     ) -> Option<CollisionRange> {
         match direction {
             LeadDirection::North => {
-                // Moving up - check if entity is above us (has smaller Y)
-                if start.x >= bounds.x && start.x <= bounds.right() && start.y > bounds.y {
+                // Moving up - check if entity intersects our vertical line and is in our path
+                let x_intersects = start.x >= bounds.x && start.x <= bounds.right();
+                let in_path = bounds.y < start.y;
+
+                if x_intersects && in_path {
+                    // Entity is above us and intersects our vertical line
                     Some(CollisionRange::new(bounds.y, bounds.bottom()))
                 } else {
                     None
                 }
             }
             LeadDirection::South => {
-                // Moving down - check if entity is below us (has larger Y)
-                if start.x >= bounds.x && start.x <= bounds.right() && start.y < bounds.bottom() {
+                // Moving down - check if entity intersects our vertical line and is in our path
+                if start.x >= bounds.x && start.x <= bounds.right() && bounds.bottom() > start.y {
+                    // Entity is below us and intersects our vertical line
                     Some(CollisionRange::new(bounds.y, bounds.bottom()))
                 } else {
                     None
                 }
             }
             LeadDirection::East => {
-                // Moving right - check if entity is to our right (has larger X)
-                if start.y >= bounds.y && start.y <= bounds.bottom() && start.x < bounds.right() {
+                // Moving right - check if entity intersects our horizontal line and is in our path
+                if start.y >= bounds.y && start.y <= bounds.bottom() && bounds.x > start.x {
+                    // Entity is to our right and intersects our horizontal line
                     Some(CollisionRange::new(bounds.x, bounds.right()))
                 } else {
                     None
                 }
             }
             LeadDirection::West => {
-                // Moving left - check if entity is to our left (has smaller X)
-                if start.y >= bounds.y && start.y <= bounds.bottom() && start.x > bounds.x {
+                // Moving left - check if entity intersects our horizontal line and is in our path
+                if start.y >= bounds.y && start.y <= bounds.bottom() && bounds.right() < start.x {
+                    // Entity is to our left and intersects our horizontal line
                     Some(CollisionRange::new(bounds.x, bounds.right()))
                 } else {
                     None

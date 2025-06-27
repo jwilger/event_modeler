@@ -831,8 +831,14 @@ fn render_connections(
                     router.route_with_debug(&from_rect, &to_rect, &obstacles, &canvas_bounds);
 
                 if let Some(route) = route_result {
-                    // Render the routed path
-                    svg.push_str(&render_routed_path(&route));
+                    // Check if route is valid (at least 2 nodes for a proper path)
+                    if route.nodes.len() >= 2 {
+                        // Render the routed path
+                        svg.push_str(&render_routed_path(&route));
+                    } else {
+                        // Use fallback for invalid routes with only 1 node
+                        svg.push_str(&render_straight_arrow(from_pos, to_pos));
+                    }
                 } else {
                     // Fallback to straight arrow if routing fails
                     svg.push_str(&render_straight_arrow(from_pos, to_pos));
