@@ -794,18 +794,24 @@ fn calculate_entity_dimensions(name: &str, _entity_type: &str) -> EntityDimensio
     }
 }
 
-/// Renders a single view box with proper text wrapping.
-fn render_view_box(x: u32, y: u32, dimensions: &EntityDimensions) -> String {
+/// Renders a box with text, using the specified colors.
+fn render_box_with_text(
+    x: u32,
+    y: u32,
+    dimensions: &EntityDimensions,
+    background_color: &str,
+    text_color: &str,
+) -> String {
     let mut svg = String::new();
 
     // Draw the box
     svg.push_str(&format!(
-        r#"  <rect x="{x}" y="{y}" width="{}" height="{}" fill="{VIEW_BACKGROUND_COLOR}" stroke="{SWIMLANE_BORDER_COLOR}" stroke-width="1"/>
+        r#"  <rect x="{x}" y="{y}" width="{}" height="{}" fill="{background_color}" stroke="{SWIMLANE_BORDER_COLOR}" stroke-width="1"/>
 "#,
         dimensions.width, dimensions.height
     ));
 
-    // Draw the entity name with multiple lines (no label needed)
+    // Draw the entity name with multiple lines
     let line_height = (ENTITY_NAME_FONT_SIZE as f32 * 1.2) as u32;
     let text_center_x = x + dimensions.width / 2;
 
@@ -816,7 +822,7 @@ fn render_view_box(x: u32, y: u32, dimensions: &EntityDimensions) -> String {
     for (i, line) in dimensions.text_lines.iter().enumerate() {
         let text_y = text_start_y + (i as u32 * line_height);
         svg.push_str(&format!(
-            r#"  <text x="{text_center_x}" y="{text_y}" font-family="Arial, sans-serif" font-size="{ENTITY_NAME_FONT_SIZE}" fill="{TEXT_COLOR}" text-anchor="middle">{line}</text>
+            r#"  <text x="{text_center_x}" y="{text_y}" font-family="Arial, sans-serif" font-size="{ENTITY_NAME_FONT_SIZE}" fill="{text_color}" text-anchor="middle">{line}</text>
 "#
         ));
     }
@@ -824,96 +830,22 @@ fn render_view_box(x: u32, y: u32, dimensions: &EntityDimensions) -> String {
     svg
 }
 
+/// Renders a single view box with proper text wrapping.
+fn render_view_box(x: u32, y: u32, dimensions: &EntityDimensions) -> String {
+    render_box_with_text(x, y, dimensions, VIEW_BACKGROUND_COLOR, TEXT_COLOR)
+}
+
 /// Renders a single command box with proper text wrapping.
 fn render_command_box(x: u32, y: u32, dimensions: &EntityDimensions) -> String {
-    let mut svg = String::new();
-
-    // Draw the box (blue for commands)
-    svg.push_str(&format!(
-        r#"  <rect x="{x}" y="{y}" width="{}" height="{}" fill="{COMMAND_BACKGROUND_COLOR}" stroke="{SWIMLANE_BORDER_COLOR}" stroke-width="1"/>
-"#,
-        dimensions.width, dimensions.height
-    ));
-
-    // Draw the entity name with multiple lines (no label needed)
-    let line_height = (ENTITY_NAME_FONT_SIZE as f32 * 1.2) as u32;
-    let text_center_x = x + dimensions.width / 2;
-
-    // Center the text vertically in the box
-    let total_text_height = dimensions.text_lines.len() as u32 * line_height;
-    let text_start_y = y + (dimensions.height - total_text_height) / 2 + ENTITY_NAME_FONT_SIZE;
-
-    // Use white text on blue background for better contrast
-    for (i, line) in dimensions.text_lines.iter().enumerate() {
-        let text_y = text_start_y + (i as u32 * line_height);
-        svg.push_str(&format!(
-            "  <text x=\"{}\" y=\"{}\" font-family=\"Arial, sans-serif\" font-size=\"{}\" fill=\"#ffffff\" text-anchor=\"middle\">{}</text>\n",
-            text_center_x, text_y, ENTITY_NAME_FONT_SIZE, line
-        ));
-    }
-
-    svg
+    render_box_with_text(x, y, dimensions, COMMAND_BACKGROUND_COLOR, "#ffffff")
 }
 
 /// Renders a single event box with proper text wrapping.
 fn render_event_box(x: u32, y: u32, dimensions: &EntityDimensions) -> String {
-    let mut svg = String::new();
-
-    // Draw the box (purple for events)
-    svg.push_str(&format!(
-        r#"  <rect x="{x}" y="{y}" width="{}" height="{}" fill="{EVENT_BACKGROUND_COLOR}" stroke="{SWIMLANE_BORDER_COLOR}" stroke-width="1"/>
-"#,
-        dimensions.width, dimensions.height
-    ));
-
-    // Draw the entity name with multiple lines (no label needed)
-    let line_height = (ENTITY_NAME_FONT_SIZE as f32 * 1.2) as u32;
-    let text_center_x = x + dimensions.width / 2;
-
-    // Center the text vertically in the box
-    let total_text_height = dimensions.text_lines.len() as u32 * line_height;
-    let text_start_y = y + (dimensions.height - total_text_height) / 2 + ENTITY_NAME_FONT_SIZE;
-
-    // Use white text on purple background for better contrast
-    for (i, line) in dimensions.text_lines.iter().enumerate() {
-        let text_y = text_start_y + (i as u32 * line_height);
-        svg.push_str(&format!(
-            "  <text x=\"{}\" y=\"{}\" font-family=\"Arial, sans-serif\" font-size=\"{}\" fill=\"#ffffff\" text-anchor=\"middle\">{}</text>\n",
-            text_center_x, text_y, ENTITY_NAME_FONT_SIZE, line
-        ));
-    }
-
-    svg
+    render_box_with_text(x, y, dimensions, EVENT_BACKGROUND_COLOR, "#ffffff")
 }
 
 /// Renders a single projection box with proper text wrapping.
 fn render_projection_box(x: u32, y: u32, dimensions: &EntityDimensions) -> String {
-    let mut svg = String::new();
-
-    // Draw the box (yellow for projections)
-    svg.push_str(&format!(
-        r#"  <rect x="{x}" y="{y}" width="{}" height="{}" fill="{PROJECTION_BACKGROUND_COLOR}" stroke="{SWIMLANE_BORDER_COLOR}" stroke-width="1"/>
-"#,
-        dimensions.width, dimensions.height
-    ));
-
-    // Draw the entity name with multiple lines (no label needed)
-    let line_height = (ENTITY_NAME_FONT_SIZE as f32 * 1.2) as u32;
-    let text_center_x = x + dimensions.width / 2;
-
-    // Center the text vertically in the box
-    let total_text_height = dimensions.text_lines.len() as u32 * line_height;
-    let text_start_y = y + (dimensions.height - total_text_height) / 2 + ENTITY_NAME_FONT_SIZE;
-
-    // Use black text on yellow background for better contrast
-    for (i, line) in dimensions.text_lines.iter().enumerate() {
-        let text_y = text_start_y + (i as u32 * line_height);
-        svg.push_str(&format!(
-            r#"  <text x="{}" y="{}" font-family="Arial, sans-serif" font-size="{}" fill="{TEXT_COLOR}" text-anchor="middle">{}</text>
-"#,
-            text_center_x, text_y, ENTITY_NAME_FONT_SIZE, line
-        ));
-    }
-
-    svg
+    render_box_with_text(x, y, dimensions, PROJECTION_BACKGROUND_COLOR, TEXT_COLOR)
 }
