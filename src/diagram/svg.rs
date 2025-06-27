@@ -329,8 +329,15 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
 
     // SVG header
     svg_content.push_str(&format!(
-        r#"<?xml version="1.0" encoding="UTF-8"?>
+        r##"<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {} {}">
+  <!-- Arrow marker definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333333" />
+    </marker>
+  </defs>
+  
   <!-- Canvas background -->
   <rect x="0" y="0" width="{}" height="{}" fill="{}" stroke="none"/>
   
@@ -338,7 +345,7 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
   <text x="{}" y="{}" font-family="Arial, sans-serif" font-size="{}" font-weight="normal" fill="{}">
     {}
   </text>
-"#,
+"##,
         total_width,
         total_height,
         total_width,
@@ -381,7 +388,15 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
         start_x: SWIMLANE_LABEL_WIDTH,
         entity_dimensions_map: &entity_dimensions_map,
     };
-    svg_content.push_str(&render_entities(&render_ctx));
+    let (entities_svg, entity_positions) = render_entities(&render_ctx);
+    svg_content.push_str(&entities_svg);
+
+    // Render connections (arrows between entities)
+    svg_content.push_str(&render_connections(
+        slices,
+        &entity_positions,
+        &entity_dimensions_map,
+    ));
 
     // Close SVG
     svg_content.push_str("</svg>");
@@ -620,8 +635,10 @@ fn process_entity_reference<'a>(
 }
 
 /// Renders all entities (views, commands, events, etc.) in their respective positions.
-fn render_entities(ctx: &EntityRenderContext) -> String {
+/// Returns the SVG string and a map of entity names to their positions.
+fn render_entities(ctx: &EntityRenderContext) -> (String, HashMap<String, EntityPosition>) {
     let mut svg = String::new();
+    let mut entity_positions = HashMap::new();
 
     svg.push_str("  <!-- Entities -->\n");
 
@@ -726,6 +743,17 @@ fn render_entities(ctx: &EntityRenderContext) -> String {
                 // Center entity vertically in swimlane
                 let entity_y = swimlane_y + (swimlane_height - dimensions.height) / 2;
 
+                // Store entity position
+                entity_positions.insert(
+                    entity_name.clone(),
+                    EntityPosition {
+                        x: entity_x,
+                        y: entity_y,
+                        width: dimensions.width,
+                        height: dimensions.height,
+                    },
+                );
+
                 // Determine entity type and render appropriate box
                 if lookups.view_lookup.contains_key(entity_name) {
                     svg.push_str(&render_view_box(entity_x, entity_y, dimensions));
@@ -744,7 +772,101 @@ fn render_entities(ctx: &EntityRenderContext) -> String {
         }
     }
 
+    (svg, entity_positions)
+}
+
+/// Renders connection arrows between entities based on slice definitions.
+fn render_connections(
+    slices: &[yaml_types::Slice],
+    entity_positions: &HashMap<String, EntityPosition>,
+    _entity_dimensions_map: &HashMap<String, EntityDimensions>,
+) -> String {
+    let mut svg = String::new();
+
+    svg.push_str("  <!-- Connections -->\n");
+
+    // Process connections from each slice
+    for slice in slices {
+        for connection in slice.connections.iter() {
+            // Extract entity names from references
+            let from_name = extract_entity_name(&connection.from);
+            let to_name = extract_entity_name(&connection.to);
+
+            // Get positions for both entities
+            if let (Some(from_pos), Some(to_pos)) = (
+                entity_positions.get(&from_name),
+                entity_positions.get(&to_name),
+            ) {
+                // Calculate connection points (center of edges)
+                let (from_x, from_y) = calculate_connection_point(from_pos, to_pos, true);
+                let (to_x, to_y) = calculate_connection_point(to_pos, from_pos, false);
+
+                // Draw arrow line
+                svg.push_str(&format!(
+                    r##"  <line x1="{}" y1="{}" x2="{}" y2="{}" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)" />
+"##,
+                    from_x, from_y, to_x, to_y
+                ));
+            }
+        }
+    }
+
     svg
+}
+
+/// Extracts the base entity name from an EntityReference.
+fn extract_entity_name(entity_ref: &yaml_types::EntityReference) -> String {
+    match entity_ref {
+        yaml_types::EntityReference::View(view_path) => {
+            let path_string = view_path.clone().into_inner();
+            let path_str = path_string.as_str();
+            path_str.split('.').next().unwrap_or(path_str).to_string()
+        }
+        yaml_types::EntityReference::Command(command_name) => {
+            command_name.clone().into_inner().as_str().to_string()
+        }
+        yaml_types::EntityReference::Event(event_name) => {
+            event_name.clone().into_inner().as_str().to_string()
+        }
+        yaml_types::EntityReference::Projection(projection_name) => {
+            projection_name.clone().into_inner().as_str().to_string()
+        }
+        yaml_types::EntityReference::Query(query_name) => {
+            query_name.clone().into_inner().as_str().to_string()
+        }
+        yaml_types::EntityReference::Automation(automation_name) => {
+            automation_name.clone().into_inner().as_str().to_string()
+        }
+    }
+}
+
+/// Calculates the connection point on an entity's edge.
+/// For the source entity (is_source=true), calculates exit point.
+/// For the target entity (is_source=false), calculates entry point.
+fn calculate_connection_point(
+    entity: &EntityPosition,
+    other: &EntityPosition,
+    _is_source: bool,
+) -> (u32, u32) {
+    let entity_center_x = entity.x + entity.width / 2;
+    let entity_center_y = entity.y + entity.height / 2;
+    let other_center_x = other.x + other.width / 2;
+    let other_center_y = other.y + other.height / 2;
+
+    // Determine which edge to use based on relative positions
+    if other_center_x > entity_center_x + entity.width / 4 {
+        // Connect from right edge
+        (entity.x + entity.width, entity_center_y)
+    } else if other_center_x < entity_center_x - entity.width / 4 {
+        // Connect from left edge
+        (entity.x, entity_center_y)
+    } else if other_center_y > entity_center_y {
+        // Connect from bottom edge
+        (entity_center_x, entity.y + entity.height)
+    } else {
+        // Connect from top edge
+        (entity_center_x, entity.y)
+    }
 }
 
 /// Formats an entity name by inserting spaces before capital letters.
@@ -841,6 +963,15 @@ struct EntityLookups<'a> {
     projection_lookup: HashMap<String, &'a yaml_types::ProjectionDefinition>,
     query_lookup: HashMap<String, &'a yaml_types::QueryDefinition>,
     automation_lookup: HashMap<String, &'a yaml_types::AutomationDefinition>,
+}
+
+/// Position information for a rendered entity.
+#[derive(Debug, Clone)]
+struct EntityPosition {
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
 }
 
 /// Context for rendering entities.
