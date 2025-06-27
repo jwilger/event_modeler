@@ -253,6 +253,26 @@ impl LeadLineGenerator {
         // Convert collisions to ranges
         let collision_ranges: Vec<_> = collisions.iter().map(|(_, range)| *range).collect();
 
+        // Create modified collision data that starts from the minimum extension point
+        let extended_collision_data = CollisionData {
+            start_point: match direction {
+                LeadDirection::North | LeadDirection::South => min_extension_point.y,
+                LeadDirection::East | LeadDirection::West => min_extension_point.x,
+            },
+            start_x: min_extension_point.x,
+            start_y: min_extension_point.y,
+            end_x: collision_data.end_x,
+            end_y: collision_data.end_y,
+            maximum: collision_data.maximum,
+            opposite_side: collision_data.opposite_side,
+            is_vertical: collision_data.is_vertical,
+        };
+
+        // Process collisions to get line segments starting from minimum extension point
+        let segments = self
+            .collision_detector
+            .process_collisions(&extended_collision_data, &collision_ranges);
+
         // Always add the minimum extension segment first
         lead_lines.push(LeadLine {
             start: adjusted_start,
@@ -261,22 +281,9 @@ impl LeadLineGenerator {
             source_entity_id: entity.id.clone(),
         });
 
-        // Process collisions to get additional line segments beyond minimum extension
-        let segments = self
-            .collision_detector
-            .process_collisions(&collision_data, &collision_ranges);
-
-        // Add collision-based segments (these will be from min_extension_point onwards)
+        // Add the collision-based segments (these will be continuous from min_extension_point)
         for (start_point, end_point) in segments {
-            // Only add segments that start from our minimum extension point or beyond
-            let starts_from_min_ext = match direction {
-                LeadDirection::North => start_point.y <= min_extension_point.y,
-                LeadDirection::South => start_point.y >= min_extension_point.y,
-                LeadDirection::East => start_point.x >= min_extension_point.x,
-                LeadDirection::West => start_point.x <= min_extension_point.x,
-            };
-
-            if starts_from_min_ext && start_point != end_point {
+            if start_point != end_point {
                 lead_lines.push(LeadLine {
                     start: start_point,
                     end: end_point,

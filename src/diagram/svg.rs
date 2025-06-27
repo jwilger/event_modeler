@@ -918,8 +918,56 @@ fn render_straight_arrow(from: &EntityPosition, to: &EntityPosition) -> String {
     let (from_x, from_y) = calculate_connection_point(from, to, true);
     let (to_x, to_y) = calculate_connection_point(to, from, false);
 
-    // Create an orthogonal path instead of a diagonal line
-    render_orthogonal_fallback(from_x, from_y, to_x, to_y)
+    // Add minimum lead line extensions for proper spacing
+    let min_extension = 30; // Match the routing system's minimum extension
+
+    // Calculate extended start and end points
+    let (extended_from_x, extended_from_y) =
+        extend_connection_point(from_x, from_y, from, to, min_extension, true);
+    let (extended_to_x, extended_to_y) =
+        extend_connection_point(to_x, to_y, to, from, min_extension, false);
+
+    // Create an orthogonal path with proper extensions
+    render_orthogonal_fallback(
+        extended_from_x,
+        extended_from_y,
+        extended_to_x,
+        extended_to_y,
+    )
+}
+
+/// Extends a connection point away from an entity by the specified distance.
+fn extend_connection_point(
+    x: u32,
+    y: u32,
+    entity: &EntityPosition,
+    _other: &EntityPosition,
+    extension: u32,
+    _is_source: bool,
+) -> (u32, u32) {
+    // Determine which edge this connection point is on
+    let on_left = x == entity.x;
+    let on_right = x == entity.x + entity.width;
+    let on_top = y == entity.y;
+    let on_bottom = y == entity.y + entity.height;
+
+    // Extend away from the entity
+    if on_left {
+        // Left edge - extend leftward
+        (x.saturating_sub(extension), y)
+    } else if on_right {
+        // Right edge - extend rightward
+        (x + extension, y)
+    } else if on_top {
+        // Top edge - extend upward
+        (x, y.saturating_sub(extension))
+    } else if on_bottom {
+        // Bottom edge - extend downward
+        (x, y + extension)
+    } else {
+        // Fallback - no extension
+        (x, y)
+    }
 }
 
 /// Creates a simple orthogonal path between two points as a fallback.
