@@ -882,60 +882,20 @@ fn should_use_curve(
     to: &EntityPosition,
     entity_positions: &HashMap<String, EntityPosition>,
 ) -> bool {
-    // Check if entities are directly aligned (same row or column)
-    let from_center_x = from.x + from.width / 2;
-    let from_center_y = from.y + from.height / 2;
-    let to_center_x = to.x + to.width / 2;
-    let to_center_y = to.y + to.height / 2;
+    let (from_x, from_y) = calculate_connection_point(from, to, true);
+    let (to_x, to_y) = calculate_connection_point(to, from, false);
 
-    // If directly below or directly to the right, can use straight line
-    let x_diff = if from_center_x > to_center_x {
-        from_center_x - to_center_x
+    // Check if perfectly vertical or horizontal
+    let is_vertical = (from_x as i32 - to_x as i32).abs() < 5;
+    let is_horizontal = (from_y as i32 - to_y as i32).abs() < 5;
+
+    if is_vertical || is_horizontal {
+        // Check if there are any entities blocking the straight path
+        let entities_in_path =
+            find_entities_in_path(from_x, from_y, to_x, to_y, from, to, entity_positions);
+        !entities_in_path.is_empty()
     } else {
-        to_center_x - from_center_x
-    };
-    let y_diff = if from_center_y > to_center_y {
-        from_center_y - to_center_y
-    } else {
-        to_center_y - from_center_y
-    };
-
-    let is_directly_below = x_diff < 10 && to_center_y > from_center_y;
-    let is_directly_right = y_diff < 10 && to_center_x > from_center_x;
-
-    if is_directly_below || is_directly_right {
-        // Check if there are any entities in between
-        for pos in entity_positions.values() {
-            // Skip the source and target entities
-            if pos.x == from.x && pos.y == from.y {
-                continue;
-            }
-            if pos.x == to.x && pos.y == to.y {
-                continue;
-            }
-
-            // Check if entity is in the path
-            if is_directly_below {
-                let in_vertical_path = (pos.x <= from_center_x
-                    && from_center_x <= pos.x + pos.width)
-                    && pos.y > from.y + from.height
-                    && pos.y < to.y;
-                if in_vertical_path {
-                    return true; // Need curve to avoid
-                }
-            } else if is_directly_right {
-                let in_horizontal_path = (pos.y <= from_center_y
-                    && from_center_y <= pos.y + pos.height)
-                    && pos.x > from.x + from.width
-                    && pos.x < to.x;
-                if in_horizontal_path {
-                    return true; // Need curve to avoid
-                }
-            }
-        }
-        false
-    } else {
-        // Not directly aligned, use curve
+        // Not aligned, always use curve
         true
     }
 }
@@ -956,92 +916,253 @@ fn render_straight_arrow(from: &EntityPosition, to: &EntityPosition) -> String {
 fn render_curved_arrow(
     from: &EntityPosition,
     to: &EntityPosition,
-    _entity_positions: &HashMap<String, EntityPosition>,
+    entity_positions: &HashMap<String, EntityPosition>,
 ) -> String {
     let (from_x, from_y) = calculate_connection_point(from, to, true);
     let (to_x, to_y) = calculate_connection_point(to, from, false);
+
+    // Calculate the angle for the final approach to ensure arrow points to center
+    let _to_center_x = to.x + to.width / 2;
+    let to_center_y = to.y + to.height / 2;
 
     // Calculate control points for bezier curve
     let dx = to_x as i32 - from_x as i32;
     let dy = to_y as i32 - from_y as i32;
 
-    // Determine curve control points based on relative positions
-    let (cx1, cy1, cx2, cy2) = if from.slice_index < to.slice_index {
+    // Check if we need to avoid any entities
+    let entities_to_avoid =
+        find_entities_in_path(from_x, from_y, to_x, to_y, from, to, entity_positions);
+
+    // Determine curve control points based on relative positions and obstacles
+    let (cx1, cy1, cx2, cy2) = if !entities_to_avoid.is_empty() {
+        // Complex routing to avoid entities
+        calculate_avoidance_curve(from_x, from_y, to_x, to_y, from, to, &entities_to_avoid)
+    } else if from.slice_index < to.slice_index {
         // Moving right across slices
         if dy.abs() < 20 {
-            // Same row - simple horizontal curve
-            let curve_height = 30;
+            // Same row - gentle horizontal curve
+            let _curve_height = 40;
             (
-                from_x + dx.unsigned_abs() / 3,
-                from_y - curve_height,
-                to_x - dx.unsigned_abs() / 3,
-                to_y - curve_height,
-            )
-        } else if dy > 0 {
-            // Going down and right
-            let offset_x = dx.unsigned_abs() / 3;
-            let offset_y = dy.unsigned_abs() / 4;
-            (
-                from_x + offset_x,
-                from_y + offset_y,
-                to_x - offset_x,
-                to_y - offset_y,
+                from_x + dx.unsigned_abs() / 2,
+                from_y,
+                to_x - dx.unsigned_abs() / 2,
+                to_y,
             )
         } else {
-            // Going up and right
-            let offset_x = dx.unsigned_abs() / 3;
-            let offset_y = dy.unsigned_abs() / 4;
-            (
-                from_x + offset_x,
-                from_y - offset_y,
-                to_x - offset_x,
-                to_y + offset_y,
-            )
+            // Diagonal movement
+            (from_x + dx.unsigned_abs() / 2, from_y, to_x - 20, to_y)
         }
     } else if from.slice_index == to.slice_index {
-        // Same slice - vertical or minimal horizontal movement
+        // Same slice
         if dx.abs() < 20 {
-            // Vertical connection in same column
-            let curve_width = 40;
+            // Vertical in same column - curve out to avoid overlap
+            let curve_width = 60;
             if dy > 0 {
-                // Going down - curve to the right
-                (from_x + curve_width, from_y, to_x + curve_width, to_y)
+                (
+                    from_x + curve_width,
+                    from_y + 20,
+                    to_x + curve_width,
+                    to_y - 20,
+                )
             } else {
-                // Going up - curve to the left
-                (from_x - curve_width, from_y, to_x - curve_width, to_y)
+                (
+                    from_x - curve_width,
+                    from_y - 20,
+                    to_x - curve_width,
+                    to_y + 20,
+                )
             }
         } else {
             // Horizontal within same slice
-            let offset = (dx.abs() / 2).min(50) as u32;
-            (from_x + offset, from_y, to_x - offset, to_y)
+            (from_x + 20, from_y, to_x - 20, to_y)
         }
     } else {
         // Moving left (back to previous slice)
-        let curve_offset = 60;
-        if dy > 0 {
-            // Going down and left
-            (
-                from_x - curve_offset,
-                from_y + dy.unsigned_abs() / 3,
-                to_x + curve_offset,
-                to_y - dy.unsigned_abs() / 3,
-            )
+        let _mid_x = (from_x + to_x) / 2;
+        let mid_y = (from_y + to_y) / 2;
+        (from_x - 40, mid_y, to_x + 40, mid_y)
+    };
+
+    // Ensure the final segment points toward the center of the target
+    let adjusted_cx2 = cx2;
+    let adjusted_cy2 = if (to_center_y as i32 - to_y as i32).abs() > 5 {
+        // Adjust control point to aim at center
+        let offset = (to_center_y as i32 - to_y as i32) / 2;
+        if offset > 0 {
+            to_y + offset as u32
         } else {
-            // Going up and left
-            (
-                from_x - curve_offset,
-                from_y - dy.unsigned_abs() / 3,
-                to_x + curve_offset,
-                to_y + dy.unsigned_abs() / 3,
-            )
+            to_y.saturating_sub((-offset) as u32)
         }
+    } else {
+        cy2
     };
 
     format!(
         r##"  <path d="M {} {} C {} {}, {} {}, {} {}" stroke="#333333" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
 "##,
-        from_x, from_y, cx1, cy1, cx2, cy2, to_x, to_y
+        from_x, from_y, cx1, cy1, adjusted_cx2, adjusted_cy2, to_x, to_y
     )
+}
+
+/// Find entities that are in the path between two points
+fn find_entities_in_path<'a>(
+    from_x: u32,
+    from_y: u32,
+    to_x: u32,
+    to_y: u32,
+    from_entity: &EntityPosition,
+    to_entity: &EntityPosition,
+    entity_positions: &'a HashMap<String, EntityPosition>,
+) -> Vec<&'a EntityPosition> {
+    let mut obstacles = Vec::new();
+
+    // Create a bounding box for the path
+    let min_x = from_x.min(to_x);
+    let max_x = from_x.max(to_x);
+    let min_y = from_y.min(to_y);
+    let max_y = from_y.max(to_y);
+
+    for pos in entity_positions.values() {
+        // Skip source and target
+        if (pos.x == from_entity.x && pos.y == from_entity.y)
+            || (pos.x == to_entity.x && pos.y == to_entity.y)
+        {
+            continue;
+        }
+
+        // Check if entity overlaps with path bounding box
+        if pos.x + pos.width >= min_x
+            && pos.x <= max_x
+            && pos.y + pos.height >= min_y
+            && pos.y <= max_y
+        {
+            // More precise check if entity is actually in the path
+            if is_entity_in_line_path(from_x, from_y, to_x, to_y, pos) {
+                obstacles.push(pos);
+            }
+        }
+    }
+
+    obstacles
+}
+
+/// Check if an entity intersects with a line path
+fn is_entity_in_line_path(x1: u32, y1: u32, x2: u32, y2: u32, entity: &EntityPosition) -> bool {
+    // Simple rectangle-line intersection check
+    let entity_left = entity.x;
+    let entity_right = entity.x + entity.width;
+    let entity_top = entity.y;
+    let entity_bottom = entity.y + entity.height;
+
+    let dx = x2 as i32 - x1 as i32;
+    let dy = y2 as i32 - y1 as i32;
+
+    // Check for zero-length line
+    if dx == 0 && dy == 0 {
+        return false;
+    }
+
+    // If line is mostly horizontal
+    if dx.abs() > dy.abs() && dx != 0 {
+        let y_at_left = y1 as i32 + ((entity_left as i32 - x1 as i32) * dy) / dx;
+        let y_at_right = y1 as i32 + ((entity_right as i32 - x1 as i32) * dy) / dx;
+
+        (y_at_left >= entity_top as i32 && y_at_left <= entity_bottom as i32)
+            || (y_at_right >= entity_top as i32 && y_at_right <= entity_bottom as i32)
+    } else if dy != 0 {
+        // Line is mostly vertical
+        let x_at_top = x1 as i32 + ((entity_top as i32 - y1 as i32) * dx) / dy;
+        let x_at_bottom = x1 as i32 + ((entity_bottom as i32 - y1 as i32) * dx) / dy;
+
+        (x_at_top >= entity_left as i32 && x_at_top <= entity_right as i32)
+            || (x_at_bottom >= entity_left as i32 && x_at_bottom <= entity_right as i32)
+    } else {
+        false
+    }
+}
+
+/// Calculate curve control points to avoid obstacles
+fn calculate_avoidance_curve(
+    from_x: u32,
+    from_y: u32,
+    to_x: u32,
+    to_y: u32,
+    _from_entity: &EntityPosition,
+    _to_entity: &EntityPosition,
+    obstacles: &[&EntityPosition],
+) -> (u32, u32, u32, u32) {
+    // Simple avoidance: route around the side with more space
+    let dx = to_x as i32 - from_x as i32;
+    let dy = to_y as i32 - from_y as i32;
+
+    // Find the main obstacle (closest to the midpoint)
+    let mid_x = (from_x + to_x) / 2;
+    let mid_y = (from_y + to_y) / 2;
+
+    let main_obstacle = obstacles.iter().min_by_key(|obs| {
+        let obs_center_x = obs.x + obs.width / 2;
+        let obs_center_y = obs.y + obs.height / 2;
+        ((obs_center_x as i32 - mid_x as i32).pow(2) + (obs_center_y as i32 - mid_y as i32).pow(2))
+            as u32
+    });
+
+    if let Some(obstacle) = main_obstacle {
+        // Route around the obstacle
+        let obs_center_y = obstacle.y + obstacle.height / 2;
+
+        if dx.abs() > dy.abs() {
+            // Mostly horizontal - route above or below
+            if mid_y < obs_center_y {
+                // Route above
+                let detour_y = obstacle.y.saturating_sub(30);
+                (
+                    from_x + dx.unsigned_abs() / 3,
+                    detour_y,
+                    to_x - dx.unsigned_abs() / 3,
+                    detour_y,
+                )
+            } else {
+                // Route below
+                let detour_y = obstacle.y + obstacle.height + 30;
+                (
+                    from_x + dx.unsigned_abs() / 3,
+                    detour_y,
+                    to_x - dx.unsigned_abs() / 3,
+                    detour_y,
+                )
+            }
+        } else {
+            // Mostly vertical - route left or right
+            let obs_center_x = obstacle.x + obstacle.width / 2;
+            if mid_x < obs_center_x {
+                // Route left
+                let detour_x = obstacle.x.saturating_sub(30);
+                (
+                    detour_x,
+                    from_y + dy.unsigned_abs() / 3,
+                    detour_x,
+                    to_y - dy.unsigned_abs() / 3,
+                )
+            } else {
+                // Route right
+                let detour_x = obstacle.x + obstacle.width + 30;
+                (
+                    detour_x,
+                    from_y + dy.unsigned_abs() / 3,
+                    detour_x,
+                    to_y - dy.unsigned_abs() / 3,
+                )
+            }
+        }
+    } else {
+        // Fallback to simple curve
+        (
+            from_x + dx.unsigned_abs() / 3,
+            from_y,
+            to_x - dx.unsigned_abs() / 3,
+            to_y,
+        )
+    }
 }
 
 /// Calculates the connection point on an entity's edge.
