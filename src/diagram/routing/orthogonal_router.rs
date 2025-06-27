@@ -9,6 +9,23 @@ use super::pathfinding::{DijkstraPathfinder, GraphPath};
 use super::{Point, Rectangle, RoutePath, RoutingConfig};
 use std::collections::HashMap;
 
+/// Debug information about the routing process
+#[derive(Debug, Clone)]
+pub struct RoutingDebugInfo {
+    /// All generated lead lines
+    pub lead_lines: Vec<LeadLine>,
+    /// All intersection points found
+    pub intersections: Vec<Point>,
+    /// All graph nodes (intersection points + lead line endpoints)
+    pub graph_nodes: Vec<Point>,
+    /// Number of edges in the routing graph
+    pub edge_count: usize,
+    /// Number of nodes found for the source entity
+    pub source_node_count: usize,
+    /// Number of nodes found for the target entity  
+    pub target_node_count: usize,
+}
+
 /// Main orthogonal router that coordinates the routing algorithm
 pub struct OrthogonalRouter {
     config: RoutingConfig,
@@ -34,6 +51,18 @@ impl OrthogonalRouter {
         obstacles: &[Rectangle],
         canvas_bounds: &Rectangle,
     ) -> Option<RoutePath> {
+        let (path, _debug) = self.route_with_debug(from, to, obstacles, canvas_bounds);
+        path
+    }
+
+    /// Routes a connection and returns debug information
+    pub fn route_with_debug(
+        &self,
+        from: &Rectangle,
+        to: &Rectangle,
+        obstacles: &[Rectangle],
+        canvas_bounds: &Rectangle,
+    ) -> (Option<RoutePath>, RoutingDebugInfo) {
         // Create routing entities
         let mut entities = Vec::new();
 
@@ -83,13 +112,28 @@ impl OrthogonalRouter {
             }
         }
 
+        // Collect debug information
+        let graph_nodes: Vec<Point> = node_map.keys().copied().collect();
+        let edge_count = graph.edge_count();
+
+        let debug_info = RoutingDebugInfo {
+            lead_lines: lead_lines.clone(),
+            intersections: intersections.clone(),
+            graph_nodes,
+            edge_count,
+            source_node_count: from_nodes.len(),
+            target_node_count: to_nodes.len(),
+        };
+
         // Convert graph path to routing path
-        best_path.and_then(|(path, _from_node, _to_node)| {
+        let result = best_path.and_then(|(path, _from_node, _to_node)| {
             path.to_points(&graph).map(|points| RoutePath {
                 nodes: points,
                 total_cost: path.total_cost,
             })
-        })
+        });
+
+        (result, debug_info)
     }
 
     /// Finds all intersections between lead lines

@@ -25,7 +25,7 @@ pub mod pathfinding;
 mod integration_tests;
 
 // Re-export main types from the root module
-pub use self::orthogonal_router::OrthogonalRouter as OrthogonalRouterNew;
+pub use self::orthogonal_router::{OrthogonalRouter as OrthogonalRouterNew, RoutingDebugInfo};
 
 use crate::infrastructure::types::NonEmpty;
 

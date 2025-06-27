@@ -8,7 +8,7 @@ use crate::infrastructure::types::NonEmpty;
 use std::collections::HashMap;
 
 use super::routing::OrthogonalRouterNew;
-use super::routing::{Rectangle, RoutingConfig};
+use super::routing::{Rectangle, RoutingConfig, RoutingDebugInfo};
 
 // Constants for SVG dimensions and text coordinates
 const MIN_WIDTH: u32 = 1200; // Minimum reasonable width
@@ -826,14 +826,24 @@ fn render_connections(
                 // Define canvas bounds (we'll use a large canvas)
                 let canvas_bounds = Rectangle::new(0, 0, 5000, 3000);
 
-                // Route the connection
-                if let Some(route) = router.route(&from_rect, &to_rect, &obstacles, &canvas_bounds)
-                {
+                // Route the connection with debug info
+                let (route_result, debug_info) =
+                    router.route_with_debug(&from_rect, &to_rect, &obstacles, &canvas_bounds);
+
+                if let Some(route) = route_result {
                     // Render the routed path
                     svg.push_str(&render_routed_path(&route));
                 } else {
                     // Fallback to straight arrow if routing fails
                     svg.push_str(&render_straight_arrow(from_pos, to_pos));
+                }
+
+                // Add debug visualization for the first connection to analyze
+                if slice_index == 0
+                    && svg.contains("<!-- Connections -->")
+                    && !svg.contains("<!-- Debug -->")
+                {
+                    svg.push_str(&render_debug_info(&debug_info));
                 }
             }
         }
@@ -1304,6 +1314,71 @@ fn render_routed_path(route: &super::routing::RoutePath) -> String {
 "##,
         svg_path
     )
+}
+
+/// Renders debug visualization for routing algorithm analysis
+fn render_debug_info(debug_info: &RoutingDebugInfo) -> String {
+    let mut svg = String::new();
+
+    svg.push_str("  <!-- Debug Visualization -->\n");
+    svg.push_str("  <g id=\"debug-info\">\n");
+
+    // Render lead lines in blue
+    svg.push_str("    <!-- Lead Lines -->\n");
+    for lead_line in &debug_info.lead_lines {
+        svg.push_str(&format!(
+            "    <line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"blue\" stroke-width=\"1\" opacity=\"0.6\" />\n",
+            lead_line.start.x, lead_line.start.y, lead_line.end.x, lead_line.end.y
+        ));
+    }
+
+    // Render intersections as red circles
+    svg.push_str("    <!-- Intersections -->\n");
+    for intersection in &debug_info.intersections {
+        svg.push_str(&format!(
+            "    <circle cx=\"{}\" cy=\"{}\" r=\"3\" fill=\"red\" opacity=\"0.8\" />\n",
+            intersection.x, intersection.y
+        ));
+    }
+
+    // Render graph nodes as green circles
+    svg.push_str("    <!-- Graph Nodes -->\n");
+    for node in &debug_info.graph_nodes {
+        svg.push_str(&format!(
+            "    <circle cx=\"{}\" cy=\"{}\" r=\"2\" fill=\"green\" opacity=\"0.8\" />\n",
+            node.x, node.y
+        ));
+    }
+
+    // Add debug statistics as text
+    svg.push_str(&format!(
+        "    <text x=\"10\" y=\"30\" font-family=\"Arial\" font-size=\"12\" fill=\"black\">Lead Lines: {}</text>\n",
+        debug_info.lead_lines.len()
+    ));
+    svg.push_str(&format!(
+        "    <text x=\"10\" y=\"45\" font-family=\"Arial\" font-size=\"12\" fill=\"black\">Intersections: {}</text>\n",
+        debug_info.intersections.len()
+    ));
+    svg.push_str(&format!(
+        "    <text x=\"10\" y=\"60\" font-family=\"Arial\" font-size=\"12\" fill=\"black\">Graph Nodes: {}</text>\n",
+        debug_info.graph_nodes.len()
+    ));
+    svg.push_str(&format!(
+        "    <text x=\"10\" y=\"75\" font-family=\"Arial\" font-size=\"12\" fill=\"black\">Graph Edges: {}</text>\n",
+        debug_info.edge_count
+    ));
+    svg.push_str(&format!(
+        "    <text x=\"10\" y=\"90\" font-family=\"Arial\" font-size=\"12\" fill=\"black\">Source Nodes: {}</text>\n",
+        debug_info.source_node_count
+    ));
+    svg.push_str(&format!(
+        "    <text x=\"10\" y=\"105\" font-family=\"Arial\" font-size=\"12\" fill=\"black\">Target Nodes: {}</text>\n",
+        debug_info.target_node_count
+    ));
+
+    svg.push_str("  </g>\n");
+
+    svg
 }
 
 /// Formats an entity name by inserting spaces before capital letters.
