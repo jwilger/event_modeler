@@ -7,6 +7,9 @@ use crate::event_model::yaml_types;
 use crate::infrastructure::types::NonEmpty;
 use std::collections::HashMap;
 
+use super::routing::algorithm::OrthogonalRouter;
+use super::routing::{Rectangle, RoutingConfig};
+
 // Constants for SVG dimensions and text coordinates
 const MIN_WIDTH: u32 = 1200; // Minimum reasonable width
 const PADDING: u32 = 20; // Consistent padding around elements
@@ -787,6 +790,10 @@ fn render_connections(
 
     svg.push_str("  <!-- Connections -->\n");
 
+    // Create the orthogonal router with default configuration
+    let config = RoutingConfig::default();
+    let router = OrthogonalRouter::new(config);
+
     // Process connections from each slice
     for (slice_index, slice) in slices.iter().enumerate() {
         for connection in slice.connections.iter() {
@@ -799,14 +806,33 @@ fn render_connections(
             let to_pos = find_entity_position(&to_name, slice_index, entity_positions);
 
             if let (Some(from_pos), Some(to_pos)) = (from_pos, to_pos) {
-                // Calculate if we need a curved arrow or straight line
-                let needs_curve = should_use_curve(from_pos, to_pos, entity_positions);
+                // Convert EntityPosition to Rectangle for the routing algorithm
+                let from_rect =
+                    Rectangle::new(from_pos.x, from_pos.y, from_pos.width, from_pos.height);
+                let to_rect = Rectangle::new(to_pos.x, to_pos.y, to_pos.width, to_pos.height);
 
-                if needs_curve {
-                    // Draw bezier curve arrow
-                    svg.push_str(&render_curved_arrow(from_pos, to_pos, entity_positions));
+                // Collect all other entities as obstacles
+                let obstacles: Vec<Rectangle> = entity_positions
+                    .values()
+                    .filter(|pos| {
+                        // Exclude the source and target entities
+                        let is_from = pos.x == from_pos.x && pos.y == from_pos.y;
+                        let is_to = pos.x == to_pos.x && pos.y == to_pos.y;
+                        !is_from && !is_to
+                    })
+                    .map(|pos| Rectangle::new(pos.x, pos.y, pos.width, pos.height))
+                    .collect();
+
+                // Define canvas bounds (we'll use a large canvas)
+                let canvas_bounds = Rectangle::new(0, 0, 5000, 3000);
+
+                // Route the connection
+                if let Some(route) = router.route(&from_rect, &to_rect, &obstacles, &canvas_bounds)
+                {
+                    // Render the routed path
+                    svg.push_str(&render_routed_path(&route));
                 } else {
-                    // Draw straight arrow
+                    // Fallback to straight arrow if routing fails
                     svg.push_str(&render_straight_arrow(from_pos, to_pos));
                 }
             }
@@ -876,37 +902,6 @@ fn extract_entity_name(entity_ref: &yaml_types::EntityReference) -> String {
     }
 }
 
-/// Determines if a curved arrow should be used based on entity positions.
-fn should_use_curve(
-    from: &EntityPosition,
-    to: &EntityPosition,
-    entity_positions: &HashMap<String, EntityPosition>,
-) -> bool {
-    let from_center_x = from.x + from.width / 2;
-    let from_center_y = from.y + from.height / 2;
-    let to_center_x = to.x + to.width / 2;
-    let to_center_y = to.y + to.height / 2;
-
-    // Check if centers are aligned vertically or horizontally
-    let is_vertical = (from_center_x as i32 - to_center_x as i32).abs() < (from.width / 4) as i32;
-    let is_horizontal =
-        (from_center_y as i32 - to_center_y as i32).abs() < (from.height / 4) as i32;
-
-    if is_vertical || is_horizontal {
-        // Get actual connection points for collision detection
-        let (from_x, from_y) = calculate_connection_point(from, to, true);
-        let (to_x, to_y) = calculate_connection_point(to, from, false);
-
-        // Check if there are any entities blocking the straight path
-        let entities_in_path =
-            find_entities_in_path(from_x, from_y, to_x, to_y, from, to, entity_positions);
-        !entities_in_path.is_empty()
-    } else {
-        // Not aligned, always use curve
-        true
-    }
-}
-
 /// Renders a straight arrow between two entities.
 fn render_straight_arrow(from: &EntityPosition, to: &EntityPosition) -> String {
     let (from_x, from_y) = calculate_connection_point(from, to, true);
@@ -920,6 +915,7 @@ fn render_straight_arrow(from: &EntityPosition, to: &EntityPosition) -> String {
 }
 
 /// Renders a curved arrow using bezier curves.
+#[allow(dead_code)]
 fn render_curved_arrow(
     from: &EntityPosition,
     to: &EntityPosition,
@@ -1048,6 +1044,7 @@ fn render_curved_arrow(
 }
 
 /// Find entities that are in the path between two points
+#[allow(dead_code)]
 fn find_entities_in_path<'a>(
     from_x: u32,
     from_y: u32,
@@ -1090,6 +1087,7 @@ fn find_entities_in_path<'a>(
 }
 
 /// Check if an entity intersects with a line path
+#[allow(dead_code)]
 fn is_entity_in_line_path(x1: u32, y1: u32, x2: u32, y2: u32, entity: &EntityPosition) -> bool {
     // Simple rectangle-line intersection check
     let entity_left = entity.x;
@@ -1125,6 +1123,7 @@ fn is_entity_in_line_path(x1: u32, y1: u32, x2: u32, y2: u32, entity: &EntityPos
 }
 
 /// Calculate curve control points to avoid obstacles
+#[allow(dead_code)]
 fn calculate_avoidance_curve(
     from_x: u32,
     from_y: u32,
@@ -1270,6 +1269,16 @@ fn calculate_connection_point(
             }
         }
     }
+}
+
+/// Renders a routed path as an SVG path element with an arrowhead.
+fn render_routed_path(route: &super::routing::RoutePath) -> String {
+    let svg_path = route.to_svg_path();
+    format!(
+        r##"  <path d="{}" fill="none" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)" />
+"##,
+        svg_path
+    )
 }
 
 /// Formats an entity name by inserting spaces before capital letters.
