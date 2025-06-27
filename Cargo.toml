@@ -28,6 +28,10 @@ autocxx-build = "0.27"
 [dev-dependencies]
 insta = { version = "1.34", features = ["yaml", "glob"] }
 
+[features]
+default = ["mock-router"]
+mock-router = []
+
 [lints.rust]
 warnings = "deny"
 

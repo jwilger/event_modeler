@@ -51,13 +51,20 @@ impl LibavoidRouter {
         // TODO: Create router with OrthogonalRouting flag
         // This will be implemented once autocxx bindings are working
 
-        // For now, return a mock implementation for testing
-        // SAFETY: We're creating a dangling pointer for mock purposes only.
-        // This is temporary until FFI bindings are ready.
-        let mock_ptr = 0x1 as *mut Router;
-        Ok(Self {
-            router: unsafe { NonNull::new_unchecked(mock_ptr) },
-        })
+        #[cfg(any(test, feature = "mock-router"))]
+        {
+            // SAFETY: We're creating a dangling pointer for mock purposes only.
+            // This is temporary until FFI bindings are ready.
+            let mock_ptr = 0x1 as *mut Router;
+            Ok(Self {
+                router: unsafe { NonNull::new_unchecked(mock_ptr) },
+            })
+        }
+
+        #[cfg(not(any(test, feature = "mock-router")))]
+        {
+            Err(RoutingError::RouterCreation)
+        }
     }
 
     /// Adds a rectangular obstacle to the routing scene.

@@ -813,19 +813,7 @@ fn render_connections(
         Ok(router) => router,
         Err(_) => {
             // Fallback to simple arrows if router creation fails
-            for (slice_index, slice) in slices.iter().enumerate() {
-                for connection in slice.connections.iter() {
-                    let from_name = extract_entity_name(&connection.from);
-                    let to_name = extract_entity_name(&connection.to);
-
-                    let from_pos = find_entity_position(&from_name, slice_index, entity_positions);
-                    let to_pos = find_entity_position(&to_name, slice_index, entity_positions);
-
-                    if let (Some(from_pos), Some(to_pos)) = (from_pos, to_pos) {
-                        svg.push_str(&render_straight_arrow(from_pos, to_pos));
-                    }
-                }
-            }
+            svg.push_str(&render_fallback_arrows(slices, entity_positions));
             return svg;
         }
     };
@@ -836,19 +824,7 @@ fn render_connections(
         .is_err()
     {
         // Fallback to simple arrows if setup fails
-        for (slice_index, slice) in slices.iter().enumerate() {
-            for connection in slice.connections.iter() {
-                let from_name = extract_entity_name(&connection.from);
-                let to_name = extract_entity_name(&connection.to);
-
-                let from_pos = find_entity_position(&from_name, slice_index, entity_positions);
-                let to_pos = find_entity_position(&to_name, slice_index, entity_positions);
-
-                if let (Some(from_pos), Some(to_pos)) = (from_pos, to_pos) {
-                    svg.push_str(&render_straight_arrow(from_pos, to_pos));
-                }
-            }
-        }
+        svg.push_str(&render_fallback_arrows(slices, entity_positions));
         return svg;
     }
 
@@ -861,18 +837,30 @@ fn render_connections(
         }
         Err(_) => {
             // Fallback to simple arrows if routing fails
-            for (slice_index, slice) in slices.iter().enumerate() {
-                for connection in slice.connections.iter() {
-                    let from_name = extract_entity_name(&connection.from);
-                    let to_name = extract_entity_name(&connection.to);
+            svg.push_str(&render_fallback_arrows(slices, entity_positions));
+        }
+    }
 
-                    let from_pos = find_entity_position(&from_name, slice_index, entity_positions);
-                    let to_pos = find_entity_position(&to_name, slice_index, entity_positions);
+    svg
+}
 
-                    if let (Some(from_pos), Some(to_pos)) = (from_pos, to_pos) {
-                        svg.push_str(&render_straight_arrow(from_pos, to_pos));
-                    }
-                }
+/// Renders fallback straight arrows when routing fails.
+fn render_fallback_arrows(
+    slices: &[yaml_types::Slice],
+    entity_positions: &HashMap<String, EntityPosition>,
+) -> String {
+    let mut svg = String::new();
+
+    for (slice_index, slice) in slices.iter().enumerate() {
+        for connection in slice.connections.iter() {
+            let from_name = extract_entity_name(&connection.from);
+            let to_name = extract_entity_name(&connection.to);
+
+            let from_pos = find_entity_position(&from_name, slice_index, entity_positions);
+            let to_pos = find_entity_position(&to_name, slice_index, entity_positions);
+
+            if let (Some(from_pos), Some(to_pos)) = (from_pos, to_pos) {
+                svg.push_str(&render_straight_arrow(from_pos, to_pos));
             }
         }
     }
