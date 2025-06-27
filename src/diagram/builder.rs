@@ -28,6 +28,8 @@ pub struct EventModelDiagram {
     events: HashMap<yaml_types::EventName, yaml_types::EventDefinition>,
     /// The projections defined in the model.
     projections: HashMap<yaml_types::ProjectionName, yaml_types::ProjectionDefinition>,
+    /// The queries defined in the model.
+    queries: HashMap<yaml_types::QueryName, yaml_types::QueryDefinition>,
 }
 
 impl EventModelDiagram {
@@ -41,6 +43,7 @@ impl EventModelDiagram {
             commands: model.commands.clone(),
             events: model.events.clone(),
             projections: model.projections.clone(),
+            queries: model.queries.clone(),
         })
     }
 
@@ -79,5 +82,10 @@ impl EventModelDiagram {
         &self,
     ) -> &HashMap<yaml_types::ProjectionName, yaml_types::ProjectionDefinition> {
         &self.projections
+    }
+
+    /// Gets the queries.
+    pub fn queries(&self) -> &HashMap<yaml_types::QueryName, yaml_types::QueryDefinition> {
+        &self.queries
     }
 }

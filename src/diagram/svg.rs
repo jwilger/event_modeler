@@ -41,6 +41,7 @@ const VIEW_BACKGROUND_COLOR: &str = "#ffffff"; // White for views
 const COMMAND_BACKGROUND_COLOR: &str = "#4a90e2"; // Blue for commands
 const EVENT_BACKGROUND_COLOR: &str = "#9b59b6"; // Purple for events
 const PROJECTION_BACKGROUND_COLOR: &str = "#f1c40f"; // Yellow for projections
+const QUERY_BACKGROUND_COLOR: &str = "#27ae60"; // Green for queries
 
 /// Creates a lookup map from view names to their definitions.
 fn create_view_lookup(
@@ -48,7 +49,10 @@ fn create_view_lookup(
 ) -> HashMap<String, &yaml_types::ViewDefinition> {
     views
         .iter()
-        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
+        .map(|(name, def)| {
+            let s = name.clone().into_inner();
+            (s.as_str().to_string(), def)
+        })
         .collect()
 }
 
@@ -58,7 +62,10 @@ fn create_command_lookup(
 ) -> HashMap<String, &yaml_types::CommandDefinition> {
     commands
         .iter()
-        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
+        .map(|(name, def)| {
+            let s = name.clone().into_inner();
+            (s.as_str().to_string(), def)
+        })
         .collect()
 }
 
@@ -68,7 +75,10 @@ fn create_event_lookup(
 ) -> HashMap<String, &yaml_types::EventDefinition> {
     events
         .iter()
-        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
+        .map(|(name, def)| {
+            let s = name.clone().into_inner();
+            (s.as_str().to_string(), def)
+        })
         .collect()
 }
 
@@ -78,7 +88,23 @@ fn create_projection_lookup(
 ) -> HashMap<String, &yaml_types::ProjectionDefinition> {
     projections
         .iter()
-        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
+        .map(|(name, def)| {
+            let s = name.clone().into_inner();
+            (s.as_str().to_string(), def)
+        })
+        .collect()
+}
+
+/// Creates a lookup map from query names to their definitions.
+fn create_query_lookup(
+    queries: &HashMap<yaml_types::QueryName, yaml_types::QueryDefinition>,
+) -> HashMap<String, &yaml_types::QueryDefinition> {
+    queries
+        .iter()
+        .map(|(name, def)| {
+            let s = name.clone().into_inner();
+            (s.as_str().to_string(), def)
+        })
         .collect()
 }
 
@@ -117,12 +143,21 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
         let dimensions = calculate_entity_dimensions(name_str, "Projection");
         entity_dimensions_map.insert(name_str.to_string(), dimensions);
     }
+    for query_name in diagram.queries().keys() {
+        let name_string = query_name.clone().into_inner();
+        let name_str = name_string.as_str();
+        let dimensions = calculate_entity_dimensions(name_str, "Query");
+        entity_dimensions_map.insert(name_str.to_string(), dimensions);
+    }
 
     // Build temporary maps for entity lookups
-    let view_lookup = create_view_lookup(diagram.views());
-    let command_lookup = create_command_lookup(diagram.commands());
-    let event_lookup = create_event_lookup(diagram.events());
-    let projection_lookup = create_projection_lookup(diagram.projections());
+    let lookups = EntityLookups {
+        view_lookup: create_view_lookup(diagram.views()),
+        command_lookup: create_command_lookup(diagram.commands()),
+        event_lookup: create_event_lookup(diagram.events()),
+        projection_lookup: create_projection_lookup(diagram.projections()),
+        query_lookup: create_query_lookup(diagram.queries()),
+    };
 
     // Analyze entities in each slice to determine required widths
     let mut slice_required_widths = vec![MIN_SLICE_WIDTH; num_slices];
@@ -134,22 +169,8 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
 
         for connection in slice.connections.iter() {
             // Check both sides of connections for views and commands
-            process_entity_for_slice(
-                &connection.from,
-                &view_lookup,
-                &command_lookup,
-                &event_lookup,
-                &projection_lookup,
-                &mut entities_by_swimlane,
-            );
-            process_entity_for_slice(
-                &connection.to,
-                &view_lookup,
-                &command_lookup,
-                &event_lookup,
-                &projection_lookup,
-                &mut entities_by_swimlane,
-            );
+            process_entity_for_slice(&connection.from, &lookups, &mut entities_by_swimlane);
+            process_entity_for_slice(&connection.to, &lookups, &mut entities_by_swimlane);
         }
 
         // Remove duplicates and calculate required width
@@ -234,6 +255,18 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
             .position(|s| s.id == projection_def.swimlane)
         {
             let name_string = projection_name.clone().into_inner();
+            let name_str = name_string.as_str();
+            if let Some(dimensions) = entity_dimensions_map.get(name_str) {
+                // Account for entity height plus margins
+                swimlane_content_heights[swimlane_index] = swimlane_content_heights[swimlane_index]
+                    .max(dimensions.height + 2 * ENTITY_MARGIN);
+            }
+        }
+    }
+
+    for (query_name, query_def) in diagram.queries() {
+        if let Some(swimlane_index) = swimlanes.iter().position(|s| s.id == query_def.swimlane) {
+            let name_string = query_name.clone().into_inner();
             let name_str = name_string.as_str();
             if let Some(dimensions) = entity_dimensions_map.get(name_str) {
                 // Account for entity height plus margins
@@ -456,10 +489,7 @@ fn render_slice_headers(
 /// Extract entity name and swimlane from an entity reference.
 fn extract_entity_info<'a>(
     entity_ref: &yaml_types::EntityReference,
-    view_lookup: &HashMap<String, &'a yaml_types::ViewDefinition>,
-    command_lookup: &HashMap<String, &'a yaml_types::CommandDefinition>,
-    event_lookup: &HashMap<String, &'a yaml_types::EventDefinition>,
-    projection_lookup: &HashMap<String, &'a yaml_types::ProjectionDefinition>,
+    lookups: &EntityLookups<'a>,
 ) -> Option<(String, &'a yaml_types::SwimlaneId)> {
     match entity_ref {
         yaml_types::EntityReference::View(view_path) => {
@@ -467,7 +497,8 @@ fn extract_entity_info<'a>(
             let view_name_str = view_name_string.as_str();
             let base_view_name = view_name_str.split('.').next().unwrap_or(view_name_str);
 
-            view_lookup
+            lookups
+                .view_lookup
                 .get(base_view_name)
                 .map(|view_def| (base_view_name.to_string(), &view_def.swimlane))
         }
@@ -475,7 +506,8 @@ fn extract_entity_info<'a>(
             let command_name_string = command_name.clone().into_inner();
             let command_name_str = command_name_string.as_str();
 
-            command_lookup
+            lookups
+                .command_lookup
                 .get(command_name_str)
                 .map(|command_def| (command_name_str.to_string(), &command_def.swimlane))
         }
@@ -483,7 +515,8 @@ fn extract_entity_info<'a>(
             let event_name_string = event_name.clone().into_inner();
             let event_name_str = event_name_string.as_str();
 
-            event_lookup
+            lookups
+                .event_lookup
                 .get(event_name_str)
                 .map(|event_def| (event_name_str.to_string(), &event_def.swimlane))
         }
@@ -491,9 +524,19 @@ fn extract_entity_info<'a>(
             let projection_name_string = projection_name.clone().into_inner();
             let projection_name_str = projection_name_string.as_str();
 
-            projection_lookup
+            lookups
+                .projection_lookup
                 .get(projection_name_str)
                 .map(|projection_def| (projection_name_str.to_string(), &projection_def.swimlane))
+        }
+        yaml_types::EntityReference::Query(query_name) => {
+            let query_name_string = query_name.clone().into_inner();
+            let query_name_str = query_name_string.as_str();
+
+            lookups
+                .query_lookup
+                .get(query_name_str)
+                .map(|query_def| (query_name_str.to_string(), &query_def.swimlane))
         }
         _ => None, // Other entity types not yet implemented
     }
@@ -502,19 +545,10 @@ fn extract_entity_info<'a>(
 /// Process an entity reference for slice width calculation.
 fn process_entity_for_slice<'a>(
     entity_ref: &yaml_types::EntityReference,
-    view_lookup: &HashMap<String, &'a yaml_types::ViewDefinition>,
-    command_lookup: &HashMap<String, &'a yaml_types::CommandDefinition>,
-    event_lookup: &HashMap<String, &'a yaml_types::EventDefinition>,
-    projection_lookup: &HashMap<String, &'a yaml_types::ProjectionDefinition>,
+    lookups: &EntityLookups<'a>,
     entities_by_swimlane: &mut HashMap<&'a yaml_types::SwimlaneId, Vec<String>>,
 ) {
-    if let Some((entity_name, swimlane_id)) = extract_entity_info(
-        entity_ref,
-        view_lookup,
-        command_lookup,
-        event_lookup,
-        projection_lookup,
-    ) {
+    if let Some((entity_name, swimlane_id)) = extract_entity_info(entity_ref, lookups) {
         entities_by_swimlane
             .entry(swimlane_id)
             .or_default()
@@ -522,23 +556,14 @@ fn process_entity_for_slice<'a>(
     }
 }
 
-/// Process an entity reference and add it to the entities_by_slice_and_swimlane map if it's a view, command, event, or projection.
+/// Process an entity reference and add it to the entities_by_slice_and_swimlane map if it's a view, command, event, projection, or query.
 fn process_entity_reference<'a>(
     entity_ref: &yaml_types::EntityReference,
     slice_index: usize,
-    view_lookup: &HashMap<String, &'a yaml_types::ViewDefinition>,
-    command_lookup: &HashMap<String, &'a yaml_types::CommandDefinition>,
-    event_lookup: &HashMap<String, &'a yaml_types::EventDefinition>,
-    projection_lookup: &HashMap<String, &'a yaml_types::ProjectionDefinition>,
+    lookups: &EntityLookups<'a>,
     entities_by_slice_and_swimlane: &mut HashMap<(usize, &'a yaml_types::SwimlaneId), Vec<String>>,
 ) {
-    if let Some((entity_name, swimlane_id)) = extract_entity_info(
-        entity_ref,
-        view_lookup,
-        command_lookup,
-        event_lookup,
-        projection_lookup,
-    ) {
+    if let Some((entity_name, swimlane_id)) = extract_entity_info(entity_ref, lookups) {
         let key = (slice_index, swimlane_id);
         entities_by_slice_and_swimlane
             .entry(key)
@@ -575,10 +600,13 @@ fn render_entities(ctx: &EntityRenderContext) -> String {
         HashMap::new();
 
     // Build lookup maps from entity names to definitions for performance
-    let view_lookup = create_view_lookup(ctx.diagram.views());
-    let command_lookup = create_command_lookup(ctx.diagram.commands());
-    let event_lookup = create_event_lookup(ctx.diagram.events());
-    let projection_lookup = create_projection_lookup(ctx.diagram.projections());
+    let lookups = EntityLookups {
+        view_lookup: create_view_lookup(ctx.diagram.views()),
+        command_lookup: create_command_lookup(ctx.diagram.commands()),
+        event_lookup: create_event_lookup(ctx.diagram.events()),
+        projection_lookup: create_projection_lookup(ctx.diagram.projections()),
+        query_lookup: create_query_lookup(ctx.diagram.queries()),
+    };
 
     // Parse slice connections to find view positions
     for (slice_index, slice) in ctx.slices.iter().enumerate() {
@@ -587,19 +615,13 @@ fn render_entities(ctx: &EntityRenderContext) -> String {
             process_entity_reference(
                 &connection.from,
                 slice_index,
-                &view_lookup,
-                &command_lookup,
-                &event_lookup,
-                &projection_lookup,
+                &lookups,
                 &mut entities_by_slice_and_swimlane,
             );
             process_entity_reference(
                 &connection.to,
                 slice_index,
-                &view_lookup,
-                &command_lookup,
-                &event_lookup,
-                &projection_lookup,
+                &lookups,
                 &mut entities_by_slice_and_swimlane,
             );
         }
@@ -657,14 +679,16 @@ fn render_entities(ctx: &EntityRenderContext) -> String {
                 let entity_y = swimlane_y + (swimlane_height - dimensions.height) / 2;
 
                 // Determine entity type and render appropriate box
-                if view_lookup.contains_key(entity_name) {
+                if lookups.view_lookup.contains_key(entity_name) {
                     svg.push_str(&render_view_box(entity_x, entity_y, dimensions));
-                } else if command_lookup.contains_key(entity_name) {
+                } else if lookups.command_lookup.contains_key(entity_name) {
                     svg.push_str(&render_command_box(entity_x, entity_y, dimensions));
-                } else if event_lookup.contains_key(entity_name) {
+                } else if lookups.event_lookup.contains_key(entity_name) {
                     svg.push_str(&render_event_box(entity_x, entity_y, dimensions));
-                } else if projection_lookup.contains_key(entity_name) {
+                } else if lookups.projection_lookup.contains_key(entity_name) {
                     svg.push_str(&render_projection_box(entity_x, entity_y, dimensions));
+                } else if lookups.query_lookup.contains_key(entity_name) {
+                    svg.push_str(&render_query_box(entity_x, entity_y, dimensions));
                 }
             }
         }
@@ -759,6 +783,15 @@ struct EntityDimensions {
     text_lines: Vec<String>,
 }
 
+/// Entity lookup maps for avoiding too many function parameters.
+struct EntityLookups<'a> {
+    view_lookup: HashMap<String, &'a yaml_types::ViewDefinition>,
+    command_lookup: HashMap<String, &'a yaml_types::CommandDefinition>,
+    event_lookup: HashMap<String, &'a yaml_types::EventDefinition>,
+    projection_lookup: HashMap<String, &'a yaml_types::ProjectionDefinition>,
+    query_lookup: HashMap<String, &'a yaml_types::QueryDefinition>,
+}
+
 /// Context for rendering entities.
 struct EntityRenderContext<'a> {
     diagram: &'a EventModelDiagram,
@@ -848,4 +881,9 @@ fn render_event_box(x: u32, y: u32, dimensions: &EntityDimensions) -> String {
 /// Renders a single projection box with proper text wrapping.
 fn render_projection_box(x: u32, y: u32, dimensions: &EntityDimensions) -> String {
     render_box_with_text(x, y, dimensions, PROJECTION_BACKGROUND_COLOR, TEXT_COLOR)
+}
+
+/// Renders a single query box with proper text wrapping.
+fn render_query_box(x: u32, y: u32, dimensions: &EntityDimensions) -> String {
+    render_box_with_text(x, y, dimensions, QUERY_BACKGROUND_COLOR, "#ffffff")
 }
