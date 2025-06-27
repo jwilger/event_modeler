@@ -185,6 +185,6 @@ Development work is tracked using GitHub issues with the following structure:
 
 ## REMEMBER
 
-- ALWAYS use prefer MCP tools available to you instead of Bash commands.
+- ALWAYS prefer MCP tools available to you instead of Bash commands.
 - If an MCP tool call fails, make sure you are calling it properly rather than immediately falling back to a Bash command.
 - ALWAYS use our workflow MCP server to determine your next task and follow the suggested next actions its responses provide.
