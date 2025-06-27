@@ -68,7 +68,7 @@ pub struct Exists;
 /// ```
 ///
 /// Note: This example is marked as `ignore` because the import path may change.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NonEmpty<T> {
     head: T,
     tail: Vec<T>,
