@@ -140,6 +140,8 @@ impl RoutingEntity {
 pub struct LeadLineConfig {
     /// Margin to maintain around entities
     pub margin: u32,
+    /// Minimum distance lead lines extend from entity edges before turning
+    pub min_lead_extension: u32,
     /// Canvas bounds that lead lines cannot exceed
     pub canvas_bounds: Rectangle,
 }
@@ -148,6 +150,7 @@ impl Default for LeadLineConfig {
     fn default() -> Self {
         Self {
             margin: 10,
+            min_lead_extension: 30,
             canvas_bounds: Rectangle::new(0, 0, 5000, 3000),
         }
     }
@@ -231,29 +234,49 @@ impl LeadLineGenerator {
             }
         };
 
-        // Detect collisions
+        // Calculate minimum extension point to ensure proper separation
+        let min_extension_point =
+            self.apply_margin_offset(adjusted_start, direction, self.config.min_lead_extension);
+
+        // Detect collisions starting from the minimum extension point
+        // This ensures lead lines always extend at least the minimum distance
         let collisions = self.collision_detector.detect_collisions(
             direction,
-            adjusted_start,
+            min_extension_point,
             all_entities,
             &entity.id,
         );
 
-        // Create collision data
+        // Create collision data starting from adjusted_start but considering minimum extension
         let collision_data = self.create_collision_data(entity, origin, adjusted_start);
 
         // Convert collisions to ranges
         let collision_ranges: Vec<_> = collisions.iter().map(|(_, range)| *range).collect();
 
-        // Process collisions to get line segments
+        // Always add the minimum extension segment first
+        lead_lines.push(LeadLine {
+            start: adjusted_start,
+            end: min_extension_point,
+            direction,
+            source_entity_id: entity.id.clone(),
+        });
+
+        // Process collisions to get additional line segments beyond minimum extension
         let segments = self
             .collision_detector
             .process_collisions(&collision_data, &collision_ranges);
 
-        // Create lead lines from segments
+        // Add collision-based segments (these will be from min_extension_point onwards)
         for (start_point, end_point) in segments {
-            // Don't create zero-length lines
-            if start_point != end_point {
+            // Only add segments that start from our minimum extension point or beyond
+            let starts_from_min_ext = match direction {
+                LeadDirection::North => start_point.y <= min_extension_point.y,
+                LeadDirection::South => start_point.y >= min_extension_point.y,
+                LeadDirection::East => start_point.x >= min_extension_point.x,
+                LeadDirection::West => start_point.x <= min_extension_point.x,
+            };
+
+            if starts_from_min_ext && start_point != end_point {
                 lead_lines.push(LeadLine {
                     start: start_point,
                     end: end_point,

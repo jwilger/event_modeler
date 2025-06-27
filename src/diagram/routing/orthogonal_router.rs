@@ -81,6 +81,7 @@ impl OrthogonalRouter {
         // Generate lead lines
         let lead_config = LeadLineConfig {
             margin: self.config.margin,
+            min_lead_extension: 30, // Ensure lines extend from entities before turning
             canvas_bounds: canvas_bounds.clone(),
         };
         let generator = LeadLineGenerator::new(lead_config);

@@ -790,8 +790,8 @@ fn render_connections(
 
     svg.push_str("  <!-- Connections -->\n");
 
-    // Create the orthogonal router with default configuration
-    let config = RoutingConfig::default();
+    // Create the orthogonal router with better spacing configuration
+    let config = RoutingConfig { margin: 25 }; // Increased margin for better separation
     let router = OrthogonalRouterNew::new(config);
 
     // Process connections from each slice
@@ -826,8 +826,8 @@ fn render_connections(
                 // Define canvas bounds (we'll use a large canvas)
                 let canvas_bounds = Rectangle::new(0, 0, 5000, 3000);
 
-                // Route the connection with debug info
-                let (route_result, debug_info) =
+                // Route the connection
+                let (route_result, _debug_info) =
                     router.route_with_debug(&from_rect, &to_rect, &obstacles, &canvas_bounds);
 
                 if let Some(route) = route_result {
@@ -844,13 +844,8 @@ fn render_connections(
                     svg.push_str(&render_straight_arrow(from_pos, to_pos));
                 }
 
-                // Add debug visualization for the first connection to analyze
-                if slice_index == 0
-                    && svg.contains("<!-- Connections -->")
-                    && !svg.contains("<!-- Debug -->")
-                {
-                    svg.push_str(&render_debug_info(&debug_info));
-                }
+                // Debug visualization can be added here if needed for debugging
+                // svg.push_str(&render_debug_info(&_debug_info));
             }
         }
     }
@@ -1323,6 +1318,7 @@ fn render_routed_path(route: &super::routing::RoutePath) -> String {
 }
 
 /// Renders debug visualization for routing algorithm analysis
+#[allow(dead_code)]
 fn render_debug_info(debug_info: &RoutingDebugInfo) -> String {
     let mut svg = String::new();
 
