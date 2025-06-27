@@ -907,10 +907,35 @@ fn render_straight_arrow(from: &EntityPosition, to: &EntityPosition) -> String {
     let (from_x, from_y) = calculate_connection_point(from, to, true);
     let (to_x, to_y) = calculate_connection_point(to, from, false);
 
+    // Create an orthogonal path instead of a diagonal line
+    render_orthogonal_fallback(from_x, from_y, to_x, to_y)
+}
+
+/// Creates a simple orthogonal path between two points as a fallback.
+fn render_orthogonal_fallback(from_x: u32, from_y: u32, to_x: u32, to_y: u32) -> String {
+    // Create a simple L-shaped or Z-shaped path
+    let mut path = format!("M {} {}", from_x, from_y);
+
+    // If points are already aligned, draw a straight line
+    if from_x == to_x || from_y == to_y {
+        path.push_str(&format!(" L {} {}", to_x, to_y));
+    } else {
+        // Create an L-shaped path
+        // Go horizontally first, then vertically
+        let mid_x = if from_x < to_x {
+            from_x + (to_x - from_x) / 2
+        } else {
+            to_x + (from_x - to_x) / 2
+        };
+        path.push_str(&format!(" L {} {}", mid_x, from_y));
+        path.push_str(&format!(" L {} {}", mid_x, to_y));
+        path.push_str(&format!(" L {} {}", to_x, to_y));
+    }
+
     format!(
-        r##"  <line x1="{}" y1="{}" x2="{}" y2="{}" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)" />
+        r##"  <path d="{}" fill="none" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)" />
 "##,
-        from_x, from_y, to_x, to_y
+        path
     )
 }
 
