@@ -15,6 +15,9 @@
 
 #![allow(dead_code)] // Foundational types - not all used yet
 
+pub mod algorithm;
+mod integration_tests;
+
 use crate::infrastructure::types::NonEmpty;
 use std::collections::HashMap;
 
@@ -165,7 +168,7 @@ impl LeadLine {
     }
 
     /// Checks if a point lies on this lead line segment.
-    fn contains_point(&self, point: &Point) -> bool {
+    pub fn contains_point(&self, point: &Point) -> bool {
         match self.direction {
             Direction::North => {
                 point.x == self.start.x && point.y >= self.end.y && point.y <= self.start.y
