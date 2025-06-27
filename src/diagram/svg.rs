@@ -743,14 +743,16 @@ fn render_entities(ctx: &EntityRenderContext) -> (String, HashMap<String, Entity
                 // Center entity vertically in swimlane
                 let entity_y = swimlane_y + (swimlane_height - dimensions.height) / 2;
 
-                // Store entity position
+                // Store entity position with slice index to handle multiple instances
+                let position_key = format!("{}_{}", entity_name, slice_index);
                 entity_positions.insert(
-                    entity_name.clone(),
+                    position_key,
                     EntityPosition {
                         x: entity_x,
                         y: entity_y,
                         width: dimensions.width,
                         height: dimensions.height,
+                        slice_index: *slice_index,
                     },
                 );
 
@@ -786,32 +788,66 @@ fn render_connections(
     svg.push_str("  <!-- Connections -->\n");
 
     // Process connections from each slice
-    for slice in slices {
+    for (slice_index, slice) in slices.iter().enumerate() {
         for connection in slice.connections.iter() {
             // Extract entity names from references
             let from_name = extract_entity_name(&connection.from);
             let to_name = extract_entity_name(&connection.to);
 
-            // Get positions for both entities
-            if let (Some(from_pos), Some(to_pos)) = (
-                entity_positions.get(&from_name),
-                entity_positions.get(&to_name),
-            ) {
-                // Calculate connection points (center of edges)
-                let (from_x, from_y) = calculate_connection_point(from_pos, to_pos, true);
-                let (to_x, to_y) = calculate_connection_point(to_pos, from_pos, false);
+            // Find the correct entity instances
+            let from_pos = find_entity_position(&from_name, slice_index, entity_positions);
+            let to_pos = find_entity_position(&to_name, slice_index, entity_positions);
 
-                // Draw arrow line
-                svg.push_str(&format!(
-                    r##"  <line x1="{}" y1="{}" x2="{}" y2="{}" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)" />
-"##,
-                    from_x, from_y, to_x, to_y
-                ));
+            if let (Some(from_pos), Some(to_pos)) = (from_pos, to_pos) {
+                // Calculate if we need a curved arrow or straight line
+                let needs_curve = should_use_curve(from_pos, to_pos, entity_positions);
+
+                if needs_curve {
+                    // Draw bezier curve arrow
+                    svg.push_str(&render_curved_arrow(from_pos, to_pos, entity_positions));
+                } else {
+                    // Draw straight arrow
+                    svg.push_str(&render_straight_arrow(from_pos, to_pos));
+                }
             }
         }
     }
 
     svg
+}
+
+/// Finds the position of an entity, preferring instances in the current or nearby slices.
+fn find_entity_position<'a>(
+    entity_name: &str,
+    current_slice: usize,
+    entity_positions: &'a HashMap<String, EntityPosition>,
+) -> Option<&'a EntityPosition> {
+    // First, try to find in current slice
+    let current_key = format!("{}_{}", entity_name, current_slice);
+    if let Some(pos) = entity_positions.get(&current_key) {
+        return Some(pos);
+    }
+
+    // If not in current slice, find the closest instance
+    let mut closest_pos: Option<&EntityPosition> = None;
+    let mut closest_distance = usize::MAX;
+
+    for (key, pos) in entity_positions {
+        if key.starts_with(&format!("{}_", entity_name)) {
+            let distance = if pos.slice_index > current_slice {
+                pos.slice_index - current_slice
+            } else {
+                current_slice - pos.slice_index
+            };
+
+            if distance < closest_distance {
+                closest_distance = distance;
+                closest_pos = Some(pos);
+            }
+        }
+    }
+
+    closest_pos
 }
 
 /// Extracts the base entity name from an EntityReference.
@@ -840,13 +876,179 @@ fn extract_entity_name(entity_ref: &yaml_types::EntityReference) -> String {
     }
 }
 
+/// Determines if a curved arrow should be used based on entity positions.
+fn should_use_curve(
+    from: &EntityPosition,
+    to: &EntityPosition,
+    entity_positions: &HashMap<String, EntityPosition>,
+) -> bool {
+    // Check if entities are directly aligned (same row or column)
+    let from_center_x = from.x + from.width / 2;
+    let from_center_y = from.y + from.height / 2;
+    let to_center_x = to.x + to.width / 2;
+    let to_center_y = to.y + to.height / 2;
+
+    // If directly below or directly to the right, can use straight line
+    let x_diff = if from_center_x > to_center_x {
+        from_center_x - to_center_x
+    } else {
+        to_center_x - from_center_x
+    };
+    let y_diff = if from_center_y > to_center_y {
+        from_center_y - to_center_y
+    } else {
+        to_center_y - from_center_y
+    };
+
+    let is_directly_below = x_diff < 10 && to_center_y > from_center_y;
+    let is_directly_right = y_diff < 10 && to_center_x > from_center_x;
+
+    if is_directly_below || is_directly_right {
+        // Check if there are any entities in between
+        for pos in entity_positions.values() {
+            // Skip the source and target entities
+            if pos.x == from.x && pos.y == from.y {
+                continue;
+            }
+            if pos.x == to.x && pos.y == to.y {
+                continue;
+            }
+
+            // Check if entity is in the path
+            if is_directly_below {
+                let in_vertical_path = (pos.x <= from_center_x
+                    && from_center_x <= pos.x + pos.width)
+                    && pos.y > from.y + from.height
+                    && pos.y < to.y;
+                if in_vertical_path {
+                    return true; // Need curve to avoid
+                }
+            } else if is_directly_right {
+                let in_horizontal_path = (pos.y <= from_center_y
+                    && from_center_y <= pos.y + pos.height)
+                    && pos.x > from.x + from.width
+                    && pos.x < to.x;
+                if in_horizontal_path {
+                    return true; // Need curve to avoid
+                }
+            }
+        }
+        false
+    } else {
+        // Not directly aligned, use curve
+        true
+    }
+}
+
+/// Renders a straight arrow between two entities.
+fn render_straight_arrow(from: &EntityPosition, to: &EntityPosition) -> String {
+    let (from_x, from_y) = calculate_connection_point(from, to, true);
+    let (to_x, to_y) = calculate_connection_point(to, from, false);
+
+    format!(
+        r##"  <line x1="{}" y1="{}" x2="{}" y2="{}" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)" />
+"##,
+        from_x, from_y, to_x, to_y
+    )
+}
+
+/// Renders a curved arrow using bezier curves.
+fn render_curved_arrow(
+    from: &EntityPosition,
+    to: &EntityPosition,
+    _entity_positions: &HashMap<String, EntityPosition>,
+) -> String {
+    let (from_x, from_y) = calculate_connection_point(from, to, true);
+    let (to_x, to_y) = calculate_connection_point(to, from, false);
+
+    // Calculate control points for bezier curve
+    let dx = to_x as i32 - from_x as i32;
+    let dy = to_y as i32 - from_y as i32;
+
+    // Determine curve control points based on relative positions
+    let (cx1, cy1, cx2, cy2) = if from.slice_index < to.slice_index {
+        // Moving right across slices
+        if dy.abs() < 20 {
+            // Same row - simple horizontal curve
+            let curve_height = 30;
+            (
+                from_x + dx.unsigned_abs() / 3,
+                from_y - curve_height,
+                to_x - dx.unsigned_abs() / 3,
+                to_y - curve_height,
+            )
+        } else if dy > 0 {
+            // Going down and right
+            let offset_x = dx.unsigned_abs() / 3;
+            let offset_y = dy.unsigned_abs() / 4;
+            (
+                from_x + offset_x,
+                from_y + offset_y,
+                to_x - offset_x,
+                to_y - offset_y,
+            )
+        } else {
+            // Going up and right
+            let offset_x = dx.unsigned_abs() / 3;
+            let offset_y = dy.unsigned_abs() / 4;
+            (
+                from_x + offset_x,
+                from_y - offset_y,
+                to_x - offset_x,
+                to_y + offset_y,
+            )
+        }
+    } else if from.slice_index == to.slice_index {
+        // Same slice - vertical or minimal horizontal movement
+        if dx.abs() < 20 {
+            // Vertical connection in same column
+            let curve_width = 40;
+            if dy > 0 {
+                // Going down - curve to the right
+                (from_x + curve_width, from_y, to_x + curve_width, to_y)
+            } else {
+                // Going up - curve to the left
+                (from_x - curve_width, from_y, to_x - curve_width, to_y)
+            }
+        } else {
+            // Horizontal within same slice
+            let offset = (dx.abs() / 2).min(50) as u32;
+            (from_x + offset, from_y, to_x - offset, to_y)
+        }
+    } else {
+        // Moving left (back to previous slice)
+        let curve_offset = 60;
+        if dy > 0 {
+            // Going down and left
+            (
+                from_x - curve_offset,
+                from_y + dy.unsigned_abs() / 3,
+                to_x + curve_offset,
+                to_y - dy.unsigned_abs() / 3,
+            )
+        } else {
+            // Going up and left
+            (
+                from_x - curve_offset,
+                from_y - dy.unsigned_abs() / 3,
+                to_x + curve_offset,
+                to_y + dy.unsigned_abs() / 3,
+            )
+        }
+    };
+
+    format!(
+        r##"  <path d="M {} {} C {} {}, {} {}, {} {}" stroke="#333333" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
+"##,
+        from_x, from_y, cx1, cy1, cx2, cy2, to_x, to_y
+    )
+}
+
 /// Calculates the connection point on an entity's edge.
-/// For the source entity (is_source=true), calculates exit point.
-/// For the target entity (is_source=false), calculates entry point.
 fn calculate_connection_point(
     entity: &EntityPosition,
     other: &EntityPosition,
-    _is_source: bool,
+    is_source: bool,
 ) -> (u32, u32) {
     let entity_center_x = entity.x + entity.width / 2;
     let entity_center_y = entity.y + entity.height / 2;
@@ -854,18 +1056,36 @@ fn calculate_connection_point(
     let other_center_y = other.y + other.height / 2;
 
     // Determine which edge to use based on relative positions
-    if other_center_x > entity_center_x + entity.width / 4 {
-        // Connect from right edge
-        (entity.x + entity.width, entity_center_y)
-    } else if other_center_x < entity_center_x - entity.width / 4 {
-        // Connect from left edge
-        (entity.x, entity_center_y)
-    } else if other_center_y > entity_center_y {
-        // Connect from bottom edge
-        (entity_center_x, entity.y + entity.height)
+    if is_source {
+        // For source entity, exit from the edge closest to target
+        if other_center_x > entity_center_x + 20 {
+            // Exit from right edge
+            (entity.x + entity.width, entity_center_y)
+        } else if other_center_x < entity_center_x - 20 {
+            // Exit from left edge
+            (entity.x, entity_center_y)
+        } else if other_center_y > entity_center_y {
+            // Exit from bottom edge
+            (entity_center_x, entity.y + entity.height)
+        } else {
+            // Exit from top edge
+            (entity_center_x, entity.y)
+        }
     } else {
-        // Connect from top edge
-        (entity_center_x, entity.y)
+        // For target entity, enter from the edge closest to source
+        if other_center_x < entity_center_x - 20 {
+            // Enter from left edge
+            (entity.x, entity_center_y)
+        } else if other_center_x > entity_center_x + 20 {
+            // Enter from right edge
+            (entity.x + entity.width, entity_center_y)
+        } else if other_center_y < entity_center_y {
+            // Enter from top edge
+            (entity_center_x, entity.y)
+        } else {
+            // Enter from bottom edge
+            (entity_center_x, entity.y + entity.height)
+        }
     }
 }
 
@@ -972,6 +1192,7 @@ struct EntityPosition {
     y: u32,
     width: u32,
     height: u32,
+    slice_index: usize,
 }
 
 /// Context for rendering entities.
