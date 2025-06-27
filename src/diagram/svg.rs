@@ -49,7 +49,10 @@ fn create_view_lookup(
 ) -> HashMap<String, &yaml_types::ViewDefinition> {
     views
         .iter()
-        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
+        .map(|(name, def)| {
+            let s = name.clone().into_inner();
+            (s.as_str().to_string(), def)
+        })
         .collect()
 }
 
@@ -59,7 +62,10 @@ fn create_command_lookup(
 ) -> HashMap<String, &yaml_types::CommandDefinition> {
     commands
         .iter()
-        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
+        .map(|(name, def)| {
+            let s = name.clone().into_inner();
+            (s.as_str().to_string(), def)
+        })
         .collect()
 }
 
@@ -69,7 +75,10 @@ fn create_event_lookup(
 ) -> HashMap<String, &yaml_types::EventDefinition> {
     events
         .iter()
-        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
+        .map(|(name, def)| {
+            let s = name.clone().into_inner();
+            (s.as_str().to_string(), def)
+        })
         .collect()
 }
 
@@ -79,7 +88,10 @@ fn create_projection_lookup(
 ) -> HashMap<String, &yaml_types::ProjectionDefinition> {
     projections
         .iter()
-        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
+        .map(|(name, def)| {
+            let s = name.clone().into_inner();
+            (s.as_str().to_string(), def)
+        })
         .collect()
 }
 
@@ -89,7 +101,10 @@ fn create_query_lookup(
 ) -> HashMap<String, &yaml_types::QueryDefinition> {
     queries
         .iter()
-        .map(|(name, def)| (name.clone().into_inner().as_str().to_string(), def))
+        .map(|(name, def)| {
+            let s = name.clone().into_inner();
+            (s.as_str().to_string(), def)
+        })
         .collect()
 }
 
