@@ -43,6 +43,10 @@ const EVENT_BACKGROUND_COLOR: &str = "#9b59b6"; // Purple for events
 const PROJECTION_BACKGROUND_COLOR: &str = "#f1c40f"; // Yellow for projections
 const QUERY_BACKGROUND_COLOR: &str = "#27ae60"; // Green for queries
 
+// Automation entity constants
+const ROBOT_ICON_SIZE: u32 = 30; // Size of the robot emoji
+const ICON_TEXT_SPACING: u32 = 5; // Space between icon and text
+
 /// Creates a lookup map from view names to their definitions.
 fn create_view_lookup(
     views: &HashMap<yaml_types::ViewName, yaml_types::ViewDefinition>,
@@ -108,6 +112,19 @@ fn create_query_lookup(
         .collect()
 }
 
+/// Creates a lookup map from automation names to their definitions.
+fn create_automation_lookup(
+    automations: &HashMap<yaml_types::AutomationName, yaml_types::AutomationDefinition>,
+) -> HashMap<String, &yaml_types::AutomationDefinition> {
+    automations
+        .iter()
+        .map(|(name, def)| {
+            let s = name.clone().into_inner();
+            (s.as_str().to_string(), def)
+        })
+        .collect()
+}
+
 /// Renders an event model diagram to SVG format.
 ///
 /// This function takes a constructed diagram and produces the SVG representation.
@@ -149,6 +166,12 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
         let dimensions = calculate_entity_dimensions(name_str, "Query");
         entity_dimensions_map.insert(name_str.to_string(), dimensions);
     }
+    for automation_name in diagram.automations().keys() {
+        let name_string = automation_name.clone().into_inner();
+        let name_str = name_string.as_str();
+        let dimensions = calculate_automation_dimensions(name_str);
+        entity_dimensions_map.insert(name_str.to_string(), dimensions);
+    }
 
     // Build temporary maps for entity lookups
     let lookups = EntityLookups {
@@ -157,6 +180,7 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
         event_lookup: create_event_lookup(diagram.events()),
         projection_lookup: create_projection_lookup(diagram.projections()),
         query_lookup: create_query_lookup(diagram.queries()),
+        automation_lookup: create_automation_lookup(diagram.automations()),
     };
 
     // Analyze entities in each slice to determine required widths
@@ -267,6 +291,21 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
     for (query_name, query_def) in diagram.queries() {
         if let Some(swimlane_index) = swimlanes.iter().position(|s| s.id == query_def.swimlane) {
             let name_string = query_name.clone().into_inner();
+            let name_str = name_string.as_str();
+            if let Some(dimensions) = entity_dimensions_map.get(name_str) {
+                // Account for entity height plus margins
+                swimlane_content_heights[swimlane_index] = swimlane_content_heights[swimlane_index]
+                    .max(dimensions.height + 2 * ENTITY_MARGIN);
+            }
+        }
+    }
+
+    for (automation_name, automation_def) in diagram.automations() {
+        if let Some(swimlane_index) = swimlanes
+            .iter()
+            .position(|s| s.id == automation_def.swimlane)
+        {
+            let name_string = automation_name.clone().into_inner();
             let name_str = name_string.as_str();
             if let Some(dimensions) = entity_dimensions_map.get(name_str) {
                 // Account for entity height plus margins
@@ -538,7 +577,15 @@ fn extract_entity_info<'a>(
                 .get(query_name_str)
                 .map(|query_def| (query_name_str.to_string(), &query_def.swimlane))
         }
-        _ => None, // Other entity types not yet implemented
+        yaml_types::EntityReference::Automation(automation_name) => {
+            let automation_name_string = automation_name.clone().into_inner();
+            let automation_name_str = automation_name_string.as_str();
+
+            lookups
+                .automation_lookup
+                .get(automation_name_str)
+                .map(|automation_def| (automation_name_str.to_string(), &automation_def.swimlane))
+        }
     }
 }
 
@@ -606,6 +653,7 @@ fn render_entities(ctx: &EntityRenderContext) -> String {
         event_lookup: create_event_lookup(ctx.diagram.events()),
         projection_lookup: create_projection_lookup(ctx.diagram.projections()),
         query_lookup: create_query_lookup(ctx.diagram.queries()),
+        automation_lookup: create_automation_lookup(ctx.diagram.automations()),
     };
 
     // Parse slice connections to find view positions
@@ -689,6 +737,8 @@ fn render_entities(ctx: &EntityRenderContext) -> String {
                     svg.push_str(&render_projection_box(entity_x, entity_y, dimensions));
                 } else if lookups.query_lookup.contains_key(entity_name) {
                     svg.push_str(&render_query_box(entity_x, entity_y, dimensions));
+                } else if lookups.automation_lookup.contains_key(entity_name) {
+                    svg.push_str(&render_automation(entity_x, entity_y, dimensions));
                 }
             }
         }
@@ -790,6 +840,7 @@ struct EntityLookups<'a> {
     event_lookup: HashMap<String, &'a yaml_types::EventDefinition>,
     projection_lookup: HashMap<String, &'a yaml_types::ProjectionDefinition>,
     query_lookup: HashMap<String, &'a yaml_types::QueryDefinition>,
+    automation_lookup: HashMap<String, &'a yaml_types::AutomationDefinition>,
 }
 
 /// Context for rendering entities.
@@ -886,4 +937,56 @@ fn render_projection_box(x: u32, y: u32, dimensions: &EntityDimensions) -> Strin
 /// Renders a single query box with proper text wrapping.
 fn render_query_box(x: u32, y: u32, dimensions: &EntityDimensions) -> String {
     render_box_with_text(x, y, dimensions, QUERY_BACKGROUND_COLOR, "#ffffff")
+}
+
+/// Calculate dimensions for automation entities (robot icon + text below).
+fn calculate_automation_dimensions(name: &str) -> EntityDimensions {
+    let formatted_name = format_entity_name(name);
+    let (text_lines, text_width, text_height) = wrap_text(
+        &formatted_name,
+        ENTITY_BOX_WIDTH - 2 * ENTITY_PADDING,
+        ENTITY_NAME_FONT_SIZE,
+    );
+
+    // Width is the max of icon size or text width
+    let width = ROBOT_ICON_SIZE.max(text_width) + 2 * ENTITY_PADDING;
+    // Height is icon + spacing + text + padding
+    let height = ROBOT_ICON_SIZE + ICON_TEXT_SPACING + text_height + 2 * ENTITY_PADDING;
+
+    EntityDimensions {
+        width,
+        height,
+        text_lines,
+    }
+}
+
+/// Renders an automation entity with robot icon and text below.
+fn render_automation(x: u32, y: u32, dimensions: &EntityDimensions) -> String {
+    let mut svg = String::new();
+
+    // Center the robot icon horizontally
+    let icon_x = x + dimensions.width / 2;
+    let icon_y = y + ENTITY_PADDING + 15; // 15 is half the icon size for vertical centering
+
+    // Render automation icon (gear emoji for a friendlier appearance)
+    svg.push_str(&format!(
+        r#"  <text x="{icon_x}" y="{icon_y}" font-family="Arial, sans-serif" font-size="30" text-anchor="middle">⚙️</text>
+"#
+    ));
+
+    // Render automation name below the icon
+    let text_start_y =
+        y + ENTITY_PADDING + ROBOT_ICON_SIZE + ICON_TEXT_SPACING + ENTITY_NAME_FONT_SIZE;
+    let text_center_x = x + dimensions.width / 2;
+
+    let line_height = (ENTITY_NAME_FONT_SIZE as f32 * 1.2) as u32;
+    for (i, line) in dimensions.text_lines.iter().enumerate() {
+        let text_y = text_start_y + (i as u32 * line_height);
+        svg.push_str(&format!(
+            r#"  <text x="{text_center_x}" y="{text_y}" font-family="Arial, sans-serif" font-size="{ENTITY_NAME_FONT_SIZE}" fill="{TEXT_COLOR}" text-anchor="middle">{line}</text>
+"#
+        ));
+    }
+
+    svg
 }

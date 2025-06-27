@@ -30,6 +30,8 @@ pub struct EventModelDiagram {
     projections: HashMap<yaml_types::ProjectionName, yaml_types::ProjectionDefinition>,
     /// The queries defined in the model.
     queries: HashMap<yaml_types::QueryName, yaml_types::QueryDefinition>,
+    /// The automations defined in the model.
+    automations: HashMap<yaml_types::AutomationName, yaml_types::AutomationDefinition>,
 }
 
 impl EventModelDiagram {
@@ -44,6 +46,7 @@ impl EventModelDiagram {
             events: model.events.clone(),
             projections: model.projections.clone(),
             queries: model.queries.clone(),
+            automations: model.automations.clone(),
         })
     }
 
@@ -87,5 +90,12 @@ impl EventModelDiagram {
     /// Gets the queries.
     pub fn queries(&self) -> &HashMap<yaml_types::QueryName, yaml_types::QueryDefinition> {
         &self.queries
+    }
+
+    /// Gets the automations.
+    pub fn automations(
+        &self,
+    ) -> &HashMap<yaml_types::AutomationName, yaml_types::AutomationDefinition> {
+        &self.automations
     }
 }
