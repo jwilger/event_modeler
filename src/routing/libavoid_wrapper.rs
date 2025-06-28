@@ -111,8 +111,8 @@ mod ffi_impl {
     use crate::routing::libavoid_ffi::{
         AvoidConnectorId, AvoidPoint, AvoidRectangle, AvoidRouter, AvoidShapeId,
         ORTHOGONAL_ROUTING, avoid_free_points, avoid_router_add_connector, avoid_router_add_shape,
-        avoid_router_delete, avoid_router_delete_connector, avoid_router_delete_shape,
-        avoid_router_get_route_points, avoid_router_new, avoid_router_process_transaction,
+        avoid_router_delete, avoid_router_get_route_points, avoid_router_new,
+        avoid_router_process_transaction,
     };
     use std::collections::HashMap;
     use std::ptr;
@@ -120,8 +120,8 @@ mod ffi_impl {
     // Key for tracking connectors
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     struct ConnectorKey {
-        start: (i64, i64),
-        end: (i64, i64),
+        start: (u32, u32),
+        end: (u32, u32),
     }
 
     /// Safe wrapper around libavoid Router (FFI version).
@@ -196,9 +196,6 @@ mod ffi_impl {
             };
 
             if num_points <= 0 || points_ptr.is_null() {
-                // Clean up connector
-                unsafe { avoid_router_delete_connector(self.router, conn_id) };
-                self.connectors.remove(&key);
                 return Err(RoutingError::RoutingFailed("No route found".into()));
             }
 
@@ -212,19 +209,21 @@ mod ffi_impl {
             // Free the points array
             unsafe { avoid_free_points(points_ptr) };
 
-            // Clean up connector after getting route
-            unsafe { avoid_router_delete_connector(self.router, conn_id) };
-            self.connectors.remove(&key);
-
             // Create route path
-            let nodes = NonEmpty::try_from(route_points)
-                .map_err(|_| RoutingError::RoutingFailed("Empty route".into()))?;
+            if route_points.is_empty() {
+                return Err(RoutingError::RoutingFailed("Empty route".into()));
+            }
+
+            let head = route_points[0];
+            let tail = route_points.into_iter().skip(1).collect();
+            let nodes = NonEmpty::from_head_and_tail(head, tail);
 
             // Calculate total cost (sum of segment lengths)
-            let cost = nodes
-                .windows(2)
-                .map(|pair| pair[0].manhattan_distance(&pair[1]))
-                .sum();
+            let mut cost = 0u32;
+            let points: Vec<_> = nodes.iter().cloned().collect();
+            for i in 1..points.len() {
+                cost += points[i - 1].manhattan_distance(&points[i]);
+            }
 
             Ok(RoutePath::new(nodes, cost))
         }
@@ -239,17 +238,7 @@ mod ffi_impl {
     impl Drop for LibavoidRouter {
         fn drop(&mut self) {
             if !self.router.is_null() {
-                // Clean up all obstacles
-                for shape_id in self.obstacles.values() {
-                    unsafe { avoid_router_delete_shape(self.router, *shape_id) };
-                }
-
-                // Clean up all connectors
-                for conn_id in self.connectors.values() {
-                    unsafe { avoid_router_delete_connector(self.router, *conn_id) };
-                }
-
-                // Delete the router
+                // Delete the router - it will clean up all shapes and connectors
                 unsafe { avoid_router_delete(self.router) };
             }
         }
@@ -271,7 +260,7 @@ mod ffi_impl {
 
     /// Converts libavoid Point to our Point.
     fn point_from_libavoid(point: &AvoidPoint) -> Point {
-        Point::new(point.x as i64, point.y as i64)
+        Point::new(point.x as u32, point.y as u32)
     }
 
     /// Converts our Rectangle to libavoid Rectangle.
@@ -279,8 +268,8 @@ mod ffi_impl {
         AvoidRectangle {
             min_x: rect.x as f64,
             min_y: rect.y as f64,
-            max_x: (rect.x + rect.width as i64) as f64,
-            max_y: (rect.y + rect.height as i64) as f64,
+            max_x: (rect.x + rect.width) as f64,
+            max_y: (rect.y + rect.height) as f64,
         }
     }
 }

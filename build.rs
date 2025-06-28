@@ -51,10 +51,10 @@ fn build_libavoid() {
         build.file(source);
     }
 
-    build.compile("libavoid");
+    build.compile("avoid");
 
     // Tell cargo to link against our library
-    println!("cargo:rustc-link-lib=static=libavoid");
+    println!("cargo:rustc-link-lib=static=avoid");
     println!("cargo:rustc-link-lib=dylib=stdc++");
 
     // Re-run if any libavoid files change
@@ -72,7 +72,7 @@ fn build_c_wrapper() {
         .include(libavoid_dir)
         .include(cola_dir)
         .include("src/routing")
-        .compile("libavoid_c_wrapper");
+        .compile("avoid_c_wrapper");
 
     println!("cargo:rerun-if-changed=src/routing/libavoid_c_wrapper.cpp");
     println!("cargo:rerun-if-changed=src/routing/libavoid_c_wrapper.h");
