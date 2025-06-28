@@ -338,4 +338,3 @@ mod tests {
         assert_eq!(config.obstacle_margin, 10.0);
     }
 }
-

@@ -71,4 +71,3 @@ unsafe extern "C" {
     ) -> c_int;
     pub fn avoid_free_points(points: *mut AvoidPoint);
 }
-

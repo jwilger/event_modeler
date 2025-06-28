@@ -77,4 +77,3 @@ fn build_c_wrapper() {
     println!("cargo:rerun-if-changed=src/routing/libavoid_c_wrapper.cpp");
     println!("cargo:rerun-if-changed=src/routing/libavoid_c_wrapper.h");
 }
-
