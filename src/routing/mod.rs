@@ -3,9 +3,11 @@
 //! This module provides orthogonal connector routing functionality
 //! using the libavoid library for collision-free path finding.
 
+mod event_model_router;
 mod libavoid_ffi;
 mod libavoid_wrapper;
 
+pub use event_model_router::{ConnectionId, EntityPosition, EventModelRouter};
 pub use libavoid_wrapper::{LibavoidRouter, ObstacleId, Result, RoutingConfig, RoutingError};
 
 // Re-export routing types from diagram module for convenience

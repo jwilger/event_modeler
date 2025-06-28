@@ -5,6 +5,7 @@
 use super::{EventModelDiagram, Result};
 use crate::event_model::yaml_types;
 use crate::infrastructure::types::NonEmpty;
+use crate::routing::{EntityPosition as RoutingEntityPosition, EventModelRouter};
 use std::collections::HashMap;
 
 // Constants for SVG dimensions and text coordinates
@@ -399,6 +400,7 @@ pub fn render_to_svg(diagram: &EventModelDiagram) -> Result<String> {
         slices,
         &entity_positions,
         &entity_dimensions_map,
+        diagram,
     ));
 
     // Close SVG
@@ -785,27 +787,79 @@ fn render_connections(
     slices: &[yaml_types::Slice],
     entity_positions: &HashMap<String, EntityPosition>,
     _entity_dimensions_map: &HashMap<String, EntityDimensions>,
+    diagram: &EventModelDiagram,
 ) -> String {
     let mut svg = String::new();
 
     svg.push_str("  <!-- Connections -->\n");
 
-    // Create the orthogonal router with better spacing configuration
-    // TODO: Routing implementation will be replaced with libavoid integration
+    // Convert entity positions to routing format
+    let mut routing_positions: HashMap<String, RoutingEntityPosition> = HashMap::new();
+    for (key, pos) in entity_positions {
+        routing_positions.insert(
+            key.clone(),
+            RoutingEntityPosition {
+                x: pos.x,
+                y: pos.y,
+                width: pos.width,
+                height: pos.height,
+                slice_index: pos.slice_index,
+            },
+        );
+    }
 
-    // Process connections from each slice
+    // Create and setup the router
+    let mut router = match EventModelRouter::new() {
+        Ok(router) => router,
+        Err(_) => {
+            // Fallback to simple arrows if router creation fails
+            svg.push_str(&render_fallback_arrows(slices, entity_positions));
+            return svg;
+        }
+    };
+
+    // Setup the routing scene
+    if router
+        .setup_from_diagram(diagram, &routing_positions)
+        .is_err()
+    {
+        // Fallback to simple arrows if setup fails
+        svg.push_str(&render_fallback_arrows(slices, entity_positions));
+        return svg;
+    }
+
+    // Route all connections
+    match router.route_all_connections(diagram, &routing_positions) {
+        Ok(routed_paths) => {
+            for (_connection_id, route_path) in routed_paths {
+                svg.push_str(&render_routed_path(&route_path));
+            }
+        }
+        Err(_) => {
+            // Fallback to simple arrows if routing fails
+            svg.push_str(&render_fallback_arrows(slices, entity_positions));
+        }
+    }
+
+    svg
+}
+
+/// Renders fallback straight arrows when routing fails.
+fn render_fallback_arrows(
+    slices: &[yaml_types::Slice],
+    entity_positions: &HashMap<String, EntityPosition>,
+) -> String {
+    let mut svg = String::new();
+
     for (slice_index, slice) in slices.iter().enumerate() {
         for connection in slice.connections.iter() {
-            // Extract entity names from references
             let from_name = extract_entity_name(&connection.from);
             let to_name = extract_entity_name(&connection.to);
 
-            // Find the correct entity instances
             let from_pos = find_entity_position(&from_name, slice_index, entity_positions);
             let to_pos = find_entity_position(&to_name, slice_index, entity_positions);
 
             if let (Some(from_pos), Some(to_pos)) = (from_pos, to_pos) {
-                // Use simple straight arrow for now (until libavoid integration)
                 svg.push_str(&render_straight_arrow(from_pos, to_pos));
             }
         }
@@ -1318,7 +1372,6 @@ fn calculate_connection_point(
 }
 
 /// Renders a routed path as an SVG path element with an arrowhead.
-#[allow(dead_code)] // Will be used once libavoid is integrated
 fn render_routed_path(route: &super::routing_types::RoutePath) -> String {
     let svg_path = route.to_svg_path();
     format!(

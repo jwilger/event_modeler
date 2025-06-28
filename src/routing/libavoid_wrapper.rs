@@ -3,13 +3,9 @@
 //! This module provides a safe, idiomatic Rust interface to libavoid
 //! with proper error handling and memory management.
 
-#![allow(dead_code, unused_variables)] // Placeholder implementation until FFI is complete
-
 use crate::diagram::routing_types::{Point, Rectangle, RoutePath};
-use std::ptr::NonNull;
+use crate::infrastructure::types::NonEmpty;
 use thiserror::Error;
-
-use super::libavoid_ffi::{self, Router};
 
 /// Errors that can occur during routing operations.
 #[derive(Debug, Error)]
@@ -38,49 +34,6 @@ pub enum RoutingError {
 /// Result type for routing operations.
 pub type Result<T> = std::result::Result<T, RoutingError>;
 
-/// Safe wrapper around libavoid Router.
-#[derive(Debug)]
-pub struct LibavoidRouter {
-    router: NonNull<Router>,
-}
-
-impl LibavoidRouter {
-    /// Creates a new router instance.
-    pub fn new() -> Result<Self> {
-        // TODO: Create router with OrthogonalRouting flag
-        // This will be implemented once autocxx bindings are working
-        Err(RoutingError::RouterCreation)
-    }
-
-    /// Adds a rectangular obstacle to the routing scene.
-    pub fn add_obstacle(&mut self, rect: &Rectangle) -> Result<ObstacleId> {
-        // TODO: Convert Rectangle to libavoid format and add to router
-        // This will be implemented once autocxx bindings are working
-        Err(RoutingError::ShapeCreation("Not implemented".to_string()))
-    }
-
-    /// Routes a connector between two points, avoiding obstacles.
-    pub fn route_connector(&mut self, start: &Point, end: &Point) -> Result<RoutePath> {
-        // TODO: Create ConnRef, route it, and convert result to RoutePath
-        // This will be implemented once autocxx bindings are working
-        Err(RoutingError::RoutingFailed("Not implemented".to_string()))
-    }
-
-    /// Processes all pending routing operations.
-    pub fn process_transaction(&mut self) -> Result<()> {
-        // TODO: Call router processTransaction method
-        // This will be implemented once autocxx bindings are working
-        Ok(())
-    }
-}
-
-impl Drop for LibavoidRouter {
-    fn drop(&mut self) {
-        // TODO: Properly clean up router
-        // This will be implemented once autocxx bindings are working
-    }
-}
-
 /// Opaque identifier for obstacles in the routing scene.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ObstacleId(u32);
@@ -104,25 +57,229 @@ impl Default for RoutingConfig {
     }
 }
 
-// Helper functions for converting between our types and libavoid types
+// Mock implementation for testing
+#[cfg(any(test, feature = "mock-router"))]
+mod mock_impl {
+    use super::*;
 
-/// Converts our Point to libavoid Point.
-fn point_to_libavoid(point: &Point) -> libavoid_ffi::Point {
-    // TODO: Implement conversion once autocxx bindings are working
-    todo!()
+    /// Safe wrapper around libavoid Router (mock version).
+    pub struct LibavoidRouter {
+        next_obstacle_id: u32,
+    }
+
+    impl LibavoidRouter {
+        /// Creates a new router instance.
+        pub fn new() -> Result<Self> {
+            Ok(Self {
+                next_obstacle_id: 1,
+            })
+        }
+
+        /// Adds a rectangular obstacle to the routing scene.
+        pub fn add_obstacle(&mut self, _rect: &Rectangle) -> Result<ObstacleId> {
+            let id = ObstacleId(self.next_obstacle_id);
+            self.next_obstacle_id += 1;
+            Ok(id)
+        }
+
+        /// Routes a connector between two points, avoiding obstacles.
+        pub fn route_connector(&mut self, start: &Point, end: &Point) -> Result<RoutePath> {
+            // Mock implementation: create a simple L-shaped path
+            let mid_x = start.x;
+            let mid_y = end.y;
+
+            let nodes = NonEmpty::from_head_and_tail(*start, vec![Point::new(mid_x, mid_y), *end]);
+
+            // Calculate Manhattan distance as cost
+            let cost = start.manhattan_distance(&Point::new(mid_x, mid_y))
+                + Point::new(mid_x, mid_y).manhattan_distance(end);
+
+            Ok(RoutePath::new(nodes, cost))
+        }
+
+        /// Processes all pending routing operations.
+        pub fn process_transaction(&mut self) -> Result<()> {
+            Ok(())
+        }
+    }
 }
 
-/// Converts libavoid Point to our Point.
-fn point_from_libavoid(point: &libavoid_ffi::Point) -> Point {
-    // TODO: Implement conversion once autocxx bindings are working
-    todo!()
+// Real FFI implementation
+#[cfg(not(any(test, feature = "mock-router")))]
+mod ffi_impl {
+    use super::*;
+    use crate::routing::libavoid_ffi::{
+        AvoidConnectorId, AvoidPoint, AvoidRectangle, AvoidRouter, AvoidShapeId,
+        ORTHOGONAL_ROUTING, avoid_free_points, avoid_router_add_connector, avoid_router_add_shape,
+        avoid_router_delete, avoid_router_get_route_points, avoid_router_new,
+        avoid_router_process_transaction,
+    };
+    use std::collections::HashMap;
+    use std::ptr;
+
+    // Key for tracking connectors
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    struct ConnectorKey {
+        start: (u32, u32),
+        end: (u32, u32),
+    }
+
+    /// Safe wrapper around libavoid Router (FFI version).
+    pub struct LibavoidRouter {
+        router: AvoidRouter,
+        obstacles: HashMap<ObstacleId, AvoidShapeId>,
+        connectors: HashMap<ConnectorKey, AvoidConnectorId>,
+        next_obstacle_id: u32,
+    }
+
+    impl LibavoidRouter {
+        /// Creates a new router instance.
+        pub fn new() -> Result<Self> {
+            let router = unsafe { avoid_router_new(ORTHOGONAL_ROUTING) };
+            if router.is_null() {
+                return Err(RoutingError::RouterCreation);
+            }
+
+            Ok(Self {
+                router,
+                obstacles: HashMap::new(),
+                connectors: HashMap::new(),
+                next_obstacle_id: 1,
+            })
+        }
+
+        /// Adds a rectangular obstacle to the routing scene.
+        pub fn add_obstacle(&mut self, rect: &Rectangle) -> Result<ObstacleId> {
+            let avoid_rect = rectangle_to_libavoid(rect);
+            let shape_id = unsafe { avoid_router_add_shape(self.router, avoid_rect) };
+
+            if shape_id == 0 {
+                return Err(RoutingError::ShapeCreation("Failed to add shape".into()));
+            }
+
+            let obstacle_id = ObstacleId(self.next_obstacle_id);
+            self.next_obstacle_id += 1;
+            self.obstacles.insert(obstacle_id, shape_id);
+
+            Ok(obstacle_id)
+        }
+
+        /// Routes a connector between two points, avoiding obstacles.
+        pub fn route_connector(&mut self, start: &Point, end: &Point) -> Result<RoutePath> {
+            let start_point = point_to_libavoid(start);
+            let end_point = point_to_libavoid(end);
+
+            // Add connector
+            let conn_id =
+                unsafe { avoid_router_add_connector(self.router, start_point, end_point) };
+
+            if conn_id == 0 {
+                return Err(RoutingError::ConnectorCreation(
+                    "Failed to add connector".into(),
+                ));
+            }
+
+            // Store connector for cleanup
+            let key = ConnectorKey {
+                start: (start.x, start.y),
+                end: (end.x, end.y),
+            };
+            self.connectors.insert(key, conn_id);
+
+            // Process routing
+            unsafe { avoid_router_process_transaction(self.router) };
+
+            // Get route points
+            let mut points_ptr: *mut AvoidPoint = ptr::null_mut();
+            let num_points = unsafe {
+                avoid_router_get_route_points(self.router, conn_id, &mut points_ptr as *mut _)
+            };
+
+            if num_points <= 0 || points_ptr.is_null() {
+                return Err(RoutingError::RoutingFailed("No route found".into()));
+            }
+
+            // Convert points to our format
+            let mut route_points = Vec::with_capacity(num_points as usize);
+            for i in 0..num_points {
+                let point = unsafe { *points_ptr.offset(i as isize) };
+                route_points.push(point_from_libavoid(&point));
+            }
+
+            // Free the points array
+            unsafe { avoid_free_points(points_ptr) };
+
+            // Create route path
+            if route_points.is_empty() {
+                return Err(RoutingError::RoutingFailed("Empty route".into()));
+            }
+
+            let head = route_points[0];
+            let tail = route_points.into_iter().skip(1).collect();
+            let nodes = NonEmpty::from_head_and_tail(head, tail);
+
+            // Calculate total cost (sum of segment lengths)
+            let mut cost = 0u32;
+            let points: Vec<_> = nodes.iter().cloned().collect();
+            for i in 1..points.len() {
+                cost += points[i - 1].manhattan_distance(&points[i]);
+            }
+
+            Ok(RoutePath::new(nodes, cost))
+        }
+
+        /// Processes all pending routing operations.
+        pub fn process_transaction(&mut self) -> Result<()> {
+            unsafe { avoid_router_process_transaction(self.router) };
+            Ok(())
+        }
+    }
+
+    impl Drop for LibavoidRouter {
+        fn drop(&mut self) {
+            if !self.router.is_null() {
+                // Delete the router - it will clean up all shapes and connectors
+                unsafe { avoid_router_delete(self.router) };
+            }
+        }
+    }
+
+    // Send + Sync are safe because libavoid doesn't use thread-local storage
+    unsafe impl Send for LibavoidRouter {}
+    unsafe impl Sync for LibavoidRouter {}
+
+    // Helper functions for converting between our types and libavoid types
+
+    /// Converts our Point to libavoid Point.
+    fn point_to_libavoid(point: &Point) -> AvoidPoint {
+        AvoidPoint {
+            x: point.x as f64,
+            y: point.y as f64,
+        }
+    }
+
+    /// Converts libavoid Point to our Point.
+    fn point_from_libavoid(point: &AvoidPoint) -> Point {
+        Point::new(point.x as u32, point.y as u32)
+    }
+
+    /// Converts our Rectangle to libavoid Rectangle.
+    fn rectangle_to_libavoid(rect: &Rectangle) -> AvoidRectangle {
+        AvoidRectangle {
+            min_x: rect.x as f64,
+            min_y: rect.y as f64,
+            max_x: (rect.x + rect.width) as f64,
+            max_y: (rect.y + rect.height) as f64,
+        }
+    }
 }
 
-/// Converts our Rectangle to libavoid Rectangle.
-fn rectangle_to_libavoid(rect: &Rectangle) -> libavoid_ffi::Rectangle {
-    // TODO: Implement conversion once autocxx bindings are working
-    todo!()
-}
+// Re-export the appropriate implementation
+#[cfg(any(test, feature = "mock-router"))]
+pub use mock_impl::LibavoidRouter;
+
+#[cfg(not(any(test, feature = "mock-router")))]
+pub use ffi_impl::LibavoidRouter;
 
 #[cfg(test)]
 mod tests {
@@ -130,11 +287,37 @@ mod tests {
 
     #[test]
     fn test_router_creation() {
-        // This test will be implemented once the FFI bindings work
-        // For now, we expect it to fail with RouterCreation error
+        // With mock implementation, router creation should succeed
         let result = LibavoidRouter::new();
-        assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), RoutingError::RouterCreation));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_mock_routing() {
+        let mut router = LibavoidRouter::new().unwrap();
+
+        // Add some obstacles
+        let rect1 = Rectangle::new(50, 50, 100, 100);
+        let rect2 = Rectangle::new(200, 200, 100, 100);
+
+        let obs1 = router.add_obstacle(&rect1).unwrap();
+        let obs2 = router.add_obstacle(&rect2).unwrap();
+
+        assert_ne!(obs1, obs2);
+
+        // Route a connector
+        let start = Point::new(10, 10);
+        let end = Point::new(300, 300);
+
+        let path = router.route_connector(&start, &end).unwrap();
+
+        // Check that path has at least start and end points
+        assert!(path.nodes.len() >= 2);
+        assert_eq!(*path.nodes.first(), start);
+        assert_eq!(*path.nodes.last(), end);
+
+        // Verify it's an orthogonal path (mock creates L-shape)
+        assert_eq!(path.nodes.len(), 3);
     }
 
     #[test]

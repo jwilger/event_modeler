@@ -33,9 +33,23 @@
             nodejs_22
             glow
             jq
+            # C++ build dependencies for libavoid
+            clang
+            llvmPackages.libclang
+            pkg-config
+            # Standard C++ library
+            stdenv.cc.cc.lib
           ];
 
           RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library";
+          
+          # Required for autocxx to find libclang
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+          
+          # Set up library paths for the linker
+          LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
+            pkgs.stdenv.cc.cc.lib
+          ];
         };
       }
     );

@@ -18,7 +18,7 @@
       "assign_issue_on_status_change": "auto",
       "request_review_when_pr_ready": "suggest"
     },
-    "currentIssue": 143,
-    "currentBranch": "feature/phase-71-libavoid-integration-setup-143"
+    "currentIssue": 144,
+    "currentBranch": "feature/phase-72-event-model-integration-144"
   }
 }

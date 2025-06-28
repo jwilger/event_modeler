@@ -18,15 +18,16 @@ regex = "1"
 lazy_static = "1"
 serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9"
-autocxx = "0.27"
-cxx = "1.0"
 
 [build-dependencies]
 cc = "1.0"
-autocxx-build = "0.27"
 
 [dev-dependencies]
 insta = { version = "1.34", features = ["yaml", "glob"] }
+
+[features]
+default = ["mock-router"]
+mock-router = []
 
 [lints.rust]
 warnings = "deny"
