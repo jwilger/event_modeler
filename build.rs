@@ -3,15 +3,16 @@
 use std::path::Path;
 
 fn main() {
-    // TODO: Re-enable once libavoid submodule is initialized
-    // Build libavoid from source
-    // build_libavoid();
+    // Only build libavoid if we're not using the mock router
+    if !cfg!(feature = "mock-router") {
+        // Build libavoid from source
+        build_libavoid();
 
-    // TODO: Generate C++ bindings once libclang is available
-    // generate_bindings();
+        // Build our C wrapper
+        build_c_wrapper();
+    }
 }
 
-#[allow(dead_code)]
 fn build_libavoid() {
     let libavoid_dir = Path::new("vendor/adaptagrams/cola/libavoid");
 
@@ -60,18 +61,20 @@ fn build_libavoid() {
     println!("cargo:rerun-if-changed=vendor/adaptagrams/cola/libavoid");
 }
 
-// TODO: Implement generate_bindings() once libclang is available
-/*
-fn generate_bindings() {
-    let libavoid_dir = PathBuf::from("vendor/adaptagrams/cola/libavoid");
+fn build_c_wrapper() {
+    let libavoid_dir = Path::new("vendor/adaptagrams/cola/libavoid");
+    let cola_dir = Path::new("vendor/adaptagrams/cola");
 
-    let mut b = autocxx_build::Builder::new("src/routing/libavoid_ffi.rs", [&libavoid_dir])
-        .build()
-        .expect("Failed to build autocxx bindings");
+    cc::Build::new()
+        .cpp(true)
+        .std("c++11")
+        .file("src/routing/libavoid_c_wrapper.cpp")
+        .include(libavoid_dir)
+        .include(cola_dir)
+        .include("src/routing")
+        .compile("libavoid_c_wrapper");
 
-    b.flag_if_supported("-std=c++11")
-     .compile("autocxx-libavoid-bindings");
-
-    println!("cargo:rerun-if-changed=src/routing/libavoid_ffi.rs");
+    println!("cargo:rerun-if-changed=src/routing/libavoid_c_wrapper.cpp");
+    println!("cargo:rerun-if-changed=src/routing/libavoid_c_wrapper.h");
 }
-*/
+

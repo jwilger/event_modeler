@@ -1,50 +1,74 @@
-//! FFI bindings for libavoid using autocxx.
+//! FFI bindings for libavoid using C wrapper.
 //!
 //! This module provides safe Rust bindings to the libavoid C++ library
-//! for orthogonal connector routing.
+//! for orthogonal connector routing through a C wrapper interface.
 
-#![allow(dead_code)] // Placeholder types until autocxx is enabled
+#![allow(non_camel_case_types)]
+#![allow(dead_code)] // FFI code is only used when mock-router feature is disabled
 
-// TODO: Enable autocxx bindings once libclang is available
-// Current issue: autocxx requires libclang but it's not available in the build environment
+use std::os::raw::{c_double, c_int, c_uint};
 
-/*
-use autocxx::prelude::*;
+/// Opaque pointer type for the libavoid router
+pub enum AvoidRouterOpaque {}
+pub type AvoidRouter = *mut AvoidRouterOpaque;
 
-include_cpp! {
-    #include "libavoid/libavoid.h"
+/// Shape ID type
+pub type AvoidShapeId = c_uint;
 
-    safety!(unsafe_ffi)
+/// Connector ID type
+pub type AvoidConnectorId = c_uint;
 
-    generate!("Avoid::Router")
-    generate!("Avoid::ShapeRef")
-    generate!("Avoid::ConnRef")
-    generate!("Avoid::ConnEnd")
-    generate!("Avoid::Point")
-    generate!("Avoid::Rectangle")
-    generate!("Avoid::Polygon")
-    generate!("Avoid::RouterFlag")
-    generate!("Avoid::ConnType")
-    generate!("Avoid::RoutingParameter")
+/// Point structure matching C definition
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct AvoidPoint {
+    pub x: c_double,
+    pub y: c_double,
 }
 
-use ffi::*;
+/// Rectangle structure matching C definition
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct AvoidRectangle {
+    pub min_x: c_double,
+    pub min_y: c_double,
+    pub max_x: c_double,
+    pub max_y: c_double,
+}
 
-/// Re-export the FFI types for easier access
-pub use ffi::Avoid_Router as Router;
-pub use ffi::Avoid_ShapeRef as ShapeRef;
-pub use ffi::Avoid_ConnRef as ConnRef;
-pub use ffi::Avoid_ConnEnd as ConnEnd;
-pub use ffi::Avoid_Point as Point;
-pub use ffi::Avoid_Rectangle as Rectangle;
-pub use ffi::Avoid_Polygon as Polygon;
-*/
+// Routing flags from libavoid
+pub const POLYLINE_ROUTING: c_uint = 1;
+pub const ORTHOGONAL_ROUTING: c_uint = 2;
 
-// Placeholder types until autocxx bindings are enabled
-pub struct Router;
-pub struct ShapeRef;
-pub struct ConnRef;
-pub struct ConnEnd;
-pub struct Point;
-pub struct Rectangle;
-pub struct Polygon;
+#[cfg_attr(not(feature = "mock-router"), link(name = "avoid_c_wrapper"))]
+#[cfg_attr(not(feature = "mock-router"), link(name = "avoid"))]
+#[cfg_attr(not(feature = "mock-router"), link(name = "stdc++"))]
+unsafe extern "C" {
+    // Router creation and destruction
+    pub fn avoid_router_new(flags: c_uint) -> AvoidRouter;
+    pub fn avoid_router_delete(router: AvoidRouter);
+
+    // Shape management
+    pub fn avoid_router_add_shape(router: AvoidRouter, rect: AvoidRectangle) -> AvoidShapeId;
+    pub fn avoid_router_delete_shape(router: AvoidRouter, shape_id: AvoidShapeId);
+
+    // Connector management
+    pub fn avoid_router_add_connector(
+        router: AvoidRouter,
+        start: AvoidPoint,
+        end: AvoidPoint,
+    ) -> AvoidConnectorId;
+    pub fn avoid_router_delete_connector(router: AvoidRouter, conn_id: AvoidConnectorId);
+
+    // Routing
+    pub fn avoid_router_process_transaction(router: AvoidRouter);
+
+    // Get route points
+    pub fn avoid_router_get_route_points(
+        router: AvoidRouter,
+        conn_id: AvoidConnectorId,
+        points: *mut *mut AvoidPoint,
+    ) -> c_int;
+    pub fn avoid_free_points(points: *mut AvoidPoint);
+}
+
